@@ -1,30 +1,17 @@
-import Hero from "../components/landing/Hero";
-import Features from "../components/landing/Features";
-import Solutions from "../components/landing/Solutions";
-import TrustSection from "../components/landing/TrustSection";
-import Footer from "../components/landing/Footer";
-export default function Home() {
+import { Navbar } from "@/components/Navbar";
+import { Hero } from "@/components/Hero";
+import { Features } from "@/components/Features";
+import { Footer } from "@/components/Footer";
+
+export const Home = () => {
   return (
-    <div>
-      {/* HERO (its own background) */}
-      <Hero />
-
-      {/* GLOBAL BACKGROUND FROM HERE DOWN */}
-      <div
-        className="min-h-screen w-full bg-cover bg-no-repeat bg-top bg-fixed"
-        style={{ backgroundImage: "url('/hero-second.jpg')" }}
-      >
-        <div className="relative">
-  <div className="absolute inset-0 bg-white/60 backdrop-blur-sm"></div>
-  {/* content goes inside */}
-</div>
-
+    <div className="font-sans antialiased bg-white selection:bg-blue-100 selection:text-blue-900">
+      <Navbar />
+      <main>
+        <Hero />
         <Features />
-        <Solutions />
-        <TrustSection />
-        <Footer />
-     
-      </div>
+      </main>
+      <Footer />
     </div>
   );
-}
+};

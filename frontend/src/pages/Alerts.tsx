@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { 
-  LayoutDashboard, Bell, FileText, Calendar, 
-  MessageSquare, LogOut, Filter, ChevronRight
+  Filter, ChevronRight
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import Sidebar from "../components/Sidebar";
 
 export const Alerts = () => {
-  const location = useLocation();
-  const isActive = (path: string) => location.pathname === path;
-  
   const [activeTab, setActiveTab] = useState<'new' | 'old'>('new');
 
   // Mock Data matching your screenshot
@@ -63,31 +60,7 @@ export const Alerts = () => {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex font-sans">
-      
-      {/* --- SIDEBAR (Shared Layout) --- */}
-      <aside className="w-64 bg-white border-r border-gray-100 hidden md:flex flex-col fixed h-full z-10">
-        <div className="p-6 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
-            R
-          </div>
-          <span className="text-xl font-extrabold text-gray-900">RegIntel</span>
-        </div>
-
-        <nav className="flex-1 px-4 space-y-2 mt-4">
-          <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={isActive('/dashboard')} />
-          <NavItem to="/alerts" icon={Bell} label="Alerts" active={isActive('/alerts')} />
-          <NavItem to="/publications" icon={FileText} label="Publications" active={isActive('/publications')} />
-          <NavItem to="/deadlines" icon={Calendar} label="Deadlines" active={isActive('/deadlines')} />
-          <NavItem to="/feedback" icon={MessageSquare} label="Feedback" active={isActive('/feedback')} />
-        </nav>
-
-        <div className="p-4 border-t border-gray-50">
-          <Link to="/login" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition-colors">
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Logout</span>
-          </Link>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* --- MAIN CONTENT --- */}
       <main className="flex-1 md:ml-64 p-4 sm:p-8">
@@ -187,19 +160,3 @@ export const Alerts = () => {
   );
 };
 
-// Sidebar Helper
-const NavItem = ({ to, icon: Icon, label, active = false }: any) => (
-  <Link 
-    to={to} 
-    className={`
-      flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-200
-      ${active 
-        ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30" 
-        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-      }
-    `}
-  >
-    <Icon className="w-5 h-5" />
-    <span>{label}</span>
-  </Link>
-);

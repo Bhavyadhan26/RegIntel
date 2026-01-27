@@ -3,9 +3,11 @@ import { Home } from "@/pages/Home";
 import { Signup } from "@/pages/Signup";
 import { Login } from "@/pages/Login";
 import { ProfessionSelection } from "@/pages/ProfessionSelection";
-import { Dashboard } from "@/pages/Dashboard"; // <--- Import
-import { Alerts } from "@/pages/Alerts";       // <--- Import
-import { Deadlines } from "@/pages/Deadlines"; // <--- Import
+import { Dashboard } from "@/pages/Dashboard";
+import { Alerts } from "@/pages/Alerts";
+import Feedback from '@/pages/Feedback';
+import Deadlines from "@/pages/Deadlines";
+import Publications from "@/pages/Publications";
 
 function App() {
   return (
@@ -18,8 +20,10 @@ function App() {
         
         {/* DASHBOARD ROUTES */}
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/publications" element={<Publications />} /> {/* <--- 2. Add the Route */}
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/deadlines" element={<Deadlines />} />
+        <Route path="/feedback" element={<Feedback />} />
       </Routes>
     </BrowserRouter>
   );

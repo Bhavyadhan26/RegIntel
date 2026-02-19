@@ -1,53 +1,67 @@
-import { LayoutDashboard, Bell, FileText, Calendar, MessageSquare, LogOut } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Bell, FileText, Calendar, MessageSquare, LogOut, Home } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userProfile');
+    navigate('/');
+  };
 
   const menuItems = [
-    { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
-    { name: 'Alerts', icon: <Bell size={20} />, path: '/alerts' },
-    { name: 'Publications', icon: <FileText size={20} />, path: '/publications' },
-    { name: 'Deadlines', icon: <Calendar size={20} />, path: '/deadlines' },
-    { name: 'Feedback', icon: <MessageSquare size={20} />, path: '/feedback' },
+    { name: 'Dashboard', icon: <LayoutDashboard size={18} />, path: '/dashboard' },
+    { name: 'Alerts', icon: <Bell size={18} />, path: '/alerts' },
+    { name: 'Publications', icon: <FileText size={18} />, path: '/publications' },
+    { name: 'Deadlines', icon: <Calendar size={18} />, path: '/deadlines' },
+    { name: 'Feedback', icon: <MessageSquare size={18} />, path: '/feedback' },
   ];
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col fixed left-0 top-0">
-      {/* Logo Section */}
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex items-center justify-center text-white font-bold">
-          R
-        </div>
-        <span className="text-xl font-bold text-slate-800">RegIntel</span>
+    <div className="w-[240px] bg-dark-900 border-r border-dark-700/50 min-h-screen flex flex-col fixed left-0 top-0">
+      {/* Logo */}
+      <div className="px-5 pt-6 pb-5 flex items-center gap-2.5">
+        <img src="/logo.png" alt="RegIntel" className="w-9 h-9 rounded-lg" />
+        <span className="text-base font-semibold text-white tracking-tight">RegIntel</span>
       </div>
 
-      {/* Navigation Links */}
-      <nav className="flex-1 px-4 space-y-2 mt-4">
+      {/* Nav */}
+      <nav className="flex-1 px-3 mt-2 space-y-0.5">
         {menuItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const active = location.pathname === item.path;
           return (
             <Link
               key={item.name}
               to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[15px] font-medium transition-all ${active
+                  ? 'bg-dark-700 text-white'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-dark-800'
+                }`}
             >
               {item.icon}
               {item.name}
+              {active && <span className="ml-auto w-1.5 h-1.5 bg-accent-purple rounded-full" />}
             </Link>
           );
         })}
       </nav>
 
-      {/* Logout Section */}
-      <div className="p-4 border-t border-gray-100">
-        <button className="flex items-center gap-3 px-4 py-3 w-full text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium">
-          <LogOut size={20} />
-          Logout
+      {/* Bottom */}
+      <div className="px-3 pb-5 border-t border-dark-700/50 pt-3 space-y-0.5">
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-3 px-3.5 py-2.5 w-full text-gray-500 hover:text-gray-300 hover:bg-dark-800 rounded-lg text-[15px] font-medium transition-all"
+        >
+          <Home size={18} /> Back to Home
+        </button>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-3.5 py-2.5 w-full text-gray-500 hover:text-red-400 hover:bg-red-500/5 rounded-lg text-[15px] font-medium transition-all"
+        >
+          <LogOut size={18} /> Logout
         </button>
       </div>
     </div>

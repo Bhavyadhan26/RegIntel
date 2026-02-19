@@ -5,7 +5,7 @@ import { Footer } from "@/components/Footer";
 
 export const Home = () => {
   return (
-    <div className="font-sans antialiased bg-white selection:bg-blue-100 selection:text-blue-900">
+    <div className="font-sans bg-dark-950 min-h-screen">
       <Navbar />
       <main>
         <Hero />

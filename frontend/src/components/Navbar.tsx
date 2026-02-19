@@ -1,64 +1,50 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
-import { Link } from "react-router-dom"; // Import Link for navigation
+import { Link } from "react-router-dom";
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? "bg-slate-900/95 backdrop-blur-md shadow-sm py-4" : "bg-transparent py-6"}`}>
-      <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-        
-        {/* --- LOGO --- */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-xl shadow-sm group-hover:scale-105 transition-transform">
-            R
-          </div>
-          <span className={`text-xl font-bold tracking-tight transition-colors ${scrolled ? "text-white" : "text-white"}`}>
-            RegIntel
-          </span>
+    <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? "bg-dark-950/90 backdrop-blur-md border-b border-dark-600/50" : "bg-transparent"
+      } py-4`}>
+      <div className="max-w-6xl mx-auto px-6 flex justify-between items-center">
+        <Link to="/" className="flex items-center gap-2.5">
+          <img src="/logo.png" alt="RegIntel" className="w-9 h-9 rounded-lg" />
+          <span className="text-lg font-semibold text-white tracking-tight">RegIntel</span>
         </Link>
 
-        {/* --- DESKTOP MENU --- */}
         <div className="hidden md:flex items-center gap-8">
-          {/* Login Button -> Goes to Login Page */}
-          <Link 
-            to="/login" 
-            className={`font-medium transition-colors hover:text-blue-400 ${scrolled ? "text-blue-100" : "text-blue-100"}`}
+          <a href="#features" className="text-[15px] font-medium text-gray-400 hover:text-white transition-colors">Platform</a>
+          <a href="#professions" className="text-[15px] font-medium text-gray-400 hover:text-white transition-colors">Solutions</a>
+          <Link to="/login" className="text-[15px] font-medium text-gray-400 hover:text-white transition-colors">Resources</Link>
+          <Link
+            to="/signup"
+            className="px-5 py-2.5 border border-gray-600 text-white text-[15px] font-semibold rounded-lg hover:bg-white/5 hover:border-gray-400 transition-all"
           >
-            Login
-          </Link>
-
-          {/* Get Started Button -> Goes to Signup Page */}
-          <Link 
-            to="/signup" 
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-full shadow-md shadow-blue-600/20 hover:shadow-lg hover:scale-105 transition-all"
-          >
-            Get Started
+            Get started
           </Link>
         </div>
 
-        {/* --- MOBILE TOGGLE --- */}
-        <button className="text-white md:hidden" onClick={() => setIsOpen(!isOpen)}>
-          {isOpen ? <X /> : <Menu />}
+        <button className="md:hidden text-gray-400" onClick={() => setIsOpen(!isOpen)}>
+          {isOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 
-      {/* --- MOBILE MENU --- */}
       {isOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-slate-900 border-b border-slate-800 p-6 flex flex-col gap-4 shadow-xl">
-          <Link to="/login" className="text-blue-100 font-medium py-2 text-center hover:text-white">
-            Login
-          </Link>
-          <Link to="/signup" className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg text-center hover:bg-blue-500">
-            Get Started
+        <div className="md:hidden bg-dark-900 border-t border-dark-600 px-6 py-5 space-y-3">
+          <a href="#features" className="block text-gray-300 font-medium text-base py-2">Platform</a>
+          <a href="#professions" className="block text-gray-300 font-medium text-base py-2">Solutions</a>
+          <Link to="/login" className="block text-gray-300 font-medium text-base py-2">Resources</Link>
+          <Link to="/signup" className="block w-full py-2.5 border border-gray-600 text-white font-semibold rounded-lg text-center text-base">
+            Get started
           </Link>
         </div>
       )}

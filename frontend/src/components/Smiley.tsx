@@ -1,97 +1,57 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 
-// Add interface for props
 interface SmileyProps {
   isEyesClosed?: boolean;
 }
 
 export const Smiley = ({ isEyesClosed = false }: SmileyProps) => {
-  const [leftEyePos, setLeftEyePos] = useState({ x: 0, y: 0 });
-  const [rightEyePos, setRightEyePos] = useState({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const calculateEyePosition = (
-    eyeX: number,
-    eyeY: number,
-    mouseX: number,
-    mouseY: number
-  ) => {
-    if (!containerRef.current) return { x: 0, y: 0 };
-
-    const rect = containerRef.current.getBoundingClientRect();
-    const containerCenterX = rect.left + rect.width / 2;
-    const containerCenterY = rect.top + rect.height / 2;
-
-    const angle = Math.atan2(mouseY - (containerCenterY + eyeY), mouseX - (containerCenterX + eyeX));
-    const radius = 6; 
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-
-    return { x, y };
-  };
+  const leftPupilRef = useRef<HTMLDivElement>(null);
+  const rightPupilRef = useRef<HTMLDivElement>(null);
+  const faceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Only track mouse if eyes are OPEN
-    if (isEyesClosed) return; 
+    if (isEyesClosed) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const leftEyeOffset = { x: -14, y: -4 };
-      const rightEyeOffset = { x: 14, y: -4 };
+      if (!faceRef.current) return;
+      const rect = faceRef.current.getBoundingClientRect();
+      const faceCenterX = rect.left + rect.width / 2;
+      const faceCenterY = rect.top + rect.height / 2;
 
-      setLeftEyePos(
-        calculateEyePosition(leftEyeOffset.x, leftEyeOffset.y, e.clientX, e.clientY)
-      );
-      setRightEyePos(
-        calculateEyePosition(rightEyeOffset.x, rightEyeOffset.y, e.clientX, e.clientY)
-      );
+      const angle = Math.atan2(e.clientY - faceCenterY, e.clientX - faceCenterX);
+      const distance = 3;
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance;
+
+      [leftPupilRef, rightPupilRef].forEach((ref) => {
+        if (ref.current) ref.current.style.transform = `translate(${x}px, ${y}px)`;
+      });
     };
 
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, [isEyesClosed]); // Re-run effect when isEyesClosed changes
+  }, [isEyesClosed]);
 
   return (
-    <div 
-      ref={containerRef}
-      className="w-24 h-24 bg-gradient-to-b from-orange-300 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 relative shadow-lg shadow-orange-500/30 transition-all duration-300"
-    >
-      {/* Blush */}
-      <div className="absolute top-11 left-4 w-3 h-2 bg-red-400/30 rounded-full blur-[2px]"></div>
-      <div className="absolute top-11 right-4 w-3 h-2 bg-red-400/30 rounded-full blur-[2px]"></div>
+    <div ref={faceRef} className="w-20 h-20 mx-auto mb-5 relative bg-dark-700 border border-dark-500/50 rounded-full flex items-center justify-center shadow-lg shadow-accent-purple/10">
+      {/* Face glow */}
+      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-accent-purple/10 to-transparent" />
 
-      {/* Eyes Container */}
-      <div className="absolute top-7 flex gap-3">
-        {isEyesClosed ? (
-          // --- CLOSED EYES STATE ---
-          <>
-             <div className="w-9 h-9 flex items-center justify-center">
-               <div className="w-7 h-3 border-t-[3px] border-white/90 rounded-full translate-y-2"></div>
-             </div>
-             <div className="w-9 h-9 flex items-center justify-center">
-               <div className="w-7 h-3 border-t-[3px] border-white/90 rounded-full translate-y-2"></div>
-             </div>
-          </>
-        ) : (
-          // --- OPEN EYES STATE ---
-          <>
-            <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center relative overflow-hidden shadow-inner transition-all duration-200">
-              <div
-                className="w-3.5 h-3.5 bg-orange-600 rounded-full absolute transition-transform duration-75 ease-out"
-                style={{ transform: `translate(${leftEyePos.x}px, ${leftEyePos.y}px)` }}
-              ></div>
-            </div>
-            <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center relative overflow-hidden shadow-inner transition-all duration-200">
-              <div
-                className="w-3.5 h-3.5 bg-orange-600 rounded-full absolute transition-transform duration-75 ease-out"
-                style={{ transform: `translate(${rightEyePos.x}px, ${rightEyePos.y}px)` }}
-              ></div>
-            </div>
-          </>
-        )}
+      {/* Eyes */}
+      <div className="flex gap-3.5 relative z-10 -mt-1">
+        {[leftPupilRef, rightPupilRef].map((ref, i) => (
+          <div key={i} className="w-4 h-5 bg-dark-500 rounded-full flex items-center justify-center overflow-hidden">
+            {isEyesClosed ? (
+              <div className="w-3.5 h-px bg-gray-400 rounded-full" />
+            ) : (
+              <div ref={ref} className="w-2 h-2 bg-accent-purple rounded-full transition-transform duration-75" />
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* Smile (Changes slightly when eyes closed) */}
-      <div className={`absolute bottom-5 w-6 h-3 border-b-2 border-white/70 rounded-full transition-all duration-300 ${isEyesClosed ? "scale-x-75" : "scale-x-100"}`}></div>
+      {/* Smile */}
+      <div className="absolute bottom-[22px] left-1/2 -translate-x-1/2 w-5 h-2.5 border-b-2 border-gray-400 rounded-b-full" />
     </div>
   );
 };

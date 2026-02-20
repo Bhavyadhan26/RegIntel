@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Sidebar from '../components/Sidebar';
+import Sidebar from '../components/layout/Sidebar';
 import { MessageSquare, Star, Send } from 'lucide-react';
 
 const Feedback = () => {
@@ -11,10 +11,10 @@ const Feedback = () => {
   const feedbackTypes = ['Bug Report', 'Feature Request', 'Improvement', 'Other'];
 
   const typeColors: Record<string, string> = {
-    'Bug Report': 'bg-accent-rose/15 text-accent-rose border-accent-rose/30',
-    'Feature Request': 'bg-accent-purple/15 text-accent-purple border-accent-purple/30',
-    'Improvement': 'bg-accent-teal/15 text-accent-teal border-accent-teal/30',
-    'Other': 'bg-accent-amber/15 text-accent-amber border-accent-amber/30',
+    'Bug Report': 'bg-red-50 text-red-600 border-red-200',
+    'Feature Request': 'bg-purple-50 text-purple-600 border-purple-200',
+    'Improvement': 'bg-teal-50 text-teal-600 border-teal-200',
+    'Other': 'bg-amber-50 text-amber-600 border-amber-200',
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -26,26 +26,26 @@ const Feedback = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-dark-950">
+    <div className="flex min-h-screen bg-background font-sans">
       <Sidebar />
-      <main className="flex-1 ml-[240px] p-8">
-        <h1 className="text-2xl font-semibold text-white mb-7">Feedback</h1>
+      <main className="flex-1 ml-[260px] p-8">
+        <h1 className="text-2xl font-bold text-text-main mb-7">Feedback</h1>
 
         <div className="max-w-xl">
-          <div className="bg-dark-800/60 backdrop-blur-sm rounded-xl border border-dark-600/40 p-8">
+          <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
             <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 bg-accent-purple/15 rounded-lg flex items-center justify-center">
-                <MessageSquare className="text-accent-purple" size={24} />
+              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                <MessageSquare className="text-primary" size={24} />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">We'd love your feedback</h2>
-                <p className="text-sm text-gray-500">Help us improve RegIntel for you.</p>
+                <h2 className="text-lg font-bold text-text-main">We'd love your feedback</h2>
+                <p className="text-sm text-text-muted">Help us improve RegIntel for you.</p>
               </div>
             </div>
 
             <form onSubmit={handleSubmit}>
               <div className="mb-7">
-                <label className="block text-sm font-medium text-gray-400 mb-3">
+                <label className="block text-sm font-medium text-text-main mb-3">
                   How would you rate your experience?
                 </label>
                 <div className="flex gap-2">
@@ -61,8 +61,8 @@ const Feedback = () => {
                       <Star
                         size={28}
                         className={`transition-colors ${star <= (hoveredStar || rating)
-                          ? 'fill-accent-amber text-accent-amber'
-                          : 'fill-transparent text-dark-500'
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'fill-transparent text-gray-300'
                           }`}
                       />
                     </button>
@@ -71,7 +71,7 @@ const Feedback = () => {
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-400 mb-3">Feedback Type</label>
+                <label className="block text-sm font-medium text-text-main mb-3">Feedback Type</label>
                 <div className="flex flex-wrap gap-2.5">
                   {feedbackTypes.map((type) => (
                     <button
@@ -80,7 +80,7 @@ const Feedback = () => {
                       onClick={() => setSelectedType(type)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${selectedType === type
                         ? typeColors[type]
-                        : 'bg-dark-800 text-gray-500 border-dark-600/40 hover:bg-dark-700'
+                        : 'bg-white text-text-muted border-gray-200 hover:bg-gray-50'
                         }`}
                     >
                       {type}
@@ -90,20 +90,20 @@ const Feedback = () => {
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-400 mb-2">Your Message</label>
+                <label className="block text-sm font-medium text-text-main mb-2">Your Message</label>
                 <textarea
                   rows={4}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Tell us what's on your mind..."
-                  className="w-full px-4 py-3 rounded-lg border border-dark-600/40 bg-dark-700 focus:border-accent-purple/50 focus:ring-2 focus:ring-accent-purple/20 outline-none transition-all resize-none placeholder:text-gray-600 text-sm text-white"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white focus:border-primary/50 focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none placeholder:text-text-muted text-sm text-text-main"
                   required
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 bg-accent-purple hover:bg-accent-purple/90 text-white font-semibold text-base rounded-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-primary hover:bg-primary-hover text-white font-semibold text-base rounded-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
               >
                 <Send size={16} /> Submit Feedback
               </button>

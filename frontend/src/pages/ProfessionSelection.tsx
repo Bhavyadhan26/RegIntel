@@ -1,100 +1,107 @@
 import { useState } from "react";
 import {
-  Calculator, Scale, Briefcase, ClipboardCheck,
-  FileText, Shield, TrendingUp, Wallet,
-  BarChart3, Users, ArrowRight, Check
+  Calculator, Scale, Briefcase, Check, ArrowRight
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/Button";
 
 const professions = [
-  { id: "ca", title: "Chartered Accountant", desc: "ICAI updates, tax circulars, audit standards", icon: Calculator },
-  { id: "lawyer", title: "Lawyer", desc: "Legal amendments, court notifications", icon: Scale },
-  { id: "consultant", title: "Consultant", desc: "Cross-industry regulations, advisory updates", icon: Briefcase },
-  { id: "auditor", title: "Auditor", desc: "Auditing standards, compliance requirements", icon: ClipboardCheck },
-  { id: "tax", title: "Tax Advisor", desc: "Tax laws, filing deadlines, amendments", icon: FileText },
-  { id: "compliance", title: "Compliance Officer", desc: "Regulatory compliance, policy updates", icon: Shield },
-  { id: "reg-analyst", title: "Regulatory Analyst", desc: "Market regulations, policy analysis", icon: TrendingUp },
-  { id: "finance", title: "Finance Manager", desc: "Financial regulations, reporting standards", icon: Wallet },
-  { id: "analyst", title: "Analyst", desc: "Data analysis, regulatory trends", icon: BarChart3 },
-  { id: "risk", title: "Risk & Governance Team", desc: "Risk management, governance frameworks", icon: Users },
+  {
+    id: "ca",
+    title: "Chartered Accountant",
+    desc: "Focus on taxation, audit compliance, and financial reporting standards.",
+    icon: Calculator,
+    iconBg: "bg-blue-100 text-blue-700"
+  },
+  {
+    id: "legal",
+    title: "Legal Professional",
+    desc: "Focus on litigation, corporate law, and regulatory advisory services.",
+    icon: Scale,
+    iconBg: "bg-primary/20 text-primary"
+  },
+  {
+    id: "cs",
+    title: "Company Secretary",
+    desc: "Focus on governance, secretarial standards, and compliance management.",
+    icon: Briefcase,
+    iconBg: "bg-indigo-100 text-indigo-700"
+  },
 ];
 
 export const ProfessionSelection = () => {
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  const toggle = (id: string) =>
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+  const navigate = useNavigate();
+  const [selectedId, setSelectedId] = useState<string | null>("legal"); // Default selected for demo per image
 
   return (
-    <div className="min-h-screen bg-dark-950 font-sans">
-      {/* Top bar */}
-      <div className="bg-dark-900 border-b border-dark-600/50 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center gap-2.5">
-          <img src="/logo.png" alt="RegIntel" className="w-9 h-9 rounded-lg" />
-          <span className="text-base font-semibold text-white">RegIntel</span>
-          <span className="ml-auto text-sm text-gray-500 font-medium">Step 2 of 2</span>
+    <div className="min-h-screen bg-background font-sans flex flex-col">
+      {/* Header */}
+      <div className="px-8 py-6 flex justify-between items-center bg-transparent">
+        <Link to="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" /></svg>
+          </div>
+          <span className="text-xl font-bold text-text-main">RegIntel</span>
+        </Link>
+
+        <div className="flex gap-6 text-sm font-medium text-text-muted">
+          <button className="hover:text-text-main">Support</button>
+          <button onClick={() => navigate('/')} className="hover:text-text-main">Sign Out</button>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-3xl font-normal text-white mb-3">Pick your profession</h1>
-          <p className="text-[15px] font-medium text-gray-400 mb-10 max-w-md">
-            Select the roles that match yours. We'll customize your regulatory feed.
+      <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <h1 className="text-4xl font-bold text-text-main mb-4 tracking-tight">Welcome to RegIntel.</h1>
+          <p className="text-xl text-text-muted">
+            Tailor your regulatory intelligence experience. Which best describes your profession?
           </p>
-        </motion.div>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-28">
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl w-full mb-12">
           {professions.map((p) => {
-            const sel = selectedIds.includes(p.id);
+            const isSelected = selectedId === p.id;
             return (
-              <motion.div
+              <div
                 key={p.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                onClick={() => toggle(p.id)}
-                className={`flex items-center gap-4 p-5 rounded-xl border cursor-pointer transition-all duration-200 ${sel
-                  ? "border-accent-purple/50 bg-accent-purple/10"
-                  : "border-dark-600/40 bg-dark-800/60 hover:border-dark-400/50 hover:bg-dark-800"
-                  }`}
+                onClick={() => setSelectedId(p.id)}
+                className={`
+                                    relative p-8 rounded-xl border cursor-pointer transition-all duration-300 h-full flex flex-col
+                                    ${isSelected
+                    ? "border-primary bg-primary/5 shadow-lg shadow-primary/5"
+                    : "border-gray-200 bg-white hover:border-gray-300 shadow-sm"}
+                                `}
               >
-                <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${sel ? "bg-accent-purple text-white" : "bg-dark-700 text-gray-400"
-                  }`}>
-                  <p.icon className="w-5 h-5" />
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-6 ${p.iconBg}`}>
+                  <p.icon size={24} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-medium text-white">{p.title}</h3>
-                  <p className="text-sm text-gray-500 truncate">{p.desc}</p>
-                </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${sel ? "bg-accent-purple border-accent-purple" : "bg-transparent border-dark-500"
-                  }`}>
-                  {sel && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                </div>
-              </motion.div>
-            );
+                <h3 className="text-xl font-bold text-text-main mb-3">{p.title}</h3>
+                <p className="text-text-muted leading-relaxed mb-4 flex-1">
+                  {p.desc}
+                </p>
+
+                {isSelected && (
+                  <div className="mt-auto flex items-center gap-1.5 text-xs font-bold text-primary tracking-wider uppercase">
+                    Selected <Check size={14} strokeWidth={3} />
+                  </div>
+                )}
+              </div>
+            )
           })}
         </div>
-      </div>
 
-      {/* Bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-dark-900 border-t border-dark-600/50 py-4 px-6 z-50">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <p className="text-sm text-gray-500">
-            <span className="font-bold text-white">{selectedIds.length}</span> selected
-          </p>
-          <Link
-            to="/dashboard"
-            className={`inline-flex items-center gap-2 px-7 py-2.5 text-sm font-semibold rounded-lg transition-all ${selectedIds.length > 0
-              ? "bg-accent-purple text-white hover:bg-accent-purple/90"
-              : "bg-dark-700 text-gray-600 cursor-not-allowed"
-              }`}
-            onClick={(e) => selectedIds.length === 0 && e.preventDefault()}
+        <div className="text-center space-y-4">
+          <Button
+            size="lg"
+            className="px-8 h-12 text-base shadow-xl shadow-primary/20"
+            disabled={!selectedId}
+            onClick={() => navigate('/dashboard')}
           >
-            Continue <ArrowRight className="w-4 h-4" />
-          </Link>
+            Continue to Dashboard <ArrowRight className="ml-2 w-4 h-4" />
+          </Button>
+          <p className="text-xs text-text-muted">
+            You can change your preference later in settings.
+          </p>
         </div>
       </div>
     </div>

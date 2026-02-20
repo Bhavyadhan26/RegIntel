@@ -9,28 +9,28 @@
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
+    @apply bg-background text-text-main;
   }
 
   body {
-    color: #e2e8f0;
-    background: #0a0c18;
+    @apply bg-background text-text-main;
   }
 
   ::selection {
-    background: rgba(139, 92, 246, 0.3);
-    color: #f8fafc;
+    @apply bg-primary text-white;
   }
 
+  /* Custom Scrollbar */
   ::-webkit-scrollbar {
-    width: 5px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #0a0c18;
+    @apply bg-transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #2d2f4a;
-    border-radius: 99px;
+    @apply bg-gray-300 rounded-full hover:bg-gray-400;
   }
 }

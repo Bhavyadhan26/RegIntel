@@ -1,4 +1,4 @@
-import Sidebar from '../components/Sidebar';
+import Sidebar from '../components/layout/Sidebar';
 import { Calendar, ExternalLink, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
 
 interface Deadline {
@@ -18,36 +18,36 @@ const DEADLINES_DATA: Deadline[] = [
 
 const Deadlines = () => {
   const statusStyle = (s: string) =>
-    s === 'Urgent' ? 'bg-accent-rose/15 text-accent-rose' :
-      s === 'Upcoming' ? 'bg-accent-amber/15 text-accent-amber' : 'bg-accent-teal/15 text-accent-teal';
+    s === 'Urgent' ? 'bg-red-50 text-red-600 border-red-100' :
+      s === 'Upcoming' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100';
 
   const statusIcon = (s: string) =>
     s === 'Urgent' ? <AlertCircle size={12} /> :
       s === 'Upcoming' ? <Clock size={12} /> : <CheckCircle2 size={12} />;
 
   return (
-    <div className="flex min-h-screen bg-dark-950">
+    <div className="flex min-h-screen bg-background font-sans">
       <Sidebar />
-      <main className="flex-1 ml-[240px] p-8">
-        <h1 className="text-2xl font-semibold text-white mb-7">Upcoming Deadlines</h1>
+      <main className="flex-1 ml-[260px] p-8">
+        <h1 className="text-2xl font-bold text-text-main mb-7">Upcoming Deadlines</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
-          <div className="bg-dark-800/60 backdrop-blur-sm p-6 rounded-xl border border-dark-600/40 flex justify-between items-center">
-            <span className="text-sm text-gray-500">Urgent</span>
-            <span className="text-3xl font-bold text-accent-rose">1</span>
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
+            <span className="text-sm text-text-muted">Urgent</span>
+            <span className="text-3xl font-bold text-red-500">1</span>
           </div>
-          <div className="bg-dark-800/60 backdrop-blur-sm p-6 rounded-xl border border-dark-600/40 flex justify-between items-center">
-            <span className="text-sm text-gray-500">This Week</span>
-            <span className="text-3xl font-bold text-accent-amber">2</span>
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
+            <span className="text-sm text-text-muted">This Week</span>
+            <span className="text-3xl font-bold text-amber-500">2</span>
           </div>
-          <div className="bg-dark-800/60 backdrop-blur-sm p-6 rounded-xl border border-dark-600/40 flex justify-between items-center">
-            <span className="text-sm text-gray-500">Total</span>
-            <span className="text-3xl font-bold text-accent-purple">6</span>
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
+            <span className="text-sm text-text-muted">Total</span>
+            <span className="text-3xl font-bold text-primary">6</span>
           </div>
         </div>
 
-        <div className="bg-dark-800/60 backdrop-blur-sm border border-dark-600/40 rounded-xl overflow-hidden">
-          <div className="grid grid-cols-12 gap-4 bg-dark-700/50 px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-dark-600/30">
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="grid grid-cols-12 gap-4 bg-gray-50/50 px-6 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider border-b border-gray-200">
             <div className="col-span-4">Title</div>
             <div className="col-span-2">Category</div>
             <div className="col-span-2">Body Date</div>
@@ -55,28 +55,28 @@ const Deadlines = () => {
             <div className="col-span-1 text-center">Status</div>
             <div className="col-span-1 text-center">Action</div>
           </div>
-          <div className="divide-y divide-dark-600/30">
+          <div className="divide-y divide-gray-100">
             {DEADLINES_DATA.map((item) => (
-              <div key={item.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-dark-700/20 transition-colors">
+              <div key={item.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors">
                 <div className="col-span-4 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-accent-amber/10 flex items-center justify-center shrink-0">
-                    <Calendar size={16} className="text-accent-amber" />
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
+                    <Calendar size={16} className="text-amber-600" />
                   </div>
-                  <span className="text-sm font-medium text-gray-200">{item.title}</span>
+                  <span className="text-sm font-medium text-text-main">{item.title}</span>
                 </div>
-                <div className="col-span-2 text-sm text-gray-500">{item.category}</div>
-                <div className="col-span-2 text-sm text-gray-500">{item.bodyDate}</div>
+                <div className="col-span-2 text-sm text-text-muted">{item.category}</div>
+                <div className="col-span-2 text-sm text-text-muted">{item.bodyDate}</div>
                 <div className="col-span-2">
-                  <div className="text-sm font-medium text-gray-200">{item.dueDate}</div>
-                  <div className="text-xs text-gray-600">{item.daysLeft} days left</div>
+                  <div className="text-sm font-medium text-text-main">{item.dueDate}</div>
+                  <div className="text-xs text-text-muted">{item.daysLeft} days left</div>
                 </div>
                 <div className="col-span-1 flex justify-center">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${statusStyle(item.status)}`}>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${statusStyle(item.status)}`}>
                     {statusIcon(item.status)} {item.status}
                   </span>
                 </div>
                 <div className="col-span-1 flex justify-center">
-                  <button className="text-sm font-medium text-accent-purple hover:text-accent-purple/80 flex items-center gap-1">
+                  <button className="text-sm font-medium text-primary hover:text-primary-hover flex items-center gap-1">
                     View <ExternalLink size={12} />
                   </button>
                 </div>

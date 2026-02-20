@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import { FilterButton } from '../components/ui/FilterButton';
 import { PublicationCard } from '../components/ui/PublicationCard';
 import type { Publication } from '../components/ui/PublicationCard';
-import Sidebar from '../components/Sidebar';
+import Sidebar from '../components/layout/Sidebar';
 
 const MOCK_DATA: Publication[] = [
   { id: '1', title: 'Guidelines for Foreign Investment in Insurance Sector', authority: 'Insurance Regulatory and Development Authority', description: 'New guidelines allowing up to 74% FDI in insurance companies with specific compliance requirements.', date: 'Jan 24, 2024', type: 'Circular' },
@@ -25,10 +25,10 @@ const Publications = () => {
   });
 
   return (
-    <div className="flex min-h-screen bg-dark-950">
+    <div className="flex min-h-screen bg-background font-sans">
       <Sidebar />
-      <main className="flex-1 ml-[240px] p-8">
-        <h1 className="text-2xl font-semibold text-white mb-7">Publications</h1>
+      <main className="flex-1 ml-[260px] p-8">
+        <h1 className="text-2xl font-bold text-text-main mb-7">Publications</h1>
 
         <div className="relative mb-6">
           <input
@@ -36,9 +36,9 @@ const Publications = () => {
             placeholder="Search publications..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-lg border border-dark-600/40 bg-dark-800 focus:outline-none focus:ring-2 focus:ring-accent-purple/20 focus:border-accent-purple/40 text-sm text-white placeholder:text-gray-600 transition-all"
+            className="w-full pl-11 pr-4 py-3 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-sm text-text-main placeholder:text-text-muted transition-all shadow-sm"
           />
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
         </div>
 
         <div className="flex gap-2.5 mb-7 overflow-x-auto pb-1">
@@ -54,7 +54,7 @@ const Publications = () => {
         </div>
 
         {filteredData.length === 0 && (
-          <div className="text-center py-20 text-gray-600 text-sm">No publications found.</div>
+          <div className="text-center py-20 text-text-muted text-sm">No publications found.</div>
         )}
       </main>
     </div>

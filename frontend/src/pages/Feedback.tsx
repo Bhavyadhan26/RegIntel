@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/layout/Sidebar';
-import { MessageSquare, Star, Send } from 'lucide-react';
+import { Send, Mail, MapPin, Phone } from 'lucide-react';
+import { Footer } from '../components/Footer';
 
 const Feedback = () => {
   const [rating, setRating] = useState(0);
@@ -28,88 +29,130 @@ const Feedback = () => {
   return (
     <div className="flex min-h-screen bg-background font-sans">
       <Sidebar />
-      <main className="flex-1 ml-[260px] p-8">
-        <h1 className="text-2xl font-bold text-text-main mb-7">Feedback</h1>
-
-        <div className="max-w-xl">
-          <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <MessageSquare className="text-primary" size={24} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-text-main">We'd love your feedback</h2>
-                <p className="text-sm text-text-muted">Help us improve RegIntel for you.</p>
-              </div>
+      <main className="flex-1 ml-[260px] flex flex-col min-h-screen">
+        <div className="p-8 lg:p-12 flex-1">
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <div className="mb-12">
+              <h1 className="text-3xl md:text-4xl font-bold text-text-main">We'd love your Feedback</h1>
+              <p className="text-text-muted mt-2 text-lg max-w-2xl">
+                We're constantly looking for ways to improve RegIntel. Whether you have a question, spotted a bug, or just want to share your experience, we want to hear from you!
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit}>
-              <div className="mb-7">
-                <label className="block text-sm font-medium text-text-main mb-3">
-                  How would you rate your experience?
-                </label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      className="focus:outline-none transition-transform hover:scale-110"
-                      onMouseEnter={() => setHoveredStar(star)}
-                      onMouseLeave={() => setHoveredStar(0)}
-                      onClick={() => setRating(star)}
-                    >
-                      <Star
-                        size={28}
-                        className={`transition-colors ${star <= (hoveredStar || rating)
-                          ? 'fill-amber-400 text-amber-400'
-                          : 'fill-transparent text-gray-300'
-                          }`}
+            <div className="grid lg:grid-cols-[1fr_1.5fr] gap-12 lg:gap-20">
+              {/* Left Column: Contact Information */}
+              <div className="flex flex-col gap-6">
+
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                    <Mail className="text-primary" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-text-main">Email Us</h3>
+                    <p className="text-sm text-text-muted">support@regintel.com</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                    <Phone className="text-primary" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-text-main">Call Support</h3>
+                    <p className="text-sm text-text-muted">__</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                    <MapPin className="text-primary" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-text-main">Headquarters</h3>
+                    <p className="text-sm text-text-muted">Bangalore, India</p>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Right Column: Feedback Form */}
+              <div>
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-lg shadow-black/5">
+                  <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+
+                    {/* Rating Section with Emojis */}
+                    <div>
+                      <label className="block text-sm font-bold text-text-main mb-4">
+                        How would you rate your experience?
+                      </label>
+                      <div className="flex gap-3">
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const isFilled = star <= (hoveredStar || rating);
+                          return (
+                            <button
+                              key={star}
+                              type="button"
+                              className={`text-3xl transition-all duration-200 hover:scale-125 focus:outline-none ${isFilled ? 'opacity-100 drop-shadow-md pb-2' : 'opacity-20 grayscale'
+                                }`}
+                              onMouseEnter={() => setHoveredStar(star)}
+                              onMouseLeave={() => setHoveredStar(0)}
+                              onClick={() => setRating(star)}
+                              title={`Rate ${star} out of 5`}
+                            >
+                              ⭐
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Feedback Type Selector */}
+                    <div>
+                      <label className="block text-sm font-bold text-text-main mb-4">Feedback Type</label>
+                      <div className="flex flex-wrap gap-3">
+                        {feedbackTypes.map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setSelectedType(type)}
+                            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${selectedType === type
+                              ? typeColors[type] + ' shadow-sm'
+                              : 'bg-white text-text-muted border-gray-200 hover:bg-gray-50'
+                              }`}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Message Input */}
+                    <div>
+                      <label className="block text-sm font-bold text-text-main mb-4">Your Message</label>
+                      <textarea
+                        rows={5}
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Tell us what's on your mind... How can we help?"
+                        className="w-full px-5 py-4 rounded-xl border border-gray-200 bg-gray-50/50 focus:bg-white focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all resize-none placeholder:text-gray-400 text-sm text-text-main leading-relaxed"
+                        required
                       />
-                    </button>
-                  ))}
-                </div>
-              </div>
+                    </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-text-main mb-3">Feedback Type</label>
-                <div className="flex flex-wrap gap-2.5">
-                  {feedbackTypes.map((type) => (
                     <button
-                      key={type}
-                      type="button"
-                      onClick={() => setSelectedType(type)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${selectedType === type
-                        ? typeColors[type]
-                        : 'bg-white text-text-muted border-gray-200 hover:bg-gray-50'
-                        }`}
+                      type="submit"
+                      className="w-full sm:w-auto self-start mt-2 px-8 py-3.5 bg-primary hover:bg-primary-hover text-white font-semibold text-sm rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
                     >
-                      {type}
+                      Submit Feedback <Send size={16} className="ml-1" />
                     </button>
-                  ))}
+                  </form>
                 </div>
               </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-text-main mb-2">Your Message</label>
-                <textarea
-                  rows={4}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Tell us what's on your mind..."
-                  className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white focus:border-primary/50 focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none placeholder:text-text-muted text-sm text-text-main"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-primary hover:bg-primary-hover text-white font-semibold text-base rounded-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-              >
-                <Send size={16} /> Submit Feedback
-              </button>
-            </form>
+            </div>
           </div>
         </div>
+        <Footer />
       </main>
     </div>
   );

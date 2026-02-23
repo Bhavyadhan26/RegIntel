@@ -2,7 +2,6 @@ import {
   Bell, LayoutDashboard, TrendingUp, Globe, BarChart3, ShieldCheck
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/Button";
 
 const features = [
   {
@@ -27,17 +26,17 @@ const features = [
 
 export const Features = () => {
   return (
-    <section id="features" className="py-32 bg-background border-t border-border/40">
+    <section id="features" className="py-16 md:py-20 bg-background border-t border-border/40">
       {/* Upper Features Section (Value Proposition) */}
       <div className="w-full px-10 md:px-20">
         <div id="value-proposition" className="text-center mb-24">
-          <span className="text-sm font-bold text-primary tracking-[0.2em] uppercase mb-4 block">Value Proposition</span>
+          <span className="text-sm font-bold text-primary tracking-[0.2em] uppercase mb-4 block">FEATURES</span>
           <h2 className="text-4xl md:text-5xl font-bold text-text-main leading-tight mb-6">
             What is RegIntel?
           </h2>
           <p className="text-text-muted max-w-3xl mx-auto leading-relaxed text-xl">
-            A sophisticated compliance asset designed for the modern regulatory landscape. 
-            We unify fragmented data into a cohesive intelligence layer that empowers 
+            A sophisticated compliance asset designed for the modern regulatory landscape.
+            We unify fragmented data into a cohesive intelligence layer that empowers
             legal and compliance teams to lead with confidence.
           </p>
         </div>
@@ -64,8 +63,8 @@ export const Features = () => {
       </div>
 
       {/* Redesigned Impact Section - Solution Grid Style */}
-      <div id="impact" className="mt-40 w-full px-10 md:px-20">
-        <div className="bg-slate-50/50 rounded-[3rem] py-24 px-10 md:px-20 border border-border/50">
+      <div id="impact" className="mt-16 w-full px-10 md:px-20">
+        <div className="bg-slate-50/50 rounded-[3rem] py-16 px-10 md:px-20 border border-border/50">
           <div className="text-center mb-20">
             <span className="text-sm font-bold text-primary tracking-[0.2em] uppercase mb-4 block">Impact & Value</span>
             <h3 className="text-4xl md:text-5xl font-bold text-text-main mb-6">How RegIntel makes an impact</h3>
@@ -74,7 +73,7 @@ export const Features = () => {
 
           <div className="grid lg:grid-cols-3 gap-10">
             {/* Card 1: Streamline Compliance */}
-            <motion.div 
+            <motion.div
               whileHover={{ y: -5 }}
               className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md"
             >
@@ -90,13 +89,13 @@ export const Features = () => {
                 <div className="h-3 w-2/3 bg-slate-200 rounded-full" />
                 <div className="h-3 w-full bg-slate-100 rounded-full" />
                 <div className="flex-1 flex items-center justify-center">
-                   <div className="w-10 h-10 rounded-full border-4 border-indigo-100 border-t-green-500 animate-spin" />
+                  <div className="w-10 h-10 rounded-full border-4 border-indigo-100 border-t-green-500 animate-spin" />
                 </div>
               </div>
             </motion.div>
 
             {/* Card 2: Actionable Insights */}
-            <motion.div 
+            <motion.div
               whileHover={{ y: -5 }}
               className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md"
             >
@@ -117,7 +116,7 @@ export const Features = () => {
             </motion.div>
 
             {/* Card 3: Global Coverage */}
-            <motion.div 
+            <motion.div
               whileHover={{ y: -5 }}
               className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md"
             >
@@ -132,21 +131,14 @@ export const Features = () => {
               <div className="mt-auto w-full h-44 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center relative overflow-hidden">
                 <div className="relative w-24 h-24">
                   <Globe className="w-full h-full text-primary/50" />
-                  <motion.div 
+                  <motion.div
                     animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.1, 0.3] }}
                     transition={{ repeat: Infinity, duration: 3 }}
-                    className="absolute inset-0 border-2 border-green-400 rounded-full" 
+                    className="absolute inset-0 border-2 border-green-400 rounded-full"
                   />
                 </div>
               </div>
             </motion.div>
-          </div>
-
-          <div className="mt-20 text-center">
-            <Button size="lg" className="h-14 px-10 text-lg group shadow-lg shadow-primary/10">
-              Explore All Solutions 
-              <span className="inline-block ml-2 transition-transform group-hover:translate-x-1">→</span>
-            </Button>
           </div>
         </div>
       </div>

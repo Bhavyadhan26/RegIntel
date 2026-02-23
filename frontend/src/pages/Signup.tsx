@@ -25,9 +25,7 @@ export const Signup = () => {
       {/* Header */}
       <div className="p-6">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" /></svg>
-          </div>
+          <img src="/WEBLOGO.png" alt="RegIntel Logo" className="h-10 w-auto" />
           <span className="text-xl font-bold text-text-main">RegIntel</span>
         </Link>
       </div>

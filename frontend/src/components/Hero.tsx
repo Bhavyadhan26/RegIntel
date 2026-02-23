@@ -1,21 +1,20 @@
 import { Button } from "@/components/ui/Button";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Check } from "lucide-react";
 
 export const Hero = () => {
   return (
-    // Changed: Added min-h-screen and flex to fill the viewport
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-background">
-      {/* Changed: Removed max-w-7xl to allow content to span the full width */}
-      <div className="w-full mx-auto px-10 grid lg:grid-cols-2 gap-0 items-stretch">
-        
+    // Changed: Used standard padding options to avoid too much spacing
+    <section className="relative px-6 lg:px-12 py-16 md:py-24 flex items-center overflow-hidden bg-background">
+      <div className="w-full max-w-[1500px] mx-auto grid lg:grid-cols-[1fr_1.1fr] gap-12 lg:gap-16 items-center">
+
         {/* Text Content */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          // Changed: Added flex and centering for a balanced look in a larger space
-          className="flex flex-col justify-center py-20 lg:pr-12"
+          className="flex flex-col justify-center"
         >
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase mb-6 w-fit">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -33,17 +32,20 @@ export const Hero = () => {
             real-time analytics and predictive reporting.
           </p>
 
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8 mt-4">
             <Link to="/signup">
-              <Button size="lg" className="h-14 px-10 text-lg shadow-xl shadow-primary/20">
+              <Button size="lg" className="h-14 px-10 text-lg shadow-xl shadow-primary/20 shrink-0">
                 Get Started
               </Button>
             </Link>
-            <Link to="#platform">
-              <Button variant="outline" size="lg" className="h-14 px-10 text-lg border-input bg-transparent text-text-main hover:bg-accent hover:text-accent-foreground">
-                Explore Platform
-              </Button>
-            </Link>
+            <div className="flex flex-col justify-center gap-3 text-sm text-text-muted font-medium">
+              <div className="flex items-center gap-2">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-100/80 text-green-700">
+                  <Check className="h-3.5 w-3.5" />
+                </div>
+                <span>Unlock intelligent compliance instantly.</span>
+              </div>
+            </div>
           </div>
         </motion.div>
 
@@ -52,17 +54,14 @@ export const Hero = () => {
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3, duration: 0.8 }}
-          // Changed: Made the image container take up the full height of the split
-          className="relative hidden lg:block"
+          className="relative hidden lg:block h-[450px] xl:h-[550px]"
         >
-          <div className="relative h-full w-full overflow-hidden rounded-l-3xl shadow-2xl border-l border-y border-gray-100 bg-white">
+          <div className="relative h-full w-full overflow-hidden rounded-3xl shadow-2xl bg-white flex items-center justify-center">
             <img
               src="https://images.unsplash.com/photo-1497215728101-856f4ea42174?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
               alt="RegIntel Dashboard Preview"
-              // Changed: Object-cover and h-full ensures it fills the entire right side
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-center"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent" />
           </div>
 
           {/* Decor */}

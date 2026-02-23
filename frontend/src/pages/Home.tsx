@@ -14,7 +14,7 @@ export const Home = () => {
         <Hero />
         <Features />
       </main>
-      <Footer />
+      <Footer showCTA={true} />
     </div>
   );
 };

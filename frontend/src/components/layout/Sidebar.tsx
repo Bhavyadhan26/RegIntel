@@ -17,10 +17,7 @@ const Sidebar = () => {
         <div className="w-[260px] bg-light-100 border-r border-border min-h-screen flex flex-col fixed left-0 top-0 z-30">
             {/* Logo */}
             <div className="px-6 h-[72px] flex items-center gap-3">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">
-                    {/* Placeholder logo icon if no image */}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </div>
+                <img src="/WEBLOGO.png" alt="RegIntel Logo" className="h-[3.25rem] w-auto mt-2" />
                 <span className="text-xl font-bold text-text-main tracking-tight">RegIntel</span>
             </div>
 

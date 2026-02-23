@@ -5,7 +5,7 @@ export const Footer = () => {
     <footer className="bg-white pt-10 pb-10 px-6 border-t border-gray-100">
       <div className="max-w-6xl mx-auto">
         {/* CTA Section */}
-        <div className="bg-[#111827] rounded-3xl py-20 px-6 text-center shadow-2xl mb-20">
+        <div className="bg-primary/100 rounded-3xl py-20 px-6 text-center shadow-2xl mb-20">
           <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white">
             Ready to transform your regulatory workflow?
           </h2>

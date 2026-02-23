@@ -31,11 +31,11 @@ export const PublicationCard: React.FC<CardProps> = ({ data }) => {
         <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${tagColor(data.type)}`}>
           {data.type}
         </span>
-        <span className="text-xs text-gray-600">{data.date}</span>
+        <span className="text-xs text-black-600">{data.date}</span>
       </div>
 
-      <h3 className="text-base font-medium text-gray-200 leading-snug mb-2">{data.title}</h3>
-      <p className="text-sm text-accent-purple font-medium mb-2">{data.authority}</p>
+      <h3 className="text-base font-medium text-black-200 leading-snug mb-2">{data.title}</h3>
+      <p className="text-sm text-primary/100 font-medium mb-2">{data.authority}</p>
       <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 mb-4">{data.description}</p>
 
       <button className="text-sm text-gray-400 font-medium flex items-center gap-1 group-hover:text-accent-purple transition-colors">

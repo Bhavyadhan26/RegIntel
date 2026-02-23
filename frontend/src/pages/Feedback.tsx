@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/layout/Sidebar';
-import { Send, Mail, MapPin, Phone } from 'lucide-react';
+import { Send, Mail, MapPin, Phone, Menu } from 'lucide-react';
 import { Footer } from '../components/Footer';
 
 const Feedback = () => {
@@ -8,6 +8,7 @@ const Feedback = () => {
   const [hoveredStar, setHoveredStar] = useState(0);
   const [selectedType, setSelectedType] = useState('Bug Report');
   const [message, setMessage] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const feedbackTypes = ['Bug Report', 'Feature Request', 'Improvement', 'Other'];
 
@@ -27,10 +28,28 @@ const Feedback = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background font-sans">
-      <Sidebar />
-      <main className="flex-1 ml-[260px] flex flex-col min-h-screen">
+    <div className="flex min-h-screen bg-background font-sans relative overflow-x-hidden">
+      <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      </div>
+
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 z-40"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <main className="flex-1 flex flex-col min-h-screen">
         <div className="p-8 lg:p-12 flex-1">
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm mb-6"
+            aria-label="Open sidebar"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
           <div className="max-w-6xl mx-auto">
             {/* Header */}
             <div className="mb-12">

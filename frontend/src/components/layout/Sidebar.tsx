@@ -1,8 +1,13 @@
-import { LayoutDashboard, Bell, FileText, Calendar, HelpCircle, ArrowLeft, LogOut } from 'lucide-react';
+import { LayoutDashboard, Bell, FileText, Calendar, HelpCircle, ArrowLeft, LogOut, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
-const Sidebar = () => {
+interface SidebarProps {
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     const location = useLocation();
 
     const menuItems = [
@@ -14,7 +19,15 @@ const Sidebar = () => {
     ];
 
     return (
-        <div className="w-[260px] bg-light-100 border-r border-border min-h-screen flex flex-col fixed left-0 top-0 z-30">
+        <div className="w-[260px] bg-light-100 border-r border-border h-full flex flex-col relative" aria-hidden={!isOpen}>
+            <button
+                onClick={onClose}
+                className="absolute right-3 top-3 text-text-muted hover:text-text-main"
+                aria-label="Close sidebar"
+            >
+                <X size={20} />
+            </button>
+
             {/* Logo */}
             <div className="px-6 h-[72px] flex items-center gap-3">
                 <img src="/WEBLOGO.png" alt="RegIntel Logo" className="h-[3.25rem] w-auto mt-2" />
@@ -29,6 +42,7 @@ const Sidebar = () => {
                         <Link
                             key={item.name}
                             to={item.path}
+                            onClick={onClose}
                             className={cn(
                                 "flex items-center gap-3 px-3 py-2.5 rounded-md text-[15px] font-medium transition-colors mb-1",
                                 active
@@ -51,6 +65,7 @@ const Sidebar = () => {
             <div className="px-4 pb-8 pt-4 space-y-1 mt-auto border-t border-border">
                 <Link
                     to="/"
+                    onClick={onClose}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-md text-[15px] font-medium text-text-muted hover:text-text-main hover:bg-secondary/50 transition-colors"
                 >
                     <ArrowLeft size={20} />
@@ -58,6 +73,7 @@ const Sidebar = () => {
                 </Link>
                 <Link
                     to="/login"
+                    onClick={onClose}
                     className="flex items-center gap-3 px-3 py-2.5 w-full rounded-md text-[15px] font-medium text-red-500 hover:bg-red-50 transition-colors text-left"
                 >
                     <LogOut size={20} className="text-red-500" />

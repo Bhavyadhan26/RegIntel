@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Filter, ChevronRight } from "lucide-react";
+import { Filter, ChevronRight, Menu } from "lucide-react";
 import { motion } from "framer-motion";
 import Sidebar from "../components/layout/Sidebar";
 import { Footer } from "../components/Footer";
 
 export const Alerts = () => {
   const [activeTab, setActiveTab] = useState<"new" | "old">("new");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const alertsData = [
     {
@@ -42,11 +43,30 @@ export const Alerts = () => {
     type === "critical" ? "bg-red-500" : type === "high" ? "bg-amber-500" : "bg-blue-500";
 
   return (
-    <div className="min-h-screen bg-background flex font-sans">
-      <Sidebar />
-      <main className="flex-1 ml-[260px] flex flex-col min-h-screen">
+    <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
+      <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out`}>
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      </div>
+
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 z-40"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <main className="flex-1 flex flex-col min-h-screen">
         <div className="p-8 flex-1">
-          <h1 className="text-2xl font-bold text-text-main mb-7">Alerts</h1>
+          <div className="flex items-center gap-3 mb-7">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm"
+              aria-label="Open sidebar"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="text-2xl font-bold text-text-main">Alerts</h1>
+          </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-7">
             <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">

@@ -8,6 +8,7 @@ import { Alerts } from "@/pages/Alerts";
 import Feedback from '@/pages/Feedback';
 import Deadlines from "@/pages/Deadlines";
 import Publications from "@/pages/Publications";
+import { UserProfile } from "@/pages/Profile";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         
         {/* DASHBOARD ROUTES */}
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<UserProfile />} />
         <Route path="/publications" element={<Publications />} /> {/* <--- 2. Add the Route */}
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/deadlines" element={<Deadlines />} />

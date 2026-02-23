@@ -1,5 +1,6 @@
 import Sidebar from '../components/layout/Sidebar';
-import { Calendar, ExternalLink, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
+import { Calendar, ExternalLink, AlertCircle, Clock, CheckCircle2, Menu } from 'lucide-react';
+import { useState } from 'react';
 import { Footer } from '../components/Footer';
 
 interface Deadline {
@@ -18,6 +19,8 @@ const DEADLINES_DATA: Deadline[] = [
 ];
 
 const Deadlines = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const statusStyle = (s: string) =>
     s === 'Urgent' ? 'bg-red-50 text-red-600 border-red-100' :
       s === 'Upcoming' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100';
@@ -27,11 +30,30 @@ const Deadlines = () => {
       s === 'Upcoming' ? <Clock size={12} /> : <CheckCircle2 size={12} />;
 
   return (
-    <div className="flex min-h-screen bg-background font-sans">
-      <Sidebar />
-      <main className="flex-1 ml-[260px] flex flex-col min-h-screen">
+    <div className="flex min-h-screen bg-background font-sans relative overflow-x-hidden">
+      <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      </div>
+
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 z-40"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <main className="flex-1 flex flex-col min-h-screen">
         <div className="p-8 flex-1">
-          <h1 className="text-2xl font-bold text-text-main mb-7">Upcoming Deadlines</h1>
+          <div className="flex items-center gap-3 mb-7">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm"
+              aria-label="Open sidebar"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="text-2xl font-bold text-text-main">Upcoming Deadlines</h1>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">

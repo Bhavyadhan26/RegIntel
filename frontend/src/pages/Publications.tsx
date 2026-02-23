@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Menu } from 'lucide-react';
 import { FilterButton } from '../components/ui/FilterButton';
 import { PublicationCard } from '../components/ui/PublicationCard';
 import type { Publication } from '../components/ui/PublicationCard';
@@ -18,6 +18,7 @@ const CATEGORIES = ['All', 'Notices', 'Circulars', 'Amendments', 'Tenders'];
 const Publications = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const filteredData = MOCK_DATA.filter((item) => {
     const matchCat = activeCategory === 'All' || item.type + 's' === activeCategory;
@@ -26,11 +27,30 @@ const Publications = () => {
   });
 
   return (
-    <div className="flex min-h-screen bg-background font-sans">
-      <Sidebar />
-      <main className="flex-1 ml-[260px] flex flex-col min-h-screen">
+    <div className="flex min-h-screen bg-background font-sans relative overflow-x-hidden">
+      <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      </div>
+
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 z-40"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <main className="flex-1 flex flex-col min-h-screen">
         <div className="p-8 flex-1">
-          <h1 className="text-2xl font-bold text-text-main mb-7">Publications</h1>
+          <div className="flex items-center gap-3 mb-7">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm"
+              aria-label="Open sidebar"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="text-2xl font-bold text-text-main">Publications</h1>
+          </div>
 
           <div className="relative mb-6">
             <input

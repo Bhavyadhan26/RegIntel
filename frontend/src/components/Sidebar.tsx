@@ -1,7 +1,8 @@
-import { LayoutDashboard, Bell, FileText, Calendar, MessageSquare, LogOut, Home } from 'lucide-react';
+import { LayoutDashboard, Bell, FileText, Calendar, MessageSquare, LogOut, Home, X } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-const Sidebar = () => {
+// Added isOpen and onClose props to allow parent control
+const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -21,10 +22,18 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="w-[240px] bg-dark-900 border-r border-dark-700/50 min-h-screen flex flex-col fixed left-0 top-0">
+    <div className="w-[260px] bg-dark-900 border-r border-dark-700/50 h-full flex flex-col relative">
+      {/* Close Button for Mobile */}
+      <button 
+        onClick={onClose}
+        className="lg:hidden absolute right-4 top-6 text-gray-400 hover:text-white"
+      >
+        <X size={24} />
+      </button>
+
       {/* Logo */}
       <div className="px-5 pt-6 pb-5 flex items-center gap-2.5">
-        <img src="/logo.png" alt="RegIntel" className="w-9 h-9 rounded-lg" />
+        <div className="w-9 h-9 bg-primary/20 rounded-lg flex items-center justify-center text-primary font-bold">R</div>
         <span className="text-base font-semibold text-white tracking-tight">RegIntel</span>
       </div>
 
@@ -36,14 +45,16 @@ const Sidebar = () => {
             <Link
               key={item.name}
               to={item.path}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[15px] font-medium transition-all ${active
+              onClick={() => { if(window.innerWidth < 1024) onClose(); }} // Close sidebar on mobile after clicking
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[15px] font-medium transition-all ${
+                active
                   ? 'bg-dark-700 text-white'
                   : 'text-gray-500 hover:text-gray-300 hover:bg-dark-800'
-                }`}
+              }`}
             >
               {item.icon}
               {item.name}
-              {active && <span className="ml-auto w-1.5 h-1.5 bg-accent-purple rounded-full" />}
+              {active && <span className="ml-auto w-1.5 h-1.5 bg-primary rounded-full" />}
             </Link>
           );
         })}

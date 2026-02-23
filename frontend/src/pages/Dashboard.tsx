@@ -1,6 +1,9 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Calendar, Bell, ChevronRight,
-  AlertCircle, CheckCircle2, TrendingUp, Search
+  AlertCircle, CheckCircle2, TrendingUp, Search,
+  Menu
 } from "lucide-react";
 import Sidebar from "../components/layout/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -8,6 +11,9 @@ import { Button } from "@/components/ui/Button";
 import { Footer } from "../components/Footer";
 
 export const Dashboard = () => {
+  // State to manage sidebar visibility on mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const deadlines = [
     { title: "GST Return Filing", date: "Jan 28, 2026", urgent: true },
     { title: "Annual Compliance Report", date: "Feb 1, 2026", urgent: true },
@@ -15,16 +21,36 @@ export const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex font-sans">
-      <Sidebar />
+    <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
 
-      <main className="flex-1 ml-[260px] flex flex-col min-h-screen">
+      <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out`}>
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      </div>
+
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-40" 
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <main className="flex-1 flex flex-col min-h-screen transition-all duration-300">
         <div className="p-8 flex-1">
           {/* Header */}
           <header className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-2xl font-bold text-text-main">Dashboard</h1>
-              <p className="text-sm text-text-muted mt-1">Welcome back, John. Here's what's happening today.</p>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm"
+                aria-label="Open sidebar"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              
+              <div>
+                <h1 className="text-2xl font-bold text-text-main">Dashboard</h1>
+                <p className="text-sm text-text-muted mt-1">Welcome back, John. Here's what's happening today.</p>
+              </div>
             </div>
 
             <div className="flex items-center gap-4">
@@ -41,13 +67,13 @@ export const Dashboard = () => {
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full" />
               </button>
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm border border-primary/20">
+              <Link to="/profile" className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm border border-primary/20 hover:bg-primary/20 transition-colors cursor-pointer shadow-sm">
                 JD
-              </div>
+              </Link>
             </div>
           </header>
 
-          {/* Stats */}
+          {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-orange-500">
               <CardContent className="p-6">

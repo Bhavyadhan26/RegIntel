@@ -3,41 +3,15 @@ import { Filter, ChevronRight, Menu } from "lucide-react";
 import { motion } from "framer-motion";
 import Sidebar from "../components/layout/Sidebar";
 import { Footer } from "../components/Footer";
+import { cbicAlerts } from "../lib/cbicData";
 
 export const Alerts = () => {
   const [activeTab, setActiveTab] = useState<"new" | "old">("new");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const alertsData = [
-    {
-      id: 1, title: "SEBI Circular on Mutual Fund Regulations Amendment",
-      authority: "Securities and Exchange Board of India",
-      desc: "New guidelines for mutual fund distributors regarding commission disclosure and investor communication requirements.",
-      date: "Jan 24, 2024", tag: "Circular", type: "critical",
-      tagColor: "bg-red-100 text-red-700",
-    },
-    {
-      id: 2, title: "GST Rate Revision Notification",
-      authority: "Central Board of Indirect Taxes",
-      desc: "Revised GST rates for select commodities effective from February 1, 2024.",
-      date: "Jan 23, 2024", tag: "Notice", type: "high",
-      tagColor: "bg-amber-100 text-amber-700",
-    },
-    {
-      id: 3, title: "RBI Guidelines on Digital Lending",
-      authority: "Reserve Bank of India",
-      desc: "Updated guidelines for digital lending platforms regarding customer data protection.",
-      date: "Jan 22, 2024", tag: "Circular", type: "medium",
-      tagColor: "bg-purple-100 text-purple-700",
-    },
-    {
-      id: 4, title: "Companies Act Amendment – CSR Provisions",
-      authority: "Ministry of Corporate Affairs",
-      desc: "Amendments to CSR spending reporting requirements for FY 2023-24.",
-      date: "Jan 20, 2024", tag: "Amendment", type: "medium",
-      tagColor: "bg-blue-100 text-blue-700",
-    },
-  ];
+  const newAlertsCount = cbicAlerts.filter((item) => item.isNew).length;
+  const oldAlertsCount = cbicAlerts.length - newAlertsCount;
+  const alertsData = cbicAlerts.filter((item) => (activeTab === "new" ? item.isNew : !item.isNew));
 
   const severityColor = (type: string) =>
     type === "critical" ? "bg-red-500" : type === "high" ? "bg-amber-500" : "bg-blue-500";
@@ -82,7 +56,7 @@ export const Alerts = () => {
                   {tab === "new" ? "New" : "Old"}
                   <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${activeTab === tab ? "bg-primary/10 text-primary" : "bg-gray-200 text-gray-600"
                     }`}>
-                    {tab === "new" ? "4" : "2"}
+                    {tab === "new" ? newAlertsCount : oldAlertsCount}
                   </span>
                 </button>
               ))}
@@ -113,9 +87,14 @@ export const Alerts = () => {
                   <p className="text-sm text-text-muted leading-relaxed mb-3">{alert.desc}</p>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-500">{alert.date}</span>
-                    <button className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-hover">
+                    <a
+                      href={alert.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-hover"
+                    >
                       Read More <ChevronRight className="w-4 h-4" />
-                    </button>
+                    </a>
                   </div>
                 </div>
               </motion.div>

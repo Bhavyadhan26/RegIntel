@@ -11,8 +11,8 @@ import { Footer } from "@/components/Footer";
 export const UserProfile = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [profile, setProfile] = useState({
-    name: "John Doe",
-    email: "john.doe@company.com",
+    name: "RegIntel Professional",
+    email: "RegIntel@company.com",
     role: "Legal Professional",
     notifications: true,
   });

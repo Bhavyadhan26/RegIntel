@@ -9,16 +9,20 @@ import Sidebar from "../components/layout/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Footer } from "../components/Footer";
+import { cbicAlerts, cbicDeadlines } from "../lib/cbicData";
 
 export const Dashboard = () => {
   // State to manage sidebar visibility on mobile
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const deadlines = [
-    { title: "GST Return Filing", date: "Jan 28, 2026", urgent: true },
-    { title: "Annual Compliance Report", date: "Feb 1, 2026", urgent: true },
-    { title: "Quarterly Audit Submission", date: "Feb 15, 2026", urgent: false },
-  ];
+  const unreadAlerts = cbicAlerts.length;
+  const newAlerts = cbicAlerts.filter((item) => item.isNew).length;
+  const urgentDeadlines = cbicDeadlines.filter((item) => item.status === "Urgent").length;
+  const complianceScore = Math.max(70, 100 - urgentDeadlines * 4);
+  const deadlines = cbicDeadlines
+    .slice()
+    .sort((a, b) => a.daysLeft - b.daysLeft)
+    .slice(0, 3)
+    .map((item) => ({ title: item.title, date: item.dueDate, urgent: item.status === "Urgent", url: item.url }));
 
   return (
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
@@ -49,7 +53,7 @@ export const Dashboard = () => {
               
               <div>
                 <h1 className="text-2xl font-bold text-text-main">Dashboard</h1>
-                <p className="text-sm text-text-muted mt-1">Welcome back, John. Here's what's happening today.</p>
+                <p className="text-sm text-text-muted mt-1">Welcome back, RegIntel Professional. Here's what's happening today.</p>
               </div>
             </div>
 
@@ -63,10 +67,14 @@ export const Dashboard = () => {
                 />
               </div>
 
-              <button className="w-10 h-10 bg-white rounded-full border border-gray-200 flex items-center justify-center text-text-muted hover:text-text-main hover:border-gray-300 transition-colors relative shadow-sm">
+              <Link
+                to="/alerts"
+                aria-label="Open alerts"
+                className="w-10 h-10 bg-white rounded-full border border-gray-200 flex items-center justify-center text-text-muted hover:text-text-main hover:border-gray-300 transition-colors relative shadow-sm"
+              >
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
+              </Link>
               <Link to="/profile" className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm border border-primary/20 hover:bg-primary/20 transition-colors cursor-pointer shadow-sm">
                 JD
               </Link>
@@ -81,9 +89,9 @@ export const Dashboard = () => {
                   <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
                     <Bell className="w-5 h-5 text-orange-600" />
                   </div>
-                  <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-1 rounded-full">+5 new</span>
+                  <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-1 rounded-full">+{newAlerts} new</span>
                 </div>
-                <div className="text-3xl font-bold text-text-main">12</div>
+                <div className="text-3xl font-bold text-text-main">{unreadAlerts}</div>
                 <div className="text-sm text-text-muted mt-1">Unread Alerts</div>
               </CardContent>
             </Card>
@@ -96,7 +104,7 @@ export const Dashboard = () => {
                   </div>
                   <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full">Good</span>
                 </div>
-                <div className="text-3xl font-bold text-text-main">98%</div>
+                <div className="text-3xl font-bold text-text-main">{complianceScore}%</div>
                 <div className="text-sm text-text-muted mt-1">Compliance Score</div>
               </CardContent>
             </Card>
@@ -139,6 +147,14 @@ export const Dashboard = () => {
                       <h3 className="text-sm font-semibold text-text-main">{item.title}</h3>
                       <p className="text-xs text-text-muted">{item.date}</p>
                     </div>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-primary hover:text-primary-hover"
+                    >
+                      Open
+                    </a>
                     {item.urgent && (
                       <span className="flex items-center gap-1 bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-100">
                         <AlertCircle className="w-3 h-3" /> URGENT

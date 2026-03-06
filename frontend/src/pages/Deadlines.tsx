@@ -2,24 +2,13 @@ import Sidebar from '../components/layout/Sidebar';
 import { Calendar, ExternalLink, AlertCircle, Clock, CheckCircle2, Menu } from 'lucide-react';
 import { useState } from 'react';
 import { Footer } from '../components/Footer';
-
-interface Deadline {
-  id: string; title: string; category: string;
-  bodyDate: string; dueDate: string; daysLeft: number;
-  status: 'Urgent' | 'Upcoming' | 'Normal';
-}
-
-const DEADLINES_DATA: Deadline[] = [
-  { id: '1', title: 'GST Monthly Return (GSTR-3B)', category: 'GST Compliance', bodyDate: 'Jan 20, 2024', dueDate: 'Jan 28, 2024', daysLeft: 4, status: 'Urgent' },
-  { id: '2', title: 'TDS Payment for Q3', category: 'Income Tax', bodyDate: 'Jan 15, 2024', dueDate: 'Jan 31, 2024', daysLeft: 7, status: 'Upcoming' },
-  { id: '3', title: 'Annual Compliance Certificate', category: 'Corporate Law', bodyDate: 'Jan 10, 2024', dueDate: 'Feb 15, 2024', daysLeft: 22, status: 'Normal' },
-  { id: '4', title: 'Advance Tax Installment', category: 'Income Tax', bodyDate: 'Jan 5, 2024', dueDate: 'Feb 28, 2024', daysLeft: 35, status: 'Normal' },
-  { id: '5', title: 'SEBI Annual Disclosure', category: 'Securities Law', bodyDate: 'Jan 1, 2024', dueDate: 'Mar 31, 2024', daysLeft: 67, status: 'Normal' },
-  { id: '6', title: 'PF Monthly Contribution', category: 'Labour Law', bodyDate: 'Jan 20, 2024', dueDate: 'Feb 15, 2024', daysLeft: 22, status: 'Upcoming' },
-];
+import { cbicDeadlines } from '../lib/cbicData';
 
 const Deadlines = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const urgentCount = cbicDeadlines.filter((item) => item.status === 'Urgent').length;
+  const weekCount = cbicDeadlines.filter((item) => item.daysLeft <= 7).length;
+  const totalCount = cbicDeadlines.length;
 
   const statusStyle = (s: string) =>
     s === 'Urgent' ? 'bg-red-50 text-red-600 border-red-100' :
@@ -58,15 +47,15 @@ const Deadlines = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
               <span className="text-sm text-text-muted">Urgent</span>
-              <span className="text-3xl font-bold text-red-500">1</span>
+              <span className="text-3xl font-bold text-red-500">{urgentCount}</span>
             </div>
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
               <span className="text-sm text-text-muted">This Week</span>
-              <span className="text-3xl font-bold text-amber-500">2</span>
+              <span className="text-3xl font-bold text-amber-500">{weekCount}</span>
             </div>
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
               <span className="text-sm text-text-muted">Total</span>
-              <span className="text-3xl font-bold text-primary">6</span>
+              <span className="text-3xl font-bold text-primary">{totalCount}</span>
             </div>
           </div>
 
@@ -80,7 +69,7 @@ const Deadlines = () => {
               <div className="col-span-1 text-center">Action</div>
             </div>
             <div className="divide-y divide-gray-100">
-              {DEADLINES_DATA.map((item) => (
+              {cbicDeadlines.map((item) => (
                 <div key={item.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors">
                   <div className="col-span-4 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
@@ -100,9 +89,14 @@ const Deadlines = () => {
                     </span>
                   </div>
                   <div className="col-span-1 flex justify-center">
-                    <button className="text-sm font-medium text-primary hover:text-primary-hover flex items-center gap-1">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-primary hover:text-primary-hover flex items-center gap-1"
+                    >
                       View <ExternalLink size={12} />
-                    </button>
+                    </a>
                   </div>
                 </div>
               ))}

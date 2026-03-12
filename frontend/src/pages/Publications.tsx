@@ -6,13 +6,9 @@ import type { Publication } from '../components/ui/PublicationCard';
 import Sidebar from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { Footer } from '../components/Footer';
+import { cbicPublications } from '../lib/cbicData';
 
-const MOCK_DATA: Publication[] = [
-  { id: '1', title: 'Guidelines for Foreign Investment in Insurance Sector', authority: 'Insurance Regulatory and Development Authority', description: 'New guidelines allowing up to 74% FDI in insurance companies with specific compliance requirements.', date: 'Jan 24, 2024', type: 'Circular' },
-  { id: '2', title: 'Amendments to Prevention of Money Laundering Act', authority: 'Ministry of Finance', description: 'Key amendments to PMLA regarding beneficial ownership and reporting requirements.', date: 'Jan 23, 2024', type: 'Amendment' },
-  { id: '3', title: 'Public Notice on E-Invoice Threshold Reduction', authority: 'Central Board of Indirect Taxes', description: 'E-invoicing mandatory for businesses with turnover exceeding Rs 5 crore from April 1, 2024.', date: 'Jan 22, 2024', type: 'Notice' },
-  { id: '4', title: 'Tender for Regulatory Technology Platform', authority: 'Securities and Exchange Board of India', description: 'Invitation for bids to develop a comprehensive regulatory technology platform for market surveillance.', date: 'Jan 21, 2024', type: 'Tender' },
-];
+const PUBLICATIONS_DATA: Publication[] = cbicPublications;
 
 const CATEGORIES = ['All', 'Notices', 'Circulars', 'Amendments', 'Tenders'];
 
@@ -21,9 +17,13 @@ const Publications = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
 
-  const filteredData = MOCK_DATA.filter((item) => {
+  const filteredData = PUBLICATIONS_DATA.filter((item) => {
     const matchCat = activeCategory === 'All' || item.type + 's' === activeCategory;
-    const matchSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || item.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const normalizedQuery = searchQuery.toLowerCase();
+    const matchSearch =
+      item.title.toLowerCase().includes(normalizedQuery) ||
+      item.description.toLowerCase().includes(normalizedQuery) ||
+      item.authority.toLowerCase().includes(normalizedQuery);
     return matchCat && matchSearch;
   });
 

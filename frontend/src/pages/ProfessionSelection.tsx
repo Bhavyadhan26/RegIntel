@@ -1,37 +1,31 @@
 import { useState } from "react";
 import {
-  Calculator, Scale, Briefcase, Check, ArrowRight
+  Calculator, Scale, Briefcase, Check, ArrowRight, ShieldCheck, Landmark, ClipboardCheck
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
+import { professionOptions } from "../lib/cbicData";
 
-const professions = [
-  {
-    id: "ca",
-    title: "Chartered Accountant",
-    desc: "Focus on taxation, audit compliance, and financial reporting standards.",
-    icon: Calculator,
-    iconBg: "bg-blue-100 text-blue-700"
-  },
-  {
-    id: "legal",
-    title: "Legal Professional",
-    desc: "Focus on litigation, corporate law, and regulatory advisory services.",
-    icon: Scale,
-    iconBg: "bg-primary/20 text-primary"
-  },
-  {
-    id: "cs",
-    title: "Company Secretary",
-    desc: "Focus on governance, secretarial standards, and compliance management.",
-    icon: Briefcase,
-    iconBg: "bg-indigo-100 text-indigo-700"
-  },
-];
+const iconById = {
+  ca: Calculator,
+  legal: Scale,
+  cs: Briefcase,
+  'corporate-auditor': ShieldCheck,
+  'tax-consultant': Landmark,
+  'compliance-officer': ClipboardCheck,
+};
 
 export const ProfessionSelection = () => {
   const navigate = useNavigate();
-  const [selectedId, setSelectedId] = useState<string | null>("legal"); // Default selected for demo per image
+  const [selectedIds, setSelectedIds] = useState<string[]>(["legal"]);
+
+  const toggleProfessionSelection = (id: string) => {
+    setSelectedIds((previous) =>
+      previous.includes(id)
+        ? previous.filter((selectedId) => selectedId !== id)
+        : [...previous, id]
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background font-sans flex flex-col">
@@ -59,12 +53,13 @@ export const ProfessionSelection = () => {
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl w-full mb-12">
-          {professions.map((p) => {
-            const isSelected = selectedId === p.id;
+          {professionOptions.map((p) => {
+            const isSelected = selectedIds.includes(p.id);
+            const Icon = iconById[p.id as keyof typeof iconById] ?? Briefcase;
             return (
               <div
                 key={p.id}
-                onClick={() => setSelectedId(p.id)}
+                onClick={() => toggleProfessionSelection(p.id)}
                 className={`
                                     relative p-8 rounded-xl border cursor-pointer transition-all duration-300 h-full flex flex-col
                                     ${isSelected
@@ -73,13 +68,12 @@ export const ProfessionSelection = () => {
                                 `}
               >
                 <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-6 ${p.iconBg}`}>
-                  <p.icon size={24} />
+                  <Icon size={24} />
                 </div>
                 <h3 className="text-xl font-bold text-text-main mb-3">{p.title}</h3>
                 <p className="text-text-muted leading-relaxed mb-4 flex-1">
                   {p.desc}
                 </p>
-
                 {isSelected && (
                   <div className="mt-auto flex items-center gap-1.5 text-xs font-bold text-primary tracking-wider uppercase">
                     Selected <Check size={14} strokeWidth={3} />
@@ -94,7 +88,7 @@ export const ProfessionSelection = () => {
           <Button
             size="lg"
             className="px-8 h-12 text-base shadow-xl shadow-primary/20"
-            disabled={!selectedId}
+            disabled={selectedIds.length === 0}
             onClick={() => navigate('/dashboard')}
           >
             Continue to Dashboard <ArrowRight className="ml-2 w-4 h-4" />

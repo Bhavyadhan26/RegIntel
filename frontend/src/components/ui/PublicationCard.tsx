@@ -8,6 +8,7 @@ export interface Publication {
   description: string;
   date: string;
   type: 'Notice' | 'Circular' | 'Amendment' | 'Tender';
+  url: string;
 }
 
 interface CardProps {
@@ -38,10 +39,15 @@ export const PublicationCard: React.FC<CardProps> = ({ data }) => {
       <p className="text-sm text-primary/100 font-medium mb-2">{data.authority}</p>
       <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 mb-4">{data.description}</p>
 
-      <button className="text-sm text-gray-400 font-medium flex items-center gap-1 group-hover:text-accent-purple transition-colors">
+      <a
+        href={data.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm text-gray-400 font-medium flex items-center gap-1 group-hover:text-accent-purple transition-colors"
+      >
         View Details
         <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-      </button>
+      </a>
     </div>
   );
 };

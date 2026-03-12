@@ -2,7 +2,7 @@ import { LayoutDashboard, Bell, FileText, Calendar, MessageSquare, LogOut, Home,
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 // Added isOpen and onClose props to allow parent control
-const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+const Sidebar = ({ onClose }: { isOpen: boolean; onClose: () => void }) => {
   const location = useLocation();
   const navigate = useNavigate();
 

@@ -1,24 +1,28 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import {
   Calendar, Bell, ChevronRight,
-  AlertCircle, CheckCircle2, TrendingUp, Search,
-  Menu
+  AlertCircle,
+  FileText, Briefcase
 } from "lucide-react";
 import Sidebar from "../components/layout/Sidebar";
+import { Header } from "../components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Footer } from "../components/Footer";
 
 export const Dashboard = () => {
-  // State to manage sidebar visibility on mobile
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const deadlines = [
     { title: "GST Return Filing", date: "Jan 28, 2026", urgent: true },
     { title: "Annual Compliance Report", date: "Feb 1, 2026", urgent: true },
     { title: "Quarterly Audit Submission", date: "Feb 15, 2026", urgent: false },
   ];
+
+  const filteredDeadlines = deadlines.filter((d) => 
+    d.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
@@ -27,92 +31,66 @@ export const Dashboard = () => {
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       </div>
 
+      {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/20 z-40" 
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden" 
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <main className="flex-1 flex flex-col min-h-screen transition-all duration-300">
+      {/* Main Content */}
+      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
         <div className="p-8 flex-1">
           {/* Header */}
-          <header className="flex justify-between items-center mb-8">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm"
-                aria-label="Open sidebar"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-              
-              <div>
-                <h1 className="text-2xl font-bold text-text-main">Dashboard</h1>
-                <p className="text-sm text-text-muted mt-1">Welcome back, John. Here's what's happening today.</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="relative w-64 hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search regulations..."
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-text-main"
-                />
-              </div>
-
-              <button className="w-10 h-10 bg-white rounded-full border border-gray-200 flex items-center justify-center text-text-muted hover:text-text-main hover:border-gray-300 transition-colors relative shadow-sm">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
-              <Link to="/profile" className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm border border-primary/20 hover:bg-primary/20 transition-colors cursor-pointer shadow-sm">
-                JD
-              </Link>
-            </div>
-          </header>
+          <Header 
+            title="Dashboard" 
+            subtitle="Welcome back, John. Here's what's happening today."
+            onMenuClick={() => setIsSidebarOpen(true)}
+            isSidebarOpen={isSidebarOpen}
+            showSearch={true}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-orange-500">
+            <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-orange-500 rounded-xl overflow-hidden bg-white/70 backdrop-blur">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+                  <div className="w-11 h-11 bg-orange-50 rounded-xl flex items-center justify-center shadow-sm">
                     <Bell className="w-5 h-5 text-orange-600" />
                   </div>
-                  <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-1 rounded-full">+5 new</span>
+                  <span className="bg-orange-100/80 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">+2 new</span>
                 </div>
-                <div className="text-3xl font-bold text-text-main">12</div>
-                <div className="text-sm text-text-muted mt-1">Unread Alerts</div>
+                <div className="text-4xl font-black text-text-main tracking-tight">2</div>
+                <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Unread Alerts</div>
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-emerald-500">
+            <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-blue-500 rounded-xl overflow-hidden bg-white/70 backdrop-blur">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center shadow-sm">
+                    <Briefcase className="w-5 h-5 text-blue-600" />
                   </div>
-                  <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full">Good</span>
+                  <span className="bg-blue-100/80 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">+1 this week</span>
                 </div>
-                <div className="text-3xl font-bold text-text-main">98%</div>
-                <div className="text-sm text-text-muted mt-1">Compliance Score</div>
+                <div className="text-4xl font-black text-text-main tracking-tight">3</div>
+                <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Number of Publications</div>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-primary bg-primary/5 border-primary/20">
-              <CardContent className="p-6 relative overflow-hidden">
+            <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-purple-500 rounded-xl overflow-hidden md:col-span-1 bg-white/70 backdrop-blur">
+              <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                    <TrendingUp className="w-5 h-5 text-primary" />
+                  <div className="w-11 h-11 bg-purple-50 rounded-xl flex items-center justify-center shadow-sm">
+                    <FileText className="w-5 h-5 text-purple-600" />
                   </div>
-                  <div className="w-8 h-8 bg-white/50 rounded-full flex items-center justify-center group-hover:bg-white transition-colors">
-                    <ChevronRight className="w-5 h-5 text-primary" />
-                  </div>
+                  <span className="bg-purple-100/80 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">+4 this month</span>
                 </div>
-                <div className="text-lg font-bold text-text-main">View Analytics</div>
-                <div className="text-sm text-text-muted mt-1">Detailed compliance reports</div>
+                <div className="text-4xl font-black text-text-main tracking-tight">15</div>
+                <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Deadlines</div>
               </CardContent>
             </Card>
           </div>
@@ -127,25 +105,31 @@ export const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="divide-y divide-gray-100">
-                {deadlines.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-4 py-4 hover:bg-gray-50/50 transition-colors rounded-lg px-2 -mx-2"
-                  >
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                      <Calendar className="w-5 h-5 text-gray-600" />
+                {filteredDeadlines.length > 0 ? (
+                  filteredDeadlines.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-4 py-4 hover:bg-gray-50/50 transition-colors rounded-lg px-2 -mx-2"
+                    >
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                        <Calendar className="w-5 h-5 text-gray-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold text-text-main">{item.title}</h3>
+                        <p className="text-xs text-text-muted">{item.date}</p>
+                      </div>
+                      {item.urgent && (
+                        <span className="flex items-center gap-1 bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-100">
+                          <AlertCircle className="w-3 h-3" /> URGENT
+                        </span>
+                      )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-text-main">{item.title}</h3>
-                      <p className="text-xs text-text-muted">{item.date}</p>
-                    </div>
-                    {item.urgent && (
-                      <span className="flex items-center gap-1 bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-100">
-                        <AlertCircle className="w-3 h-3" /> URGENT
-                      </span>
-                    )}
+                  ))
+                ) : (
+                  <div className="py-8 text-center text-text-muted text-sm">
+                    No deadlines found matching your criteria.
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>

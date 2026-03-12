@@ -1,5 +1,6 @@
 import Sidebar from '../components/layout/Sidebar';
-import { Calendar, ExternalLink, AlertCircle, Clock, CheckCircle2, Menu } from 'lucide-react';
+import { Header } from '../components/layout/Header';
+import { Calendar, ExternalLink, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 import { Footer } from '../components/Footer';
 
@@ -19,7 +20,7 @@ const DEADLINES_DATA: Deadline[] = [
 ];
 
 const Deadlines = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
 
   const statusStyle = (s: string) =>
     s === 'Urgent' ? 'bg-red-50 text-red-600 border-red-100' :
@@ -35,25 +36,18 @@ const Deadlines = () => {
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       </div>
 
+      {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-40"
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <main className="flex-1 flex flex-col min-h-screen">
+      {/* Main Content */}
+      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
         <div className="p-8 flex-1">
-          <div className="flex items-center gap-3 mb-7">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm"
-              aria-label="Open sidebar"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <h1 className="text-2xl font-bold text-text-main">Upcoming Deadlines</h1>
-          </div>
+          <Header title="Upcoming Deadlines" onMenuClick={() => setIsSidebarOpen(true)} isSidebarOpen={isSidebarOpen} />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">

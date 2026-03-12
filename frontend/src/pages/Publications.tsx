@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Search, Menu } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { FilterButton } from '../components/ui/FilterButton';
 import { PublicationCard } from '../components/ui/PublicationCard';
 import type { Publication } from '../components/ui/PublicationCard';
 import Sidebar from '../components/layout/Sidebar';
+import { Header } from '../components/layout/Header';
 import { Footer } from '../components/Footer';
 
 const MOCK_DATA: Publication[] = [
@@ -18,7 +19,7 @@ const CATEGORIES = ['All', 'Notices', 'Circulars', 'Amendments', 'Tenders'];
 const Publications = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
 
   const filteredData = MOCK_DATA.filter((item) => {
     const matchCat = activeCategory === 'All' || item.type + 's' === activeCategory;
@@ -32,25 +33,18 @@ const Publications = () => {
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       </div>
 
+      {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-40"
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <main className="flex-1 flex flex-col min-h-screen">
+      {/* Main Content */}
+      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
         <div className="p-8 flex-1">
-          <div className="flex items-center gap-3 mb-7">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm"
-              aria-label="Open sidebar"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <h1 className="text-2xl font-bold text-text-main">Publications</h1>
-          </div>
+          <Header title="Publications" onMenuClick={() => setIsSidebarOpen(true)} isSidebarOpen={isSidebarOpen} />
 
           <div className="relative mb-6">
             <input

@@ -229,7 +229,7 @@ export const UserProfile = () => {
                     Select your roles to receive tailored regulatory updates and specific compliance alerts.
                   </p>
                   <div className="flex flex-wrap gap-4">
-                    {["Chartered Accountant", "Legal Professional", "Company Secretary", "Compliance Officer", "Auditor"].map((role) => (
+                    {["Chartered Accountant", "Legal Professional", "Cost Accountant", "Banking or Finance", "Indirect Taxes"].map((role) => (
                       <button
                         key={role}
                         onClick={() => toggleRole(role)}

@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Calendar, Bell, ChevronRight,
   AlertCircle,
-  FileText, Briefcase
+  FileText, Briefcase, Clock
 } from "lucide-react";
 import Sidebar from "../components/layout/Sidebar";
 import { Header } from "../components/layout/Header";
@@ -13,7 +14,7 @@ import { Footer } from "../components/Footer";
 
 export const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
-  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
 
   const deadlines = [
     { title: "GST Return Filing", date: "Jan 28, 2026", urgent: true },
@@ -21,9 +22,7 @@ export const Dashboard = () => {
     { title: "Quarterly Audit Submission", date: "Feb 15, 2026", urgent: false },
   ];
 
-  const filteredDeadlines = deadlines.filter((d) => 
-    d.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredDeadlines = deadlines;
 
   return (
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
@@ -44,15 +43,18 @@ export const Dashboard = () => {
       <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
         <div className="p-8 flex-1">
           {/* Header */}
-          <Header 
-            title="Dashboard" 
-            subtitle="Welcome back, John. Here's what's happening today."
-            onMenuClick={() => setIsSidebarOpen(true)}
-            isSidebarOpen={isSidebarOpen}
-            showSearch={true}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-          />
+          <div className="flex flex-col md:flex-row md:items-start justify-between">
+            <Header 
+              title="Dashboard" 
+              subtitle="Welcome back, John. Here's what's happening today."
+              onMenuClick={() => setIsSidebarOpen(true)}
+              isSidebarOpen={isSidebarOpen}
+            />
+            <div className="mt-4 md:mt-8 mr-2 ml-auto mb-6 flex items-center text-xs font-semibold text-text-muted bg-gray-100/80 border border-gray-200 px-3 py-1.5 rounded-full whitespace-nowrap">
+              <Clock size={12} className="mr-1.5" /> 
+              Last updated: {new Date().toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+            </div>
+          </div>
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -100,7 +102,7 @@ export const Dashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-bold">Upcoming Deadlines</CardTitle>
-              <Button variant="ghost" size="sm" className="text-primary hover:text-primary-hover h-auto py-1 px-2">
+              <Button variant="ghost" size="sm" className="text-primary hover:text-primary-hover h-auto py-1 px-2" onClick={() => navigate('/deadlines')}>
                 View all <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </CardHeader>

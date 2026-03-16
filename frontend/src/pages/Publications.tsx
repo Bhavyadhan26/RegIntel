@@ -10,7 +10,7 @@ import { cbicPublications } from '../lib/cbicData';
 
 const PUBLICATIONS_DATA: Publication[] = cbicPublications;
 
-const CATEGORIES = ['All', 'Notices', 'Updates',  'Tenders'];
+const CATEGORIES = ['All', 'Notifications', 'Updates', 'Tenders'];
 
 const WEBSITE_FILTERS = [
   { label: 'All Websites', domains: [] },
@@ -28,7 +28,12 @@ const Publications = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
 
   const filteredData = PUBLICATIONS_DATA.filter((item) => {
-    const matchCat = activeCategory === 'All' || item.type + 's' === activeCategory;
+    let matchCat = activeCategory === 'All';
+    if (!matchCat) {
+      if (activeCategory === 'Notifications' && item.type === 'Notice') matchCat = true;
+      else if (activeCategory === 'Updates' && (item.type === 'Circular' || item.type === 'Amendment')) matchCat = true;
+      else if (activeCategory === 'Tenders' && item.type === 'Tender') matchCat = true;
+    }
     const selectedWebsite = WEBSITE_FILTERS.find((site) => site.label === activeWebsite);
     const normalizedUrl = item.url.toLowerCase();
     const matchWebsite =

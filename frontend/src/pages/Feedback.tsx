@@ -71,22 +71,22 @@ const Feedback = () => {
                   <p className="text-sm text-text-muted">Direct channels to our team.</p>
                 </div>
 
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all">
+                <div onClick={() => window.open("https://mail.google.com/mail/?view=cm&fs=1&to=bdhanuka26@gmail.com", "_blank")} className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all group cursor-pointer block">
                   <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
                     <Mail className="text-blue-600" size={22} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-text-main">Email Us</h3>
+                    <h3 className="text-sm font-bold text-text-main group-hover:text-primary transition-colors">Email Us</h3>
                     <p className="text-sm text-text-muted">bdhanuka26@gmail.com</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all">
+                <div onClick={() => window.location.href = "tel:+919755588539"} className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all group cursor-pointer block">
                   <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center shrink-0">
                     <Phone className="text-purple-600" size={22} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-text-main">Call Support</h3>
+                    <h3 className="text-sm font-bold text-text-main group-hover:text-primary transition-colors">Call Support</h3>
                     <p className="text-sm text-text-muted">+91-9755588539</p>
                   </div>
                 </div>

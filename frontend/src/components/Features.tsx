@@ -89,7 +89,9 @@ export const Features = () => {
                 <div className="h-3 w-2/3 bg-slate-200 rounded-full" />
                 <div className="h-3 w-full bg-slate-100 rounded-full" />
                 <div className="flex-1 flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-full border-4 border-indigo-100 border-t-green-500 animate-spin" />
+                  <div className="w-12 h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
+                    <LayoutDashboard className="w-6 h-6" />
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -125,7 +127,7 @@ export const Features = () => {
               </div>
               <h4 className="text-2xl font-bold text-text-main mb-4">Global Coverage</h4>
               <p className="text-text-muted leading-relaxed text-lg mb-8">
-                Monitor compliance requirements across 150+ jurisdictions with our interconnected global network.
+                Monitor compliance requirements across jurisdictions with our interconnected global network.
               </p>
               {/* Visual Placeholder for Global Network */}
               <div className="mt-auto w-full h-44 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center relative overflow-hidden">

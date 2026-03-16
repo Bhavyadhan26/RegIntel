@@ -95,27 +95,48 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+def _get_env(name, fallback_name=None, default=None):
+    value = os.getenv(name)
+    if value:
+        return value
+    if fallback_name:
+        fallback_value = os.getenv(fallback_name)
+        if fallback_value:
+            return fallback_value
+    return default
+
+
+def _required_database_value(name, fallback_name=None):
+    value = _get_env(name, fallback_name)
+    if not value:
+        expected = name if not fallback_name else f'{name} (or {fallback_name})'
+        raise RuntimeError(f'{expected} is required in the .env file')
+    return value
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': _required_database_value('DEFAULT_DB_NAME', 'DB_NAME'),
+        'USER': _required_database_value('DEFAULT_DB_USER', 'DB_USER'),
+        'PASSWORD': _required_database_value('DEFAULT_DB_PASS', 'DB_PASS'),
+        'HOST': _get_env('DEFAULT_DB_HOST', 'DB_HOST', 'localhost'),
+        'PORT': _get_env('DEFAULT_DB_PORT', 'DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
     },
     'scraper_db': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASS'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '3306'),
+        'NAME': _required_database_value('SCRAPER_DB_NAME', 'DB_NAME'),
+        'USER': _required_database_value('SCRAPER_DB_USER', 'DB_USER'),
+        'PASSWORD': _required_database_value('SCRAPER_DB_PASS', 'DB_PASS'),
+        'HOST': _get_env('SCRAPER_DB_HOST', 'DB_HOST', 'localhost'),
+        'PORT': _get_env('SCRAPER_DB_PORT', 'DB_PORT', '3306'),
         'OPTIONS': {
             'charset': 'utf8mb4',
         },
     },
 }
-
-for env_name in ('DB_NAME', 'DB_USER', 'DB_PASS'):
-    if not os.getenv(env_name):
-        raise RuntimeError(f'{env_name} is required in the .env file')
 
 DATABASE_ROUTERS = ['scraper.db_router.ScraperDatabaseRouter']
 

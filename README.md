@@ -59,6 +59,24 @@ RegIntel – Professional Regulatory Intelligence Platform
 
   python manage.py website_scraper
 
+### 5. Scheduled scraper runs
+
+RegIntel supports two ways to run scraping on demand:
+
+1. Admin trigger:
+  - Open `/admin/`
+  - On the scraper dashboard, click `Run Scraper Now`
+  - The scraper starts in the background and logs to `backend/logs/website_scraper_manual.log`
+
+2. Cron schedule on Linux hosting:
+  - Use the helper script at `backend/scripts/run_website_scraper.sh`
+  - Example cron schedule for 10:00 AM and 6:00 PM every day:
+
+  0 10,18 * * * /bin/bash /path/to/RegIntel/backend/scripts/run_website_scraper.sh
+
+  - Example cron file template is available at `backend/deploy/scraper.cron.example`
+  - Cron output is written to `backend/logs/website_scraper_cron.log`
+
 ## Pre-Push Security Checklist
 
 1. Confirm `.env` is not staged.

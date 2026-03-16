@@ -1,8 +1,15 @@
+import sys
+from pathlib import Path
+from subprocess import Popen
+from datetime import timedelta
+
+from django.contrib import messages
 from django.contrib.admin import AdminSite
 from django.db import DatabaseError
 from django.db.models import Count, Q
+from django.http import HttpResponseRedirect
+from django.urls import path, reverse
 from django.utils import timezone
-from datetime import timedelta
 
 from .models import (
     WebsiteScrapingData,
@@ -18,9 +25,51 @@ class RegIntelAdminSite(AdminSite):
     index_title = "Website Scraper Control Panel"
     index_template = "scraper/admin_dashboard.html"
 
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path("run-scraper/", self.admin_view(self.run_scraper_view), name="run-scraper"),
+        ]
+        return custom_urls + urls
+
     def has_permission(self, request):
         user = request.user
         return bool(user and user.is_active and user.is_superuser)
+
+    def run_scraper_view(self, request):
+        if request.method != "POST":
+            messages.warning(request, "Use the dashboard button to run the scraper.")
+            return HttpResponseRedirect(reverse("regintel_admin:index"))
+
+        if WebsiteScrapingRun.objects.filter(status="running").exists():
+            messages.warning(
+                request,
+                "A scraper run is already in progress. Check Run Logs before starting another run.",
+            )
+            return HttpResponseRedirect(reverse("regintel_admin:index"))
+
+        backend_dir = Path(__file__).resolve().parents[1]
+        logs_dir = backend_dir / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_file = logs_dir / "website_scraper_manual.log"
+
+        with log_file.open("a", encoding="utf-8") as stream:
+            stream.write(f"\n[{timezone.now().isoformat()}] Manual scraper trigger requested from admin.\n")
+
+        with log_file.open("a", encoding="utf-8") as stream:
+            Popen(
+                [sys.executable, "manage.py", "website_scraper"],
+                cwd=str(backend_dir),
+                stdout=stream,
+                stderr=stream,
+                close_fds=True,
+            )
+
+        messages.success(
+            request,
+            "Scraper started in the background. Refresh Run Logs in a few moments to monitor progress.",
+        )
+        return HttpResponseRedirect(reverse("regintel_admin:index"))
 
     def index(self, request, extra_context=None):
         context = extra_context or {}
@@ -46,6 +95,7 @@ class RegIntelAdminSite(AdminSite):
                 "selectors": "/admin/scraper/websitescrapingselector/",
                 "data": "/admin/scraper/websitescrapingdata/",
                 "runs": "/admin/scraper/websitescrapingrun/",
+                "run_scraper": reverse("regintel_admin:run-scraper"),
                 "feedback": "/admin/scraper/userfeedback/",
                 "users": "/admin/auth/user/",
                 "profiles": "/admin/users/userprofile/",

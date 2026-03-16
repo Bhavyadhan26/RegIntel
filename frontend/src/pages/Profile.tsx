@@ -1,21 +1,50 @@
 import { useState } from "react";
-import { 
-  User, Mail, Briefcase, Shield, 
-  Settings, Bell, Camera, Menu
-} from "lucide-react";
+import { Camera, Shield, User, Briefcase, Settings, Bell } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import Sidebar from "../components/layout/Sidebar";
+import { Header } from "../components/layout/Header";
 import { Footer } from "@/components/Footer";
 
 export const UserProfile = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [profile, setProfile] = useState({
-    name: "RegIntel Professional",
-    email: "RegIntel@company.com",
-    role: "Legal Professional",
+    name: "John Doe",
+    email: "john.doe@company.com",
+    roles: ["Legal Professional"],
     notifications: true,
   });
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwords, setPasswords] = useState({ current: "", new: "", confirm: "" });
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = () => {
+    setIsSaving(true);
+    setTimeout(() => {
+      setIsSaving(false);
+      setIsChangingPassword(false);
+      setPasswords({ current: "", new: "", confirm: "" });
+      alert("Settings saved successfully!");
+    }, 600);
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAvatarUrl(url);
+    }
+  };
+
+  const toggleRole = (role: string) => {
+    const roles = profile.roles.includes(role)
+      ? profile.roles.filter(r => r !== role)
+      : [...profile.roles, role];
+    setProfile({ ...profile, roles });
+  };
 
   return (
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
@@ -23,138 +52,213 @@ export const UserProfile = () => {
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       </div>
 
+      {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-40"
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <main className="flex-1 flex flex-col min-h-screen">
+      {/* Main Content */}
+      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
         <div className="p-8 flex-1">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm mb-6"
-            aria-label="Open sidebar"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+          <Header 
+            title="Profile" 
+            subtitle="Manage your personal information, roles, and preferences." 
+            onMenuClick={() => setIsSidebarOpen(true)}
+            isSidebarOpen={isSidebarOpen}
+          />
 
-          <header className="mb-10">
-            <h1 className="text-3xl font-bold text-text-main">Account Settings</h1>
-            <p className="text-text-muted mt-2">Manage your professional profile and platform preferences.</p>
-          </header>
-
-          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column: Profile Card */}
-            <div className="lg:col-span-1 space-y-6">
-              <Card className="border-none shadow-sm bg-white overflow-hidden">
-                <div className="h-24 bg-gradient-to-r from-primary/20 to-primary/5" />
-                <CardContent className="pt-0 -mt-12 text-center">
-                  <div className="relative inline-block">
-                    <div className="w-24 h-24 rounded-full border-4 border-white bg-slate-100 flex items-center justify-center text-primary text-3xl font-bold shadow-sm mx-auto">
-                      {profile.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <button className="absolute bottom-0 right-0 p-1.5 bg-white border border-border rounded-full shadow-sm hover:bg-slate-50 transition-colors">
-                      <Camera size={14} className="text-text-muted" />
-                    </button>
-                  </div>
-                  <h2 className="mt-4 text-xl font-bold text-text-main">{profile.name}</h2>
-                  <p className="text-sm text-primary font-medium">{profile.role}</p>
-                </CardContent>
-                <div className="border-t border-border/50 p-4 bg-slate-50/50">
-                  <Button variant="outline" className="w-full text-xs h-9">View Public Profile</Button>
-                </div>
-              </Card>
-            </div>
-
-            {/* Right Column: Settings Sections */}
-            <div className="lg:col-span-2 space-y-8">
-              {/* Section: Personal Information */}
-              <section>
-                <div className="flex items-center gap-2 mb-4 text-text-main">
-                  <User size={18} className="text-primary" />
-                  <h3 className="font-semibold text-lg">Personal Information</h3>
-                </div>
-                <Card className="border-border/60">
-                  <CardContent className="p-6 grid md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Full Name</label>
-                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-border/40">
-                        <User size={16} className="text-slate-400" />
-                        <span className="text-sm text-text-main">{profile.name}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-text-muted">Email Address</label>
-                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-border/40">
-                        <Mail size={16} className="text-slate-400" />
-                        <span className="text-sm text-text-main">{profile.email}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </section>
-
-              {/* Section: Professional Profile */}
-              <section>
-                <div className="flex items-center gap-2 mb-4 text-text-main">
-                  <Briefcase size={18} className="text-primary" />
-                  <h3 className="font-semibold text-lg">Professional Focus</h3>
-                </div>
-                <Card className="border-border/60">
-                  <CardContent className="p-6">
-                    <p className="text-sm text-text-muted mb-6">
-                      Your current focus determines the regulatory updates summarized for you.
-                    </p>
-                    <div className="flex flex-wrap gap-4">
-                      {["Chartered Accountant", "Legal Professional", "Company Secretary"].map((role) => (
-                        <button
-                          key={role}
-                          onClick={() => setProfile({ ...profile, role })}
-                          className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                            profile.role === role 
-                            ? "bg-primary text-white border-primary shadow-md shadow-primary/20" 
-                            : "bg-white text-text-muted border-border hover:border-primary/40"
-                          }`}
-                        >
-                          {role}
-                        </button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </section>
-
-              {/* Section: Security & Preferences */}
-              <section>
-                <div className="flex items-center gap-2 mb-4 text-text-main">
-                  <Shield size={18} className="text-primary" />
-                  <h3 className="font-semibold text-lg">Security & Preferences</h3>
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <Card className="p-4 border-border/60 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Bell size={18} className="text-slate-400" />
-                      <span className="text-sm font-medium">Email Notifications</span>
-                    </div>
+          <div className="w-full max-w-[1400px] mx-auto mb-16">
+            
+            <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+              
+              {/* TOP LEFT: Avatar Section */}
+              <section className="h-full w-full">
+                <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl h-full flex flex-col items-center justify-center py-16 px-8 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-slate-50 to-transparent"></div>
+                  <label className="relative group cursor-pointer mb-6 block z-10 block">
                     <input 
-                      type="checkbox" 
-                      checked={profile.notifications} 
-                      onChange={(e) => setProfile({...profile, notifications: e.target.checked})}
-                      className="w-5 h-5 accent-primary"
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={handlePhotoUpload} 
                     />
-                  </Card>
-                  <Card className="p-4 border-border/60 flex items-center justify-between group cursor-pointer hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Shield size={18} className="text-slate-400" />
-                      <span className="text-sm font-medium">Change Password</span>
+                    <div className="w-48 h-48 rounded-full border-[6px] border-white bg-slate-100 flex items-center justify-center text-primary text-5xl font-black shadow-xl overflow-hidden transition-transform duration-300 group-hover:scale-[1.03] relative">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        profile.name.split(' ').map(n => n[0]).join('')
+                      )}
+                      <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
+                        <Camera className="text-white w-10 h-10 mb-2" />
+                        <span className="text-white text-sm font-bold tracking-wider uppercase">Upload Photo</span>
+                      </div>
                     </div>
-                    <Settings size={16} className="text-slate-300 group-hover:text-primary" />
-                  </Card>
-                </div>
+                    <div className="absolute bottom-2 right-2 p-3.5 bg-primary border-[4px] border-white rounded-full shadow-lg text-white hover:bg-primary/90 transition-colors">
+                      <Camera size={20} />
+                    </div>
+                  </label>
+                  <h2 className="text-4xl font-black text-text-main mt-4 z-10 text-center tracking-tight">{profile.name}</h2>
+                  <p className="text-primary font-bold mt-4 bg-primary/10 px-6 py-2 rounded-full text-sm z-10 text-center">
+                    {profile.roles.join(", ") || "No Focus Selected"}
+                  </p>
+                </Card>
               </section>
+
+              {/* TOP RIGHT: Personal Information */}
+              <section className="h-full space-y-6">
+                <h3 className="text-xl font-black text-text-main flex items-center gap-3">
+                  <User size={24} className="text-primary" /> Personal Information
+                </h3>
+                <Card className="border-0 shadow-lg shadow-black/5 bg-white overflow-hidden rounded-3xl h-[calc(100%-3rem)]">
+                  <CardContent className="p-8 lg:p-10 space-y-8 flex flex-col justify-center h-full">
+                    <div>
+                      <label className="text-sm font-bold uppercase tracking-wider text-text-muted block mb-3">Full Name</label>
+                      <input 
+                        type="text" 
+                        value={profile.name}
+                        onChange={(e) => setProfile({...profile, name: e.target.value})}
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-5 text-lg text-text-main focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-bold" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-bold uppercase tracking-wider text-text-muted block mb-3">Email Address</label>
+                      <input 
+                        type="email" 
+                        value={profile.email}
+                        onChange={(e) => setProfile({...profile, email: e.target.value})}
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-5 text-lg text-text-main focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-bold" 
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </section>
+
+              {/* BOTTOM LEFT: Security & Preferences */}
+              <section className="space-y-6">
+                <h3 className="text-xl font-black text-text-main flex items-center gap-3">
+                  <Shield size={24} className="text-primary" /> Security & Preferences
+                </h3>
+                <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl overflow-hidden">
+                  <div className="p-8 flex items-center justify-between border-b border-border/50 hover:bg-slate-50 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-6">
+                      <div className="bg-orange-50 p-4 rounded-2xl">
+                        <Bell size={28} className="text-orange-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-lg text-text-main">Email Notifications</h4>
+                        <p className="text-sm text-text-muted mt-1">Receive alerts for new regulations.</p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer scale-125 origin-right">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={profile.notifications} 
+                        onChange={(e) => setProfile({...profile, notifications: e.target.checked})}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+                  
+                  <div 
+                    className={`p-8 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer group ${isChangingPassword ? 'bg-slate-50 border-b border-border/50' : ''}`}
+                    onClick={() => setIsChangingPassword(!isChangingPassword)}
+                  >
+                    <div className="flex items-center gap-6">
+                      <div className="bg-blue-50 p-4 rounded-2xl">
+                        <Settings size={28} className="text-blue-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-lg text-text-main group-hover:text-primary transition-colors">Change Password</h4>
+                        <p className="text-sm text-text-muted mt-1">Update your account credentials.</p>
+                      </div>
+                    </div>
+                    <Settings size={28} className={`text-slate-300 group-hover:text-primary transition-transform duration-300 ${isChangingPassword ? 'rotate-90 text-primary' : ''}`} />
+                  </div>
+
+                  {/* Password Fields */}
+                  {isChangingPassword && (
+                    <div className="p-8 bg-slate-50/80 space-y-6 border-t border-border/50">
+                      <div>
+                        <label className="text-sm font-bold uppercase tracking-wider text-text-muted block mb-3">Current Password</label>
+                        <input 
+                          type="password" 
+                          value={passwords.current}
+                          onChange={(e) => setPasswords({...passwords, current: e.target.value})}
+                          className="w-full bg-white border-2 border-slate-100 rounded-xl p-4 text-base text-text-main focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-semibold" 
+                          placeholder="••••••••"
+                        />
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="text-sm font-bold uppercase tracking-wider text-text-muted block mb-3">New Password</label>
+                          <input 
+                            type="password" 
+                            value={passwords.new}
+                            onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+                            className="w-full bg-white border-2 border-slate-100 rounded-xl p-4 text-base text-text-main focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-semibold" 
+                            placeholder="••••••••"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-bold uppercase tracking-wider text-text-muted block mb-3">Confirm New Password</label>
+                          <input 
+                            type="password" 
+                            value={passwords.confirm}
+                            onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                            className="w-full bg-white border-2 border-slate-100 rounded-xl p-4 text-base text-text-main focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-semibold" 
+                            placeholder="••••••••"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              </section>
+
+              {/* BOTTOM RIGHT: Professional Focus */}
+              <section className="space-y-6">
+                <h3 className="text-xl font-black text-text-main flex items-center gap-3">
+                  <Briefcase size={24} className="text-primary" /> Professional Focus
+                </h3>
+                <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl p-8 lg:p-10 h-[calc(100%-3rem)] flex flex-col justify-center">
+                  <p className="text-base text-text-muted mb-8 leading-relaxed">
+                    Select your roles to receive tailored regulatory updates and specific compliance alerts.
+                  </p>
+                  <div className="flex flex-wrap gap-4">
+                    {["Chartered Accountant", "Legal Professional", "Cost Accountant", "Banking or Finance", "Indirect Taxes"].map((role) => (
+                      <button
+                        key={role}
+                        onClick={() => toggleRole(role)}
+                        className={`px-6 py-4 rounded-2xl text-sm font-bold border-2 transition-all ${
+                          profile.roles.includes(role)
+                          ? "bg-primary text-white border-primary shadow-xl shadow-primary/20 scale-105" 
+                          : "bg-white text-slate-600 border-slate-200 hover:border-primary/50 hover:bg-slate-50 hover:-translate-y-1"
+                        }`}
+                      >
+                        {role}
+                      </button>
+                    ))}
+                  </div>
+                </Card>
+              </section>
+
             </div>
+
+            {/* Save Button */}
+            <div className="flex justify-center pt-16">
+              <Button 
+                onClick={handleSave} 
+                disabled={isSaving}
+                className="w-full lg:w-1/3 px-16 py-8 text-xl rounded-2xl bg-primary hover:bg-primary/95 text-white shadow-2xl shadow-primary/30 font-black transition-all hover:-translate-y-1 active:scale-[0.98]"
+              >
+                {isSaving ? "Saving Configuration..." : "Save Profile Changes"}
+              </Button>
+            </div>
+
           </div>
         </div>
         <Footer />

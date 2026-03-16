@@ -1,4 +1,4 @@
-import { LayoutDashboard, Bell, FileText, Calendar, HelpCircle, ArrowLeft, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, Bell, FileText, Calendar, HelpCircle, ArrowLeft, LogOut, Menu } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -12,7 +12,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
     const menuItems = [
         { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
-        { name: 'Alerts', icon: <Bell size={20} />, path: '/alerts', badge: 12 },
+        { name: 'Alerts', icon: <Bell size={20} />, path: '/alerts' },
         { name: 'Publications', icon: <FileText size={20} />, path: '/publications' },
         { name: 'Deadlines', icon: <Calendar size={20} />, path: '/deadlines' },
         { name: 'Feedback', icon: <HelpCircle size={20} />, path: '/feedback' },
@@ -20,18 +20,20 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
     return (
         <div className="w-[260px] bg-light-100 border-r border-border h-full flex flex-col relative" aria-hidden={!isOpen}>
-            <button
-                onClick={onClose}
-                className="absolute right-3 top-3 text-text-muted hover:text-text-main"
-                aria-label="Close sidebar"
-            >
-                <X size={20} />
-            </button>
-
-            {/* Logo */}
-            <div className="px-6 h-[72px] flex items-center gap-3">
-                <img src="/WEBLOGO.png" alt="RegIntel Logo" className="h-[3.25rem] w-auto mt-2" />
-                <span className="text-xl font-bold text-text-main tracking-tight">RegIntel</span>
+            {/* Logo and Menu Toggle */}
+            <div className="px-5 h-[72px] flex items-center justify-between mt-2">
+                <div className="flex items-center gap-2">
+                    <img src="/WEBLOGO.png" alt="RegIntel Logo" className="h-[2.75rem] w-auto" />
+                    <span className="text-xl font-bold text-text-main tracking-tight">RegIntel</span>
+                </div>
+                
+                <button
+                    onClick={onClose}
+                    className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm shrink-0"
+                    aria-label="Close sidebar"
+                >
+                    <Menu className="w-6 h-6" />
+                </button>
             </div>
 
             {/* Nav */}
@@ -42,7 +44,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         <Link
                             key={item.name}
                             to={item.path}
-                            onClick={onClose}
+                            onClick={() => {
+                                if (window.innerWidth < 1024) onClose();
+                            }}
                             className={cn(
                                 "flex items-center gap-3 px-3 py-2.5 rounded-md text-[15px] font-medium transition-colors mb-1",
                                 active
@@ -52,11 +56,6 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         >
                             {item.icon}
                             {item.name}
-                            {item.badge && (
-                                <span className={`ml-auto flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium ${active ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'}`}>
-                                    {item.badge}
-                                </span>
-                            )}
                         </Link>
                     );
                 })}
@@ -65,7 +64,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             <div className="px-4 pb-8 pt-4 space-y-1 mt-auto border-t border-border">
                 <Link
                     to="/"
-                    onClick={onClose}
+                    onClick={() => {
+                        if (window.innerWidth < 1024) onClose();
+                    }}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-md text-[15px] font-medium text-text-muted hover:text-text-main hover:bg-secondary/50 transition-colors"
                 >
                     <ArrowLeft size={20} />
@@ -73,7 +74,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 </Link>
                 <Link
                     to="/login"
-                    onClick={onClose}
+                    onClick={() => {
+                        if (window.innerWidth < 1024) onClose();
+                    }}
                     className="flex items-center gap-3 px-3 py-2.5 w-full rounded-md text-[15px] font-medium text-red-500 hover:bg-red-50 transition-colors text-left"
                 >
                     <LogOut size={20} className="text-red-500" />

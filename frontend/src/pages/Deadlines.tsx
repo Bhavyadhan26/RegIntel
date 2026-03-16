@@ -1,11 +1,20 @@
 import Sidebar from '../components/layout/Sidebar';
-import { Calendar, ExternalLink, AlertCircle, Clock, CheckCircle2, Menu } from 'lucide-react';
+import { Header } from '../components/layout/Header';
+import { Calendar, ExternalLink, AlertCircle, Clock, CheckCircle2, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Footer } from '../components/Footer';
 import { cbicDeadlines } from '../lib/cbicData';
 
 const Deadlines = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredData = cbicDeadlines.filter(item => {
+    const normalizedQuery = searchQuery.toLowerCase();
+    return item.title.toLowerCase().includes(normalizedQuery) ||
+           item.category.toLowerCase().includes(normalizedQuery);
+  });
+
   const urgentCount = cbicDeadlines.filter((item) => item.status === 'Urgent').length;
   const weekCount = cbicDeadlines.filter((item) => item.daysLeft <= 7).length;
   const totalCount = cbicDeadlines.length;
@@ -24,25 +33,18 @@ const Deadlines = () => {
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       </div>
 
+      {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-40"
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <main className="flex-1 flex flex-col min-h-screen">
+      {/* Main Content */}
+      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
         <div className="p-8 flex-1">
-          <div className="flex items-center gap-3 mb-7">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm"
-              aria-label="Open sidebar"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <h1 className="text-2xl font-bold text-text-main">Upcoming Deadlines</h1>
-          </div>
+          <Header title="Upcoming Deadlines" onMenuClick={() => setIsSidebarOpen(true)} isSidebarOpen={isSidebarOpen} />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
@@ -59,6 +61,17 @@ const Deadlines = () => {
             </div>
           </div>
 
+          <div className="relative mb-6">
+            <input
+              type="text"
+              placeholder="Search deadlines..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-sm text-text-main placeholder:text-text-muted transition-all shadow-sm"
+            />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          </div>
+
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <div className="grid grid-cols-12 gap-4 bg-gray-50/50 px-6 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider border-b border-gray-200">
               <div className="col-span-4">Title</div>
@@ -69,7 +82,8 @@ const Deadlines = () => {
               <div className="col-span-1 text-center">Action</div>
             </div>
             <div className="divide-y divide-gray-100">
-              {cbicDeadlines.map((item) => (
+              {filteredData.length > 0 ? (
+                filteredData.map((item) => (
                 <div key={item.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors">
                   <div className="col-span-4 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
@@ -80,13 +94,19 @@ const Deadlines = () => {
                   <div className="col-span-2 text-sm text-text-muted">{item.category}</div>
                   <div className="col-span-2 text-sm text-text-muted">{item.bodyDate}</div>
                   <div className="col-span-2">
-                    <div className="text-sm font-medium text-text-main">{item.dueDate}</div>
-                    <div className="text-xs text-text-muted">{item.daysLeft} days left</div>
+                    {!item.dueDate || item.dueDate === 'N/A' || item.dueDate.toLowerCase() === 'not applicable' ? (
+                      <div className="text-sm font-medium text-text-muted">-</div>
+                    ) : (
+                      <>
+                        <div className="text-sm font-medium text-text-main">{item.dueDate}</div>
+                        <div className="text-xs text-text-muted">{item.daysLeft} days left</div>
+                      </>
+                    )}
                   </div>
                   <div className="col-span-1 flex justify-center">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${statusStyle(item.status)}`}>
-                      {statusIcon(item.status)} {item.status}
-                    </span>
+                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${statusStyle(item.status)}`}>
+                       {statusIcon(item.status)} {item.status}
+                     </span>
                   </div>
                   <div className="col-span-1 flex justify-center">
                     <a
@@ -99,7 +119,12 @@ const Deadlines = () => {
                     </a>
                   </div>
                 </div>
-              ))}
+              ))
+            ) : (
+              <div className="py-8 text-center text-text-muted text-sm px-6">
+                No deadlines found matching your search.
+              </div>
+            )}
             </div>
           </div>
         </div>

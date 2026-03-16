@@ -2,7 +2,7 @@
 
 export const Footer = ({ showCTA = false }: { showCTA?: boolean }) => {
   return (
-    <footer className="bg-gradient-to-b from-white to-slate-100 pt-10 pb-10 px-6 border-t border-slate-200">
+    <footer className="bg-gradient-to-b from-white to-slate-100 pt-4 pb-4 px-6 border-t border-slate-200">
       <div className="max-w-6xl mx-auto">
         {/* CTA Section */}
         {showCTA && (
@@ -17,17 +17,10 @@ export const Footer = ({ showCTA = false }: { showCTA?: boolean }) => {
         )}
 
         {/* Footer Links */}
-        <div className="border-t border-slate-200 pt-10 flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-slate-500">
+        <div className="border-slate-200 flex flex-col md:flex-row justify-center items-center gap-4 text-sm text-slate-500">
           <div className="flex items-center gap-2">
             <img src="/WEBLOGO.png" alt="RegIntel Logo" className="h-8 w-auto" />
             <span className="text-text-main font-bold">RegIntel</span>
-          </div>
-
-          <div className="flex gap-8">
-            <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-primary transition-colors">Cookie Policy</a>
-            <a href="#" className="hover:text-primary transition-colors">Contact Us</a>
           </div>
 
           <div>

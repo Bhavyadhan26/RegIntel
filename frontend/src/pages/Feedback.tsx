@@ -68,7 +68,7 @@ const Feedback = () => {
               <div className="lg:col-span-3 flex flex-col gap-5">
                 <div className="bg-white/50 backdrop-blur rounded-2xl p-6 border border-gray-100 shadow-sm mb-2">
                   <h3 className="font-bold text-text-main text-lg mb-1">Get in touch</h3>
-                  <p className="text-sm text-text-muted">Direct channels to our support team.</p>
+                  <p className="text-sm text-text-muted">Direct channels to our team.</p>
                 </div>
 
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all">
@@ -77,7 +77,7 @@ const Feedback = () => {
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-text-main">Email Us</h3>
-                    <p className="text-sm text-text-muted">support@regintel.com</p>
+                    <p className="text-sm text-text-muted">bdhanuka26@gmail.com</p>
                   </div>
                 </div>
 
@@ -87,17 +87,37 @@ const Feedback = () => {
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-text-main">Call Support</h3>
-                    <p className="text-sm text-text-muted">+1 (800) 123-4567</p>
+                    <p className="text-sm text-text-muted">+91-9755588539</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all">
-                  <div className="w-12 h-12 bg-teal-50 rounded-lg flex items-center justify-center shrink-0">
-                    <MapPin className="text-teal-600" size={22} />
+                <div className="p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-12 h-12 bg-teal-50 rounded-lg flex items-center justify-center shrink-0">
+                      <MapPin className="text-teal-600" size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-text-main">Headquarters</h3>
+                      <p className="text-sm text-text-muted">Christ University, Bangalore</p>
+                      <a
+                        href="https://maps.google.com/?q=12.9349,77.6050"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        12.9349° N, 77.6050° E
+                      </a>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-text-main">Headquarters</h3>
-                    <p className="text-sm text-text-muted">Bangalore, India</p>
+                  <div className="overflow-hidden rounded-lg border border-gray-200">
+                    <iframe
+                      title="Christ University Bangalore Map"
+                      src="https://maps.google.com/maps?q=12.9349,77.6050&z=16&output=embed"
+                      className="w-full h-52"
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
                   </div>
                 </div>
               </div>

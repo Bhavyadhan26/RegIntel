@@ -46,7 +46,7 @@ export const Signup = () => {
             <form onSubmit={handleSignup} className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-text-main">Full Name</label>
-                <Input type="text" placeholder="John Doe" required />
+                <Input type="text" placeholder="Full Name" required />
               </div>
 
               <div className="space-y-1.5">

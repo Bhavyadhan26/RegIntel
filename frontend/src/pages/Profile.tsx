@@ -41,11 +41,8 @@ export const UserProfile = () => {
     }
   };
 
-  const toggleRole = (role: string) => {
-    const roles = profile.roles.includes(role)
-      ? profile.roles.filter(r => r !== role)
-      : [...profile.roles, role];
-    setProfile({ ...profile, roles });
+  const selectRole = (role: string) => {
+    setProfile({ ...profile, roles: [role] });
   };
 
   return (
@@ -239,13 +236,13 @@ export const UserProfile = () => {
                 <FadeIn delay={0.4}>
                 <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl p-8 lg:p-10 flex flex-col justify-center lg:h-[calc(100%-3rem)]">
                   <p className="text-base text-text-muted mb-8 leading-relaxed">
-                    Select your roles to receive tailored regulatory updates and specific compliance alerts.
+                    Select one role to receive tailored regulatory updates and specific compliance alerts.
                   </p>
                   <div className="flex flex-wrap gap-4">
                     {["Chartered Accountant", "Legal Professional", "Cost Accountant", "Banking or Finance", "Indirect Taxes"].map((role) => (
                       <button
                         key={role}
-                        onClick={() => toggleRole(role)}
+                        onClick={() => selectRole(role)}
                         className={`px-6 py-4 rounded-2xl text-sm font-bold border-2 transition-all ${
                           profile.roles.includes(role)
                           ? "bg-primary text-white border-primary shadow-xl shadow-primary/20 scale-105" 

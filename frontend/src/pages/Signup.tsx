@@ -8,9 +8,18 @@ export const Signup = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+
+    setPasswordError("");
     setLoading(true);
     // Simulate signup
     setTimeout(() => {
@@ -59,6 +68,11 @@ export const Signup = () => {
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a strong password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (passwordError) setPasswordError("");
+                    }}
                     required
                   />
                   <button
@@ -70,6 +84,26 @@ export const Signup = () => {
                   </button>
                 </div>
               </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-text-main">Confirm Password</label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (passwordError) setPasswordError("");
+                    }}
+                    required
+                  />
+                </div>
+              </div>
+
+              {passwordError && (
+                <p className="text-sm font-medium text-red-600">{passwordError}</p>
+              )}
 
               <Button type="submit" className="w-full h-11 text-base bg-primary hover:bg-primary-hover shadow-lg shadow-primary/20" isLoading={loading}>
                 Create Account →

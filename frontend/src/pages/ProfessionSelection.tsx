@@ -16,14 +16,10 @@ const iconById = {
 
 export const ProfessionSelection = () => {
   const navigate = useNavigate();
-  const [selectedIds, setSelectedIds] = useState<string[]>(["legal"]);
+  const [selectedId, setSelectedId] = useState<string>("legal");
 
   const toggleProfessionSelection = (id: string) => {
-    setSelectedIds((previous) =>
-      previous.includes(id)
-        ? previous.filter((selectedId) => selectedId !== id)
-        : [...previous, id]
-    );
+    setSelectedId(id);
   };
 
   return (
@@ -53,7 +49,7 @@ export const ProfessionSelection = () => {
 
         <div className="mb-12 grid w-full max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {professionOptions.map((p) => {
-            const isSelected = selectedIds.includes(p.id);
+            const isSelected = selectedId === p.id;
             const Icon = iconById[p.id as keyof typeof iconById] ?? Briefcase;
             return (
               <div
@@ -87,7 +83,7 @@ export const ProfessionSelection = () => {
           <Button
             size="lg"
             className="px-8 h-12 text-base shadow-xl shadow-primary/20"
-            disabled={selectedIds.length === 0}
+            disabled={!selectedId}
             onClick={() => navigate('/dashboard', { state: { showInfo: true } })}
           >
             Continue to Dashboard <ArrowRight className="ml-2 w-4 h-4" />

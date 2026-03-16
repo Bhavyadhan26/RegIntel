@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
-
 export const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);

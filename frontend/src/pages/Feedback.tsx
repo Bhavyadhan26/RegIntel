@@ -4,6 +4,7 @@ import { Header } from '../components/layout/Header';
 import { Send, Mail, MapPin, Phone, CheckCircle, Clock, Zap, MessageSquareQuote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Footer } from '../components/Footer';
+import { FadeIn } from "@/components/ui/FadeIn";
 
 const Feedback = () => {
   const [rating, setRating] = useState(0);
@@ -50,22 +51,25 @@ const Feedback = () => {
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="p-8 lg:p-12 flex-1 relative">
+      <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
+        <div className="p-4 sm:p-6 lg:p-12 flex-1 relative w-full max-w-full overflow-hidden">
           <Header title="Feedback" onMenuClick={() => setIsSidebarOpen(true)} isSidebarOpen={isSidebarOpen} />
 
           <div className="w-full max-w-[1400px] mx-auto">
             {/* Header */}
+            <FadeIn>
             <div className="mb-12 text-center">
               <h1 className="text-4xl md:text-5xl font-black text-text-main tracking-tight">We'd love your Feedback</h1>
               <p className="text-text-muted mt-4 text-lg max-w-2xl mx-auto">
                 We're constantly looking for ways to improve RegIntel. Whether you have a question, spotted a bug, or just want to share your experience, we want to hear from you!
               </p>
             </div>
+            </FadeIn>
 
             <div className="grid lg:grid-cols-12 gap-8 lg:gap-12">
               {/* Left Column: Contact Information */}
               <div className="lg:col-span-3 flex flex-col gap-5">
+              <FadeIn delay={0.1}>
                 <div className="bg-white/50 backdrop-blur rounded-2xl p-6 border border-gray-100 shadow-sm mb-2">
                   <h3 className="font-bold text-text-main text-lg mb-1">Get in touch</h3>
                   <p className="text-sm text-text-muted">Direct channels to our team.</p>
@@ -120,10 +124,12 @@ const Feedback = () => {
                     />
                   </div>
                 </div>
+              </FadeIn>
               </div>
 
               {/* Middle Column: Feedback Form */}
               <div className="lg:col-span-6">
+              <FadeIn delay={0.2}>
                 <div className="bg-white rounded-3xl border border-gray-200 p-8 sm:p-10 shadow-xl shadow-black/5 min-h-[550px] relative overflow-hidden flex flex-col justify-center">
                   <AnimatePresence mode="wait">
                     {!isSubmitted ? (
@@ -239,10 +245,12 @@ const Feedback = () => {
                   )}
                   </AnimatePresence>
                 </div>
+              </FadeIn>
               </div>
 
               {/* Right Column: FAQ & Extra Content */}
               <div className="lg:col-span-3 flex flex-col gap-5">
+              <FadeIn delay={0.3}>
                 <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm h-full flex flex-col">
                   <div className="mb-6">
                     <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
@@ -273,6 +281,7 @@ const Feedback = () => {
                     </div>
                   </div>
                 </div>
+              </FadeIn>
               </div>
 
             </div>

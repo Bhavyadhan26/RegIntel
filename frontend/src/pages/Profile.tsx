@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import Sidebar from "../components/layout/Sidebar";
 import { Header } from "../components/layout/Header";
 import { Footer } from "@/components/Footer";
+import { FadeIn } from "@/components/ui/FadeIn";
 
 export const UserProfile = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
@@ -61,8 +62,8 @@ export const UserProfile = () => {
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="p-8 flex-1">
+      <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
+        <div className="p-4 sm:p-6 lg:p-8 flex-1 w-full max-w-full overflow-hidden">
           <Header 
             title="Profile" 
             subtitle="Manage your personal information, roles, and preferences." 
@@ -76,6 +77,7 @@ export const UserProfile = () => {
               
               {/* TOP LEFT: Avatar Section */}
               <section className="h-full w-full">
+                <FadeIn delay={0.1}>
                 <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl h-full flex flex-col items-center justify-center py-16 px-8 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-slate-50 to-transparent"></div>
                   <label className="relative group cursor-pointer mb-6 block z-10 block">
@@ -105,6 +107,7 @@ export const UserProfile = () => {
                     {profile.roles.join(", ") || "No Focus Selected"}
                   </p>
                 </Card>
+                </FadeIn>
               </section>
 
               {/* TOP RIGHT: Personal Information */}
@@ -112,6 +115,7 @@ export const UserProfile = () => {
                 <h3 className="text-xl font-black text-text-main flex items-center gap-3">
                   <User size={24} className="text-primary" /> Personal Information
                 </h3>
+                <FadeIn delay={0.2}>
                 <Card className="border-0 shadow-lg shadow-black/5 bg-white overflow-hidden rounded-3xl h-[calc(100%-3rem)]">
                   <CardContent className="p-8 lg:p-10 space-y-8 flex flex-col justify-center h-full">
                     <div>
@@ -134,13 +138,19 @@ export const UserProfile = () => {
                     </div>
                   </CardContent>
                 </Card>
+                </FadeIn>
               </section>
+            </div>
 
+            {/* BOTTOM SECTION: Two Column Split */}
+            <div className="mt-8 grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+              
               {/* BOTTOM LEFT: Security & Preferences */}
               <section className="space-y-6">
                 <h3 className="text-xl font-black text-text-main flex items-center gap-3">
                   <Shield size={24} className="text-primary" /> Security & Preferences
                 </h3>
+                <FadeIn delay={0.3}>
                 <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl overflow-hidden">
                   <div className="p-8 flex items-center justify-between border-b border-border/50 hover:bg-slate-50 transition-colors cursor-pointer">
                     <div className="flex items-center gap-6">
@@ -217,6 +227,7 @@ export const UserProfile = () => {
                     </div>
                   )}
                 </Card>
+                </FadeIn>
               </section>
 
               {/* BOTTOM RIGHT: Professional Focus */}
@@ -224,6 +235,7 @@ export const UserProfile = () => {
                 <h3 className="text-xl font-black text-text-main flex items-center gap-3">
                   <Briefcase size={24} className="text-primary" /> Professional Focus
                 </h3>
+                <FadeIn delay={0.4}>
                 <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl p-8 lg:p-10 h-[calc(100%-3rem)] flex flex-col justify-center">
                   <p className="text-base text-text-muted mb-8 leading-relaxed">
                     Select your roles to receive tailored regulatory updates and specific compliance alerts.
@@ -244,6 +256,7 @@ export const UserProfile = () => {
                     ))}
                   </div>
                 </Card>
+                </FadeIn>
               </section>
 
             </div>

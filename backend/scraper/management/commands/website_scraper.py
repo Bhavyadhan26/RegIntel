@@ -4,7 +4,6 @@ import os
 import re
 import time
 from urllib.parse import urljoin
-
 import pymysql
 import requests
 from django.core.management.base import BaseCommand
@@ -16,13 +15,20 @@ load_dotenv()
 requests.packages.urllib3.disable_warnings()  # type: ignore[attr-defined]
 
 
+def _required_env(name):
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"{name} is required in the .env file")
+    return value
+
+
 def get_conn():
     return pymysql.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=int(os.getenv("DB_PORT", "3306")),
-        user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASS", "root"),
-        database=os.getenv("DB_NAME", "regintel"),
+        user=_required_env("DB_USER"),
+        password=_required_env("DB_PASS"),
+        database=_required_env("DB_NAME"),
         charset="utf8mb4",
         cursorclass=DictCursor,
         autocommit=False,

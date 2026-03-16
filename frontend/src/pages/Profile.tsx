@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Camera, Shield, User, Briefcase, Settings, Bell } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -7,30 +7,118 @@ import { Header } from "../components/layout/Header";
 import { Footer } from "@/components/Footer";
 import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
 import { FadeIn } from "@/components/ui/FadeIn";
+import { useAuth } from "@/context/AuthContext";
+import { apiUpdateProfile, apiChangePassword } from "@/lib/api";
 
 export const UserProfile = () => {
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
+  const { user, refreshUser } = useAuth();
+  const professionLabelMap: Record<string, string> = {
+    ca: "Chartered Accountant",
+    legal: "Legal Professional",
+    "cost-accountant": "Cost Accountant",
+    "banking-finance": "Banking or Finance",
+    "indirect-taxes": "Indirect Taxes",
+  };
   const [profile, setProfile] = useState({
-    name: "John Doe",
-    email: "john.doe@company.com",
-    roles: ["Legal Professional"],
-    notifications: true,
+    name: user?.full_name ?? "",
+    email: user?.email ?? "",
+    roles: user?.profession ? [professionLabelMap[user.profession] ?? user.profession] : [],
+    notifications: user?.email_notifications ?? false,
   });
+
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.full_name,
+        email: user.email,
+        roles: user.profession ? [professionLabelMap[user.profession] ?? user.profession] : [],
+        notifications: user.email_notifications,
+      });
+    }
+  }, [user]);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwords, setPasswords] = useState({ current: "", new: "", confirm: "" });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwSuccess, setPwSuccess] = useState(false);
 
-  const handleSave = () => {
+  const professionIdMap: Record<string, string> = {
+    "Chartered Accountant": "ca",
+    "Legal Professional": "legal",
+    "Cost Accountant": "cost-accountant",
+    "Banking or Finance": "banking-finance",
+    "Indirect Taxes": "indirect-taxes",
+  };
+
+  const handleSave = async () => {
+    setSaveError("");
+    setSaveSuccess(false);
+    setPwError("");
+    setPwSuccess(false);
     setIsSaving(true);
-    setTimeout(() => {
+    try {
+      const wantsPasswordChange =
+        isChangingPassword &&
+        (passwords.current.trim() !== "" || passwords.new.trim() !== "" || passwords.confirm.trim() !== "");
+
+      if (wantsPasswordChange) {
+        if (!passwords.current.trim() || !passwords.new.trim() || !passwords.confirm.trim()) {
+          setPwError("Please fill current, new, and confirm password.");
+          return;
+        }
+
+        if (passwords.new !== passwords.confirm) {
+          setPwError("New passwords do not match.");
+          return;
+        }
+
+        const changed = await handleChangePassword();
+        if (!changed) {
+          return;
+        }
+      }
+
+      const professionId = professionIdMap[profile.roles[0]] ?? profile.roles[0] ?? "";
+      await apiUpdateProfile({
+        profession: professionId,
+        email_notifications: profile.notifications,
+      });
+      await refreshUser();
+      setSaveSuccess(true);
+      if (wantsPasswordChange) {
+        setIsChangingPassword(false);
+        setPasswords({ current: "", new: "", confirm: "" });
+      }
+    } catch {
+      setSaveError("Failed to save changes. Please try again.");
+    } finally {
       setIsSaving(false);
-      setIsChangingPassword(false);
-      setPasswords({ current: "", new: "", confirm: "" });
-      alert("Settings saved successfully!");
-    }, 600);
+    }
+  };
+
+  const handleChangePassword = async (): Promise<boolean> => {
+    try {
+      await apiChangePassword({
+        current_password: passwords.current,
+        new_password: passwords.new,
+        confirm_password: passwords.confirm,
+      });
+      setPwSuccess(true);
+      return true;
+    } catch (err: unknown) {
+      const data = err as Record<string, string | string[]>;
+      const msg = data?.current_password
+        ? (Array.isArray(data.current_password) ? data.current_password[0] : data.current_password)
+        : "Password change failed.";
+      setPwError(String(msg));
+      return false;
+    }
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,8 +209,8 @@ export const UserProfile = () => {
                       <input 
                         type="text" 
                         value={profile.name}
-                        onChange={(e) => setProfile({...profile, name: e.target.value})}
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-5 text-lg text-text-main focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-bold" 
+                        readOnly
+                        className="w-full bg-slate-100 border-2 border-slate-200 rounded-xl p-5 text-lg text-text-main font-bold cursor-not-allowed" 
                       />
                     </div>
                     <div>
@@ -130,8 +218,8 @@ export const UserProfile = () => {
                       <input 
                         type="email" 
                         value={profile.email}
-                        onChange={(e) => setProfile({...profile, email: e.target.value})}
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-5 text-lg text-text-main focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-bold" 
+                        readOnly
+                        className="w-full bg-slate-100 border-2 border-slate-200 rounded-xl p-5 text-lg text-text-main font-bold cursor-not-allowed" 
                       />
                     </div>
                   </CardContent>
@@ -189,7 +277,9 @@ export const UserProfile = () => {
 
                   {/* Password Fields */}
                   {isChangingPassword && (
-                    <div className="p-8 bg-slate-50/80 space-y-6 border-t border-border/50">
+                    <div className="p-8 bg-slate-50/80 space-y-6 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
+                      {pwError && <p className="text-sm text-red-600 font-semibold">{pwError}</p>}
+                      {pwSuccess && <p className="text-sm text-green-600 font-semibold">Password changed successfully!</p>}
                       <div>
                         <label className="text-sm font-bold uppercase tracking-wider text-text-muted block mb-3">Current Password</label>
                         <input 
@@ -260,7 +350,13 @@ export const UserProfile = () => {
             </div>
 
             {/* Save Button */}
-            <div className="flex justify-center pt-16">
+            <div className="flex flex-col items-center gap-4 pt-16">
+              {saveSuccess && (
+                <p className="text-sm text-green-600 font-semibold">Profile saved successfully!</p>
+              )}
+              {saveError && (
+                <p className="text-sm text-red-600 font-semibold">{saveError}</p>
+              )}
               <Button 
                 onClick={handleSave} 
                 disabled={isSaving}

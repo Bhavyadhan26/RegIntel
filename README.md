@@ -1,5 +1,77 @@
 RegIntel – Professional Regulatory Intelligence Platform
 
+## First-Time Local Setup
+
+### 1. Clone and prepare environment files
+
+1. Clone the repository.
+2. Copy `.env.example` to `.env` in the repository root.
+3. Fill `.env` with your own values:
+  - `DJANGO_SECRET_KEY`
+  - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`
+  - `GEMINI_API_KEY`
+
+### 2. Backend setup (Django)
+
+1. Open a terminal in `backend`.
+2. IGNORE
+3. Install dependencies:
+
+  pip install -r requirements.txt
+
+4. Install Playwright browser once:
+
+  playwright install chromium
+
+5. Run database migrations:
+
+  python manage.py migrate
+
+6. (Optional) Create admin user:
+
+  python manage.py createsuperuser
+
+7. Start backend server:
+
+  python manage.py runserver
+
+### 3. Frontend setup (React + Vite)
+
+1. Open a new terminal in `frontend`.
+2. Install packages:
+
+  npm install
+
+3. Start frontend:
+
+  npm run dev
+
+4. Open the local URL printed by Vite (typically `http://localhost:5173`).
+
+### 4. Scraper setup (optional)
+
+1. Ensure MySQL is running and `.env` DB values are correct.
+2. Initialize source and selector tables:
+
+  python manage.py init_scraper_tables
+
+3. Run scraping:
+
+  python manage.py website_scraper
+
+## Pre-Push Security Checklist
+
+1. Confirm `.env` is not staged.
+2. Confirm no credentials are hardcoded in source files.
+3. Confirm `backend/db.sqlite3`, `frontend/node_modules`, and `frontend/dist` are not staged.
+4. Run:
+
+  git status
+
+5. Review staged diff before push:
+
+  git diff --staged
+
 A web‑based professional intelligence system that continuously monitors public regulatory and institutional websites, detects new or changed publications, classifies their relevance, summarizes them, and delivers personalized, action‑oriented alerts to professionals.
 -----------------------------------------------------------------------------------------------------------
 

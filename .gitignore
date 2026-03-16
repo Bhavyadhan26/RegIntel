@@ -5,3 +5,21 @@ backend/**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.sqlite3
+
+# Node / frontend build
+frontend/node_modules/
+frontend/dist/
+
+# Scraper generated artifacts
+backend/*_pdfs/
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db

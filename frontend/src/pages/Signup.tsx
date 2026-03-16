@@ -4,28 +4,43 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { apiRegister } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+
 export const Signup = () => {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      setPasswordError("Passwords do not match");
+      setErrors({ confirm_password: "Passwords do not match" });
       return;
     }
-
-    setPasswordError("");
+    setErrors({});
     setLoading(true);
-    // Simulate signup
-    setTimeout(() => {
+    try {
+      await apiRegister({ full_name: fullName, email, password, confirm_password: confirmPassword });
+      await refreshUser();
+      navigate("/select-profession", { replace: true });
+    } catch (err: unknown) {
+      const data = err as Record<string, string | string[]>;
+      const flat: Record<string, string> = {};
+      for (const key in data) {
+        const val = data[key];
+        flat[key] = Array.isArray(val) ? val[0] : String(val);
+      }
+      setErrors(flat);
+    } finally {
       setLoading(false);
-      navigate("/select-profession"); // Go to step 2
-    }, 1000);
+    }
   };
 
   return (
@@ -54,12 +69,26 @@ export const Signup = () => {
             <form onSubmit={handleSignup} className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-text-main">Full Name</label>
-                <Input type="text" placeholder="Full Name" required />
+                <Input
+                  type="text"
+                  placeholder="Full Name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+                {errors.full_name && <p className="text-xs text-red-600">{errors.full_name}</p>}
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-text-main">Email Address</label>
-                <Input type="email" placeholder="name@company.com" required />
+                <Input
+                  type="email"
+                  placeholder="name@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -71,7 +100,7 @@ export const Signup = () => {
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
-                      if (passwordError) setPasswordError("");
+                      if (errors.password) setErrors((p) => ({ ...p, password: '' }));
                     }}
                     required
                   />
@@ -83,6 +112,7 @@ export const Signup = () => {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -94,15 +124,16 @@ export const Signup = () => {
                     value={confirmPassword}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
-                      if (passwordError) setPasswordError("");
+                      if (errors.confirm_password) setErrors((p) => ({ ...p, confirm_password: '' }));
                     }}
                     required
                   />
                 </div>
+                {errors.confirm_password && <p className="text-xs text-red-600">{errors.confirm_password}</p>}
               </div>
 
-              {passwordError && (
-                <p className="text-sm font-medium text-red-600">{passwordError}</p>
+              {errors.non_field_errors && (
+                <p className="text-sm font-medium text-red-600">{errors.non_field_errors}</p>
               )}
 
               <Button type="submit" className="w-full h-11 text-base bg-primary hover:bg-primary-hover shadow-lg shadow-primary/20" isLoading={loading}>

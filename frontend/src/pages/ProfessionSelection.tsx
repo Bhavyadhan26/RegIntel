@@ -5,6 +5,8 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { professionOptions } from "../lib/cbicData";
+import { apiUpdateProfile } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 const iconById = {
   ca: Calculator,
@@ -16,10 +18,31 @@ const iconById = {
 
 export const ProfessionSelection = () => {
   const navigate = useNavigate();
+  const { refreshUser, logout } = useAuth();
   const [selectedId, setSelectedId] = useState<string>("legal");
+  const [loading, setLoading] = useState(false);
+
+  const handleSignOut = async () => {
+    await logout();
+    navigate('/', { replace: true });
+  };
 
   const toggleProfessionSelection = (id: string) => {
     setSelectedId(id);
+  };
+
+  const handleContinue = async () => {
+    if (!selectedId) return;
+    setLoading(true);
+    try {
+      await apiUpdateProfile({ profession: selectedId });
+      await refreshUser();
+      navigate('/dashboard', { state: { showInfo: true }, replace: true });
+    } catch {
+      navigate('/dashboard', { state: { showInfo: true }, replace: true });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,7 +58,7 @@ export const ProfessionSelection = () => {
 
         <div className="flex flex-wrap gap-4 text-sm font-medium text-text-muted sm:gap-6">
           <button className="hover:text-text-main">Support</button>
-          <button onClick={() => navigate('/')} className="hover:text-text-main">Sign Out</button>
+          <button onClick={handleSignOut} className="hover:text-text-main">Sign Out</button>
         </div>
       </div>
 
@@ -83,8 +106,9 @@ export const ProfessionSelection = () => {
           <Button
             size="lg"
             className="px-8 h-12 text-base shadow-xl shadow-primary/20"
-            disabled={!selectedId}
-            onClick={() => navigate('/dashboard', { state: { showInfo: true } })}
+            disabled={!selectedId || loading}
+            onClick={handleContinue}
+            isLoading={loading}
           >
             Continue to Dashboard <ArrowRight className="ml-2 w-4 h-4" />
           </Button>

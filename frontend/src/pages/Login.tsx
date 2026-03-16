@@ -1,22 +1,40 @@
 import { useState } from "react";
 import { Eye, EyeOff, Lock } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { apiLogin } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+
 export const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { setUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    // Simulate login
-    setTimeout(() => {
+    try {
+      const data = await apiLogin(email, password);
+      setUser(data.user);
+      navigate(from, { replace: true });
+    } catch (err: unknown) {
+      const msg =
+        (err as { detail?: string })?.detail ||
+        "Login failed. Please check your credentials.";
+      setError(msg);
+    } finally {
       setLoading(false);
-      navigate("/dashboard", { state: { showInfo: true } });
-    }, 1000);
+    }
   };
 
   return (
@@ -48,6 +66,8 @@ export const Login = () => {
                 <Input
                   type="email"
                   placeholder="name@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
@@ -61,6 +81,8 @@ export const Login = () => {
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                   />
                   <button
@@ -72,6 +94,10 @@ export const Login = () => {
                   </button>
                 </div>
               </div>
+
+              {error && (
+                <p className="text-sm font-medium text-red-600">{error}</p>
+              )}
 
               <Button type="submit" className="w-full h-11 text-base bg-primary hover:bg-primary-hover shadow-lg shadow-primary/20" isLoading={loading}>
                 Sign In →

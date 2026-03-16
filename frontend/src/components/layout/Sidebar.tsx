@@ -1,6 +1,7 @@
 import { LayoutDashboard, Bell, FileText, Calendar, HelpCircle, ArrowLeft, LogOut, Menu } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -9,6 +10,14 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { logout } = useAuth();
+
+    const handleLogout = async () => {
+        if (window.innerWidth < 1024) onClose();
+        await logout();
+        navigate('/', { replace: true });
+    };
 
     const menuItems = [
         { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
@@ -72,16 +81,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     <ArrowLeft size={20} />
                     Back to Home
                 </Link>
-                <Link
-                    to="/"
-                    onClick={() => {
-                        if (window.innerWidth < 1024) onClose();
-                    }}
+                <button
+                    type="button"
+                    onClick={handleLogout}
                     className="flex items-center gap-3 px-3 py-2.5 w-full rounded-md text-[15px] font-medium text-red-500 hover:bg-red-50 transition-colors text-left"
                 >
                     <LogOut size={20} className="text-red-500" />
                     Logout
-                </Link>
+                </button>
             </div>
         </div>
     );

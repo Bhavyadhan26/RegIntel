@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Calendar, Bell, ChevronRight,
@@ -12,13 +12,22 @@ import { FadeIn } from "@/components/ui/FadeIn";
 import { Button } from "@/components/ui/Button";
 import { Footer } from "../components/Footer";
 import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
+import { useAuth } from "@/context/AuthContext";
 
 
 export const Dashboard = () => {
+  const DASHBOARD_BACK_WARNING_KEY = "dashboard_back_warning_shown";
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showBackWarningModal, setShowBackWarningModal] = useState(false);
+  const backWarnedRef = useRef(false);
+  const userDisplayName =
+    user?.full_name?.trim() ||
+    user?.email?.split("@")[0] ||
+    "there";
 
   useEffect(() => {
     if (location.state?.showInfo) {
@@ -27,6 +36,33 @@ export const Dashboard = () => {
       window.history.replaceState({}, document.title);
     }
   }, []);
+
+  useEffect(() => {
+    // Keep one dashboard state in history so first back press can be intercepted.
+    window.history.pushState({ dashboardGuard: true }, document.title, window.location.href);
+    backWarnedRef.current = sessionStorage.getItem(DASHBOARD_BACK_WARNING_KEY) === "1";
+
+    const onPopState = () => {
+      if (!backWarnedRef.current) {
+        backWarnedRef.current = true;
+        sessionStorage.setItem(DASHBOARD_BACK_WARNING_KEY, "1");
+        setShowBackWarningModal(true);
+        window.history.pushState({ dashboardGuard: true }, document.title, window.location.href);
+        return;
+      }
+
+      void (async () => {
+        await logout();
+        sessionStorage.removeItem(DASHBOARD_BACK_WARNING_KEY);
+        window.location.replace("/");
+      })();
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [logout, navigate]);
 
   const deadlines = [
     { title: "GST Return Filing", date: "Jan 28, 2026", urgent: true },
@@ -38,6 +74,26 @@ export const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
+
+      {/* Back Warning Modal */}
+      {showBackWarningModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-100 p-6 sm:p-7">
+            <h2 className="text-lg font-bold text-text-main mb-2">Just a heads-up</h2>
+            <p className="text-sm text-text-muted leading-relaxed">
+              For your account safety, going back one more time will log you out.
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowBackWarningModal(false)}
+                className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
+              >
+                Stay on Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Info Modal */}
       {showInfoModal && (
@@ -88,7 +144,7 @@ export const Dashboard = () => {
           {/* Header */}
           <Header
             title="Dashboard"
-            subtitle="Welcome back, John. Here's what's happening today."
+            subtitle={`Welcome back, ${userDisplayName}. Here's what's happening today.`}
             onMenuClick={openSidebar}
             isSidebarOpen={isSidebarOpen}
             rightContent={

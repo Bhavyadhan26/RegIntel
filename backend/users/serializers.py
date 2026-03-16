@@ -2,7 +2,12 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import UserProfile
+from .models import (
+    PROFESSIONAL_CATEGORY_NAMES,
+    ProfessionalCategory,
+    UserProfile,
+    normalize_profession_input,
+)
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -41,12 +46,7 @@ class RegisterSerializer(serializers.Serializer):
 class ProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     email = serializers.EmailField(read_only=True)
-    profession = serializers.ChoiceField(
-        choices=['ca', 'legal', 'cost-accountant', 'banking-finance', 'indirect-taxes'],
-        source='profile.profession',
-        required=False,
-        allow_blank=True,
-    )
+    profession = serializers.SerializerMethodField()
     email_notifications = serializers.BooleanField(source='profile.email_notifications', required=False)
 
     class Meta:
@@ -55,6 +55,12 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj):
         return obj.get_full_name() or obj.email
+
+    def get_profession(self, obj):
+        profile = getattr(obj, 'profile', None)
+        if not profile or not profile.profession_category:
+            return ''
+        return profile.profession_category.name
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile', {})
@@ -76,12 +82,19 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class UpdateProfileSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=150, required=False)
-    profession = serializers.ChoiceField(
-        choices=['ca', 'legal', 'cost-accountant', 'banking-finance', 'indirect-taxes'],
-        required=False,
-        allow_blank=True,
-    )
+    profession = serializers.CharField(required=False, allow_blank=True)
     email_notifications = serializers.BooleanField(required=False)
+
+    def validate_profession(self, value):
+        if not value:
+            return ''
+
+        normalized = normalize_profession_input(value)
+        if not normalized:
+            raise serializers.ValidationError(
+                f"Invalid profession. Choose one of: {', '.join(PROFESSIONAL_CATEGORY_NAMES)}"
+            )
+        return normalized
 
     def update(self, instance, validated_data):
         if 'full_name' in validated_data:
@@ -93,7 +106,12 @@ class UpdateProfileSerializer(serializers.Serializer):
 
         profile = instance.profile
         if 'profession' in validated_data:
-            profile.profession = validated_data['profession']
+            profession_name = validated_data['profession']
+            if profession_name:
+                category, _ = ProfessionalCategory.objects.get_or_create(name=profession_name)
+                profile.profession_category = category
+            else:
+                profile.profession_category = None
         if 'email_notifications' in validated_data:
             profile.email_notifications = validated_data['email_notifications']
         profile.save()
@@ -111,3 +129,17 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
         validate_password(data['new_password'])
         return data
+
+
+class FeedbackSerializer(serializers.Serializer):
+    star_rating = serializers.IntegerField(min_value=1, max_value=5)
+    type_of_feedback = serializers.ChoiceField(
+        choices=["Bug Report", "Feature Request", "Improvement", "Other"]
+    )
+    message = serializers.CharField()
+
+    def validate_message(self, value):
+        words = [w for w in value.strip().split() if w]
+        if len(words) < 10:
+            raise serializers.ValidationError("Feedback message must be at least 10 words long.")
+        return value.strip()

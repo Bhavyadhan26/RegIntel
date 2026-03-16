@@ -7,7 +7,7 @@ export interface Publication {
   authority: string;
   description: string;
   date: string;
-  type: 'Notice' | 'Circular' | 'Amendment' | 'Tender';
+  type: 'Notice' | 'Circular' | 'Amendment' | 'Tender' | 'Notifications' | 'Updates' | 'Tenders';
   url: string;
 }
 
@@ -21,8 +21,11 @@ export const PublicationCard: React.FC<CardProps> = ({ data }) => {
   const tagColor = (type: string) => {
     switch (type) {
       case 'Circular': return 'bg-accent-purple/15 text-accent-purple';
+      case 'Updates': return 'bg-accent-purple/15 text-accent-purple';
       case 'Amendment': return 'bg-accent-amber/15 text-accent-amber';
+      case 'Notifications': return 'bg-accent-sky/15 text-accent-sky';
       case 'Notice': return 'bg-accent-sky/15 text-accent-sky';
+      case 'Tenders': return 'bg-accent-teal/15 text-accent-teal';
       case 'Tender': return 'bg-accent-teal/15 text-accent-teal';
       default: return 'bg-dark-700 text-gray-400';
     }

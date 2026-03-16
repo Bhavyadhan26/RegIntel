@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Footer } from "../components/Footer";
 import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
 import { useAuth } from "@/context/AuthContext";
+import { apiGetDashboardSummary } from "@/lib/api";
 
 
 export const Dashboard = () => {
@@ -23,6 +24,18 @@ export const Dashboard = () => {
   const location = useLocation();
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showBackWarningModal, setShowBackWarningModal] = useState(false);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(true);
+  const [summaryError, setSummaryError] = useState("");
+  const [stats, setStats] = useState({
+    unreadAlerts: 0,
+    unreadAlertsTwoDay: 0,
+    publicationsToday: 0,
+    publicationsWeek: 0,
+    deadlinesActive: 0,
+    deadlinesWeekWithDue: 0,
+  });
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [deadlines, setDeadlines] = useState<Array<{ title: string; date: string; urgent: boolean; url: string }>>([]);
   const backWarnedRef = useRef(false);
   const userDisplayName =
     user?.full_name?.trim() ||
@@ -64,11 +77,46 @@ export const Dashboard = () => {
     };
   }, [logout, navigate]);
 
-  const deadlines = [
-    { title: "GST Return Filing", date: "Jan 28, 2026", urgent: true },
-    { title: "Annual Compliance Report", date: "Feb 1, 2026", urgent: true },
-    { title: "Quarterly Audit Submission", date: "Feb 15, 2026", urgent: false },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDashboardSummary = async () => {
+      setIsLoadingSummary(true);
+      setSummaryError("");
+      try {
+        const response = await apiGetDashboardSummary();
+        if (cancelled) return;
+
+        setStats({
+          unreadAlerts: response.cards.unread_alerts,
+          unreadAlertsTwoDay: response.cards.unread_alerts_two_day,
+          publicationsToday: response.cards.publications_today,
+          publicationsWeek: response.cards.publications_week,
+          deadlinesActive: response.cards.deadlines_active,
+          deadlinesWeekWithDue: response.cards.deadlines_week_with_due,
+        });
+        setLastUpdated(response.last_updated);
+        setDeadlines(
+          response.upcoming_deadlines.map((item) => ({
+            title: item.title,
+            date: item.due_date,
+            urgent: item.urgent,
+            url: item.url,
+          })),
+        );
+      } catch {
+        if (cancelled) return;
+        setSummaryError("Unable to load dashboard summary right now.");
+      } finally {
+        if (!cancelled) setIsLoadingSummary(false);
+      }
+    };
+
+    void loadDashboardSummary();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredDeadlines = deadlines;
 
@@ -150,10 +198,22 @@ export const Dashboard = () => {
             rightContent={
               <div className="hidden sm:flex items-center text-xs font-semibold text-text-muted bg-gray-100/80 border border-gray-200 px-3 py-1.5 rounded-full whitespace-nowrap">
                 <Clock size={12} className="mr-1.5" />
-                Last updated: {new Date().toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                Last updated: {lastUpdated
+                  ? new Date(lastUpdated).toLocaleString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })
+                  : 'N/A'}
               </div>
             }
           />
+
+          {summaryError && (
+            <div className="mb-5 text-sm text-red-600">{summaryError}</div>
+          )}
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -164,9 +224,9 @@ export const Dashboard = () => {
                   <div className="w-11 h-11 bg-orange-50 rounded-xl flex items-center justify-center shadow-sm">
                     <Bell className="w-5 h-5 text-orange-600" />
                   </div>
-                  <span className="bg-orange-100/80 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">+2 new</span>
+                  <span className="bg-orange-100/80 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">+{stats.unreadAlertsTwoDay} in 2 days</span>
                 </div>
-                <div className="text-4xl font-black text-text-main tracking-tight">12</div>
+                <div className="text-4xl font-black text-text-main tracking-tight">{isLoadingSummary ? '...' : stats.unreadAlerts}</div>
                 <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Unread Alerts</div>
               </CardContent>
             </Card>
@@ -179,9 +239,9 @@ export const Dashboard = () => {
                   <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center shadow-sm">
                     <Briefcase className="w-5 h-5 text-blue-600" />
                   </div>
-                  <span className="bg-blue-100/80 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">+1 this week</span>
+                  <span className="bg-blue-100/80 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">+{stats.publicationsWeek} this week</span>
                 </div>
-                <div className="text-4xl font-black text-text-main tracking-tight">3</div>
+                <div className="text-4xl font-black text-text-main tracking-tight">{isLoadingSummary ? '...' : stats.publicationsToday}</div>
                 <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Number of Publications</div>
               </CardContent>
             </Card>
@@ -194,9 +254,9 @@ export const Dashboard = () => {
                   <div className="w-11 h-11 bg-purple-50 rounded-xl flex items-center justify-center shadow-sm">
                     <FileText className="w-5 h-5 text-purple-600" />
                   </div>
-                  <span className="bg-purple-100/80 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">+4 this month</span>
+                  <span className="bg-purple-100/80 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">+{stats.deadlinesWeekWithDue} this week</span>
                 </div>
-                <div className="text-4xl font-black text-text-main tracking-tight">15</div>
+                <div className="text-4xl font-black text-text-main tracking-tight">{isLoadingSummary ? '...' : stats.deadlinesActive}</div>
                 <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Deadlines</div>
               </CardContent>
             </Card>
@@ -227,6 +287,14 @@ export const Dashboard = () => {
                         <h3 className="text-sm font-semibold text-text-main">{item.title}</h3>
                         <p className="text-xs text-text-muted">{item.date}</p>
                       </div>
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-semibold text-primary hover:text-primary-hover"
+                      >
+                        View
+                      </a>
                       {item.urgent && (
                         <span className="flex items-center gap-1 bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-100">
                           <AlertCircle className="w-3 h-3" /> URGENT

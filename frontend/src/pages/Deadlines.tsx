@@ -1,25 +1,79 @@
 import Sidebar from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { Calendar, AlertCircle, Clock, CheckCircle2, Search, ExternalLink } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Footer } from '../components/Footer';
-import { cbicDeadlines } from '../lib/cbicData';
+import { apiGetDeadlines } from '@/lib/api';
 import { FadeIn } from "@/components/ui/FadeIn";
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
+
+interface DeadlineRow {
+  id: string;
+  title: string;
+  category: string;
+  bodyDate: string;
+  dueDate: string;
+  daysLeft: number;
+  status: 'Urgent' | 'Upcoming' | 'Normal';
+  url: string;
+}
 
 const Deadlines = () => {
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const [searchQuery, setSearchQuery] = useState('');
+  const [deadlinesData, setDeadlinesData] = useState<DeadlineRow[]>([]);
+  const [counts, setCounts] = useState({ urgent: 0, thisWeek: 0, total: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  const filteredData = cbicDeadlines.filter(item => {
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDeadlines = async () => {
+      setIsLoading(true);
+      setLoadError('');
+      try {
+        const response = await apiGetDeadlines();
+        if (cancelled) return;
+
+        const mapped: DeadlineRow[] = response.results.map((item) => ({
+          id: item.id,
+          title: item.title,
+          category: item.category,
+          bodyDate: item.body_date,
+          dueDate: item.due_date,
+          daysLeft: item.days_left,
+          status: item.status,
+          url: item.url,
+        }));
+
+        setDeadlinesData(mapped);
+        setCounts({
+          urgent: response.counts.urgent,
+          thisWeek: response.counts.this_week,
+          total: response.counts.total,
+        });
+      } catch {
+        if (cancelled) return;
+        setDeadlinesData([]);
+        setCounts({ urgent: 0, thisWeek: 0, total: 0 });
+        setLoadError('Unable to load deadlines right now.');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    void loadDeadlines();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredData = deadlinesData.filter(item => {
     const normalizedQuery = searchQuery.toLowerCase();
     return item.title.toLowerCase().includes(normalizedQuery) ||
            item.category.toLowerCase().includes(normalizedQuery);
   });
-
-  const urgentCount = cbicDeadlines.filter((item) => item.status === 'Urgent').length;
-  const weekCount = cbicDeadlines.filter((item) => item.daysLeft <= 7).length;
-  const totalCount = cbicDeadlines.length;
 
   const statusStyle = (s: string) =>
     s === 'Urgent' ? 'bg-red-50 text-red-600 border-red-100' :
@@ -51,17 +105,25 @@ const Deadlines = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
               <span className="text-sm text-text-muted">Urgent</span>
-              <span className="text-3xl font-bold text-red-500">{urgentCount}</span>
+              <span className="text-3xl font-bold text-red-500">{counts.urgent}</span>
             </div>
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
               <span className="text-sm text-text-muted">This Week</span>
-              <span className="text-3xl font-bold text-amber-500">{weekCount}</span>
+              <span className="text-3xl font-bold text-amber-500">{counts.thisWeek}</span>
             </div>
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
               <span className="text-sm text-text-muted">Total</span>
-              <span className="text-3xl font-bold text-primary">{totalCount}</span>
+              <span className="text-3xl font-bold text-primary">{counts.total}</span>
             </div>
           </div>
+
+          {isLoading && (
+            <div className="mb-4 text-center text-text-muted text-sm">Loading deadlines...</div>
+          )}
+
+          {loadError && !isLoading && (
+            <div className="mb-4 text-center text-red-600 text-sm">{loadError}</div>
+          )}
 
           <div className="relative mb-6">
             <input
@@ -129,8 +191,8 @@ const Deadlines = () => {
                   ) : (
                     <div className="py-12 text-center">
                       <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                      <h3 className="text-sm font-medium text-text-main">No deadlines found</h3>
-                      <p className="text-sm text-text-muted mt-1">Try adjusting your search query.</p>
+                      <h3 className="text-sm font-medium text-text-main">Relax, you are upto date.</h3>
+                      <p className="text-sm text-text-muted mt-1">No active deadlines right now.</p>
                     </div>
                   )}
                 </div>
@@ -186,8 +248,8 @@ const Deadlines = () => {
             )) : (
               <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
                 <Calendar className="mx-auto mb-3 h-12 w-12 text-gray-300" />
-                <h3 className="text-sm font-medium text-text-main">No deadlines found</h3>
-                <p className="mt-1 text-sm text-text-muted">Try adjusting your search query.</p>
+                <h3 className="text-sm font-medium text-text-main">Relax, you are upto date.</h3>
+                <p className="mt-1 text-sm text-text-muted">No active deadlines right now.</p>
               </div>
             )}
           </div>

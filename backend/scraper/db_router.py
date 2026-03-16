@@ -2,11 +2,13 @@ class ScraperDatabaseRouter:
     """Route scraper source/selector models to the MySQL scraper database."""
 
     scraper_models = {
+        "professionalcategory",
         "websitescrapingsource",
         "websitescrapingselector",
         "websitescrapingdata",
         "websitescrapingrun",
         "websitescrapingrunsitestat",
+        "userfeedback",
     }
 
     def db_for_read(self, model, **hints):

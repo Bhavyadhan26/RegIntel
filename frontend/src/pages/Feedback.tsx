@@ -6,12 +6,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Footer } from '../components/Footer';
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 import { FadeIn } from "@/components/ui/FadeIn";
+import { apiSubmitFeedback } from '@/lib/api';
 
 const Feedback = () => {
   const [rating, setRating] = useState(0);
   const [hoveredStar, setHoveredStar] = useState(0);
   const [selectedType, setSelectedType] = useState('Bug Report');
   const [message, setMessage] = useState('');
+  const [errors, setErrors] = useState<{ rating?: string; type?: string; message?: string; submit?: string }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -24,10 +27,44 @@ const Feedback = () => {
     'Other': 'bg-amber-50 text-amber-600 border-amber-200',
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ rating, selectedType, message });
-    setIsSubmitted(true);
+
+    const nextErrors: { rating?: string; type?: string; message?: string } = {};
+    if (rating < 1 || rating > 5) {
+      nextErrors.rating = 'Please select a star rating.';
+    }
+    if (!feedbackTypes.includes(selectedType)) {
+      nextErrors.type = 'Please choose a valid feedback type.';
+    }
+    const wordCount = message.trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount < 10) {
+      nextErrors.message = 'Please enter at least 10 words in your feedback.';
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    setErrors({});
+    setIsSubmitting(true);
+    try {
+      await apiSubmitFeedback({
+        star_rating: rating,
+        type_of_feedback: selectedType as 'Bug Report' | 'Feature Request' | 'Improvement' | 'Other',
+        message: message.trim(),
+      });
+      setIsSubmitted(true);
+    } catch (err: unknown) {
+      const data = err as Record<string, string | string[]>;
+      const detail = data?.detail;
+      setErrors({
+        submit: Array.isArray(detail) ? detail[0] : (detail as string) || 'Failed to submit feedback. Please try again.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const resetForm = () => {
@@ -35,6 +72,7 @@ const Feedback = () => {
     setMessage('');
     setSelectedType('Bug Report');
     setIsSubmitted(false);
+    setErrors({});
   };
 
   return (
@@ -168,6 +206,7 @@ const Feedback = () => {
                           );
                         })}
                       </div>
+                      {errors.rating && <p className="mt-3 text-sm font-medium text-red-600">{errors.rating}</p>}
                     </div>
 
                     {/* Feedback Type Selector */}
@@ -188,6 +227,7 @@ const Feedback = () => {
                           </button>
                         ))}
                       </div>
+                      {errors.type && <p className="mt-3 text-sm font-medium text-red-600">{errors.type}</p>}
                     </div>
 
                     {/* Message Input */}
@@ -201,14 +241,20 @@ const Feedback = () => {
                         className="w-full px-5 py-4 rounded-2xl border-2 border-gray-100 bg-gray-50/80 focus:bg-white focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all resize-none placeholder:text-gray-400 text-base text-text-main leading-relaxed shadow-inner"
                         required
                       />
+                      {errors.message && <p className="mt-3 text-sm font-medium text-red-600">{errors.message}</p>}
                     </div>
+
+                    {errors.submit && (
+                      <p className="text-sm font-medium text-red-600 text-center">{errors.submit}</p>
+                    )}
 
                       <div className="flex justify-center pt-2">
                         <button
                           type="submit"
+                          disabled={isSubmitting}
                           className="w-full sm:w-2/3 px-8 py-4 bg-primary hover:bg-primary-hover text-white font-bold text-lg rounded-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-xl shadow-primary/30 hover:-translate-y-1"
                         >
-                          Send Feedback <Send size={20} className="ml-1" />
+                          {isSubmitting ? 'Submitting...' : 'Send Feedback'} <Send size={20} className="ml-1" />
                         </button>
                       </div>
                     </motion.form>

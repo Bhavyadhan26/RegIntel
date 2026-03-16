@@ -1,9 +1,12 @@
 from django.contrib import admin
 from django.contrib import messages
 from django.db import DatabaseError
+from django.http import HttpResponse
+import csv
 
 from .admin_site import regintel_admin_site
 from .models import (
+	UserFeedback,
 	WebsiteScrapingData,
 	WebsiteScrapingRun,
 	WebsiteScrapingRunSiteStat,
@@ -110,3 +113,40 @@ class WebsiteScrapingRunAdmin(SuperuserOnlyAdminMixin, admin.ModelAdmin):
 
 	def has_add_permission(self, request):
 		return False
+
+
+@admin.register(UserFeedback, site=regintel_admin_site)
+class UserFeedbackAdmin(SuperuserOnlyAdminMixin, admin.ModelAdmin):
+	list_display = ("full_name", "user_email", "star_rating", "type_of_feedback", "created_at", "short_message")
+	search_fields = ("full_name", "user_email", "type_of_feedback", "message")
+	list_filter = ("star_rating", "type_of_feedback", "created_at")
+	readonly_fields = ("full_name", "user_email", "star_rating", "type_of_feedback", "message", "created_at")
+	ordering = ("-created_at", "-id")
+	list_per_page = 50
+	actions = ("export_selected_feedback_csv",)
+
+	def has_add_permission(self, request):
+		return False
+
+	@admin.display(description="Message")
+	def short_message(self, obj):
+		text = (obj.message or "").strip()
+		return text if len(text) <= 80 else f"{text[:77]}..."
+
+	@admin.action(description="Export selected feedback as CSV")
+	def export_selected_feedback_csv(self, request, queryset):
+		response = HttpResponse(content_type="text/csv")
+		response["Content-Disposition"] = 'attachment; filename="user_feedback.csv"'
+
+		writer = csv.writer(response)
+		writer.writerow(["Full Name", "User Email", "Stars", "Type", "Message", "Created At"])
+		for item in queryset.order_by("-created_at", "-id"):
+			writer.writerow([
+				item.full_name,
+				item.user_email,
+				item.star_rating,
+				item.type_of_feedback,
+				item.message,
+				item.created_at,
+			])
+		return response

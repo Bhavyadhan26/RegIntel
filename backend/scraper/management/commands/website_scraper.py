@@ -73,17 +73,46 @@ def init_tables():
 
     cur.execute(
         """
+        CREATE TABLE IF NOT EXISTS Professional_Category (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            category_name VARCHAR(100) NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB
+        """
+    )
+
+    cur.execute(
+        """
         CREATE TABLE IF NOT EXISTS Website_Scraping_Sources (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             website_name VARCHAR(32) UNIQUE NOT NULL,
             website_full_name VARCHAR(255) NOT NULL,
             start_url VARCHAR(2048) NOT NULL,
+            professional_category_id BIGINT NULL,
             active TINYINT DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB
         """
     )
+
+    cur.execute("SHOW COLUMNS FROM Website_Scraping_Sources LIKE 'professional_category_id'")
+    if cur.fetchone() is None:
+        cur.execute(
+            """
+            ALTER TABLE Website_Scraping_Sources
+            ADD COLUMN professional_category_id BIGINT NULL AFTER start_url
+            """
+        )
+
+    cur.execute("SHOW INDEX FROM Website_Scraping_Sources WHERE Key_name = 'idx_source_prof_category'")
+    if cur.fetchone() is None:
+        cur.execute(
+            """
+            CREATE INDEX idx_source_prof_category ON Website_Scraping_Sources (professional_category_id)
+            """
+        )
 
     cur.execute(
         """
@@ -130,6 +159,23 @@ def init_tables():
         """
     )
 
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS User_Feedback (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            full_name VARCHAR(150) NOT NULL,
+            user_email VARCHAR(254) NOT NULL,
+            star_rating TINYINT NOT NULL,
+            type_of_feedback VARCHAR(32) NOT NULL,
+            message TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY idx_feedback_email (user_email),
+            KEY idx_feedback_type (type_of_feedback),
+            KEY idx_feedback_created_at (created_at)
+        ) ENGINE=InnoDB
+        """
+    )
+
     conn.commit()
     conn.close()
 
@@ -138,23 +184,115 @@ def seed_sources_and_selectors():
     conn = get_conn()
     cur = conn.cursor()
 
+    categories = [
+        ("Chartered Accountant",),
+        ("Lawyers",),
+        ("Cost Accountant",),
+        ("Banking / Financial Regulation",),
+        ("Indirect Taxes and Income",),
+    ]
+
+    for category in categories:
+        cur.execute(
+            """
+            INSERT INTO Professional_Category (category_name)
+            VALUES (%s)
+            ON DUPLICATE KEY UPDATE category_name = VALUES(category_name)
+            """,
+            category,
+        )
+
     sources = [
-        ("ICAI", "Institute of Chartered Accountants of India", "https://www.icai.org/category/notifications"),
-        ("BCI", "Bar Council of India", "https://www.barcouncilofindia.org/info/notifications/all-noty"),
-        ("ICMAI", "Institute of Cost Accountants of India", "https://icmai.in/icmai/"),
-        ("RBI", "Reserve Bank of India", "https://www.rbi.org.in/Scripts/NotificationUser.aspx"),
-        ("CBIC", "Central Board of Indirect Taxes and Customs", "https://www.cbic.gov.in/entities/view-sticker"),
+        (
+            "ICAI",
+            "Institute of Chartered Accountants of India",
+            "https://www.icai.org/category/notifications",
+            "Chartered Accountant",
+        ),
+        (
+            "BCI",
+            "Bar Council of India",
+            "https://www.barcouncilofindia.org/info/notifications/all-noty",
+            "Lawyers",
+        ),
+        (
+            "ICMAI",
+            "Institute of Cost Accountants of India",
+            "https://icmai.in/icmai/",
+            "Cost Accountant",
+        ),
+        (
+            "RBI",
+            "Reserve Bank of India",
+            "https://www.rbi.org.in/Scripts/NotificationUser.aspx",
+            "Banking / Financial Regulation",
+        ),
+        (
+            "CBIC",
+            "Central Board of Indirect Taxes and Customs",
+            "https://www.cbic.gov.in/entities/view-sticker",
+            "Indirect Taxes and Income",
+        ),
     ]
 
     for s in sources:
         cur.execute(
             """
-            INSERT INTO Website_Scraping_Sources (website_name, website_full_name, start_url)
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE website_full_name = VALUES(website_full_name), start_url = VALUES(start_url)
+            INSERT INTO Website_Scraping_Sources (website_name, website_full_name, start_url, professional_category_id)
+            VALUES (
+                %s,
+                %s,
+                %s,
+                (SELECT id FROM Professional_Category WHERE category_name = %s)
+            )
+            ON DUPLICATE KEY UPDATE
+                website_full_name = VALUES(website_full_name),
+                start_url = VALUES(start_url),
+                professional_category_id = VALUES(professional_category_id)
             """,
             s,
         )
+
+    cur.execute(
+        """
+        UPDATE Website_Scraping_Sources s
+        JOIN Professional_Category c ON c.category_name = 'Chartered Accountant'
+        SET s.professional_category_id = c.id
+        WHERE s.start_url LIKE 'https://www.icai.org%'
+        """
+    )
+    cur.execute(
+        """
+        UPDATE Website_Scraping_Sources s
+        JOIN Professional_Category c ON c.category_name = 'Lawyers'
+        SET s.professional_category_id = c.id
+        WHERE s.start_url LIKE 'https://www.barcouncilofindia.org%'
+        """
+    )
+    cur.execute(
+        """
+        UPDATE Website_Scraping_Sources s
+        JOIN Professional_Category c ON c.category_name = 'Cost Accountant'
+        SET s.professional_category_id = c.id
+        WHERE s.start_url LIKE 'https://icmai.in%'
+        """
+    )
+    cur.execute(
+        """
+        UPDATE Website_Scraping_Sources s
+        JOIN Professional_Category c ON c.category_name = 'Banking / Financial Regulation'
+        SET s.professional_category_id = c.id
+        WHERE s.start_url LIKE 'https://www.rbi.org.in%'
+        """
+    )
+    cur.execute(
+        """
+        UPDATE Website_Scraping_Sources s
+        JOIN Professional_Category c ON c.category_name = 'Indirect Taxes and Income'
+        SET s.professional_category_id = c.id
+        WHERE s.start_url LIKE 'https://www.cbic.gov.in/entities/view-sticker%'
+        """
+    )
 
     selectors = [
         ("ICAI", "list_wait", "ul.list-group"),
@@ -202,7 +340,11 @@ def get_source(website_name):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        "SELECT website_name, website_full_name, start_url FROM Website_Scraping_Sources WHERE website_name = %s AND active = 1",
+        """
+        SELECT website_name, website_full_name, start_url, professional_category_id
+        FROM Website_Scraping_Sources
+        WHERE website_name = %s AND active = 1
+        """,
         (website_name,),
     )
     row = cur.fetchone()

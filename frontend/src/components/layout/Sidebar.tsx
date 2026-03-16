@@ -1,4 +1,4 @@
-import { LayoutDashboard, Bell, FileText, Calendar, HelpCircle, ArrowLeft, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, Bell, FileText, Calendar, HelpCircle, LogOut, Menu } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
@@ -71,16 +71,6 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             </nav>
 
             <div className="px-4 pb-8 pt-4 space-y-1 mt-auto border-t border-border">
-                <Link
-                    to="/"
-                    onClick={() => {
-                        if (window.innerWidth < 1024) onClose();
-                    }}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-md text-[15px] font-medium text-text-muted hover:text-text-main hover:bg-secondary/50 transition-colors"
-                >
-                    <ArrowLeft size={20} />
-                    Back to Home
-                </Link>
                 <button
                     type="button"
                     onClick={handleLogout}

@@ -21,4 +21,5 @@ from scraper.admin_site import regintel_admin_site
 urlpatterns = [
     path('admin/', regintel_admin_site.urls),
     path('api/auth/', include('users.urls')),
+    path('api/scraper/', include('scraper.urls')),
 ]

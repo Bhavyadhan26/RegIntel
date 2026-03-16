@@ -1,4 +1,5 @@
 const BASE_URL = 'http://localhost:8000/api/auth';
+const SCRAPER_BASE_URL = 'http://localhost:8000/api/scraper';
 
 function getAccessToken(): string | null {
   return sessionStorage.getItem('access_token');
@@ -44,11 +45,11 @@ async function refreshAccessToken(): Promise<string | null> {
   return data.access;
 }
 
-async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+async function apiFetch(path: string, options: RequestInit = {}, baseUrl = BASE_URL): Promise<Response> {
   let access = getAccessToken();
 
   const makeRequest = (token: string | null) =>
-    fetch(`${BASE_URL}${path}`, {
+    fetch(`${baseUrl}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -148,6 +149,160 @@ export async function apiChangePassword(payload: {
   const data = await res.json();
   if (!res.ok) throw data;
   return data;
+}
+
+export async function apiSubmitFeedback(payload: {
+  star_rating: number;
+  type_of_feedback: 'Bug Report' | 'Feature Request' | 'Improvement' | 'Other';
+  message: string;
+}) {
+  const res = await apiFetch('/feedback/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw data;
+  return data;
+}
+
+export interface PublicationApiItem {
+  id: string;
+  title: string;
+  authority: string;
+  summary: string;
+  notice_date: string;
+  category: string;
+  type: 'Notice' | 'Circular' | 'Amendment' | 'Tender' | 'Notifications' | 'Updates' | 'Tenders';
+  website_name: string;
+  pdf_url: string;
+  detail_url: string;
+  source_url: string;
+  url: string;
+}
+
+export interface PublicationListResponse {
+  results: PublicationApiItem[];
+  page: number;
+  page_size: number;
+  total: number;
+  has_more: boolean;
+}
+
+export async function apiGetPublications(params: {
+  page: number;
+  page_size?: number;
+  category?: 'All' | 'Notifications' | 'Updates' | 'Tenders';
+  website?: string;
+  search?: string;
+}) {
+  const query = new URLSearchParams();
+  query.set('page', String(params.page));
+  query.set('page_size', String(params.page_size ?? 10));
+
+  if (params.category && params.category !== 'All') {
+    query.set('category', params.category.toLowerCase());
+  }
+
+  if (params.website && params.website.toLowerCase() !== 'all') {
+    query.set('website', params.website);
+  }
+
+  if (params.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+
+  const res = await apiFetch(`/publications/?${query.toString()}`, {}, SCRAPER_BASE_URL);
+  const data = await res.json();
+  if (!res.ok) throw data;
+  return data as PublicationListResponse;
+}
+
+export interface AlertApiItem {
+  id: string;
+  title: string;
+  authority: string;
+  summary: string;
+  notice_date: string;
+  category: string;
+  tag: 'Notifications' | 'Updates' | 'Tenders' | string;
+  url: string;
+  created_at: string;
+}
+
+export interface AlertListResponse {
+  results: AlertApiItem[];
+  tab: 'new' | 'old' | string;
+  total: number;
+  profession: string;
+}
+
+export async function apiGetAlerts(params: { tab: 'new' | 'old' }) {
+  const query = new URLSearchParams();
+  query.set('tab', params.tab);
+
+  const res = await apiFetch(`/alerts/?${query.toString()}`, {}, SCRAPER_BASE_URL);
+  const data = await res.json();
+  if (!res.ok) throw data;
+  return data as AlertListResponse;
+}
+
+export interface DeadlineApiItem {
+  id: string;
+  title: string;
+  category: string;
+  website_name: string;
+  body_date: string;
+  due_date: string;
+  days_left: number;
+  status: 'Urgent' | 'Upcoming' | 'Normal';
+  url: string;
+}
+
+export interface DeadlineListResponse {
+  results: DeadlineApiItem[];
+  profession: string;
+  counts: {
+    urgent: number;
+    this_week: number;
+    total: number;
+  };
+}
+
+export async function apiGetDeadlines() {
+  const res = await apiFetch('/deadlines/', {}, SCRAPER_BASE_URL);
+  const data = await res.json();
+  if (!res.ok) throw data;
+  return data as DeadlineListResponse;
+}
+
+export interface DashboardUpcomingDeadlineItem {
+  id: string;
+  title: string;
+  due_date: string;
+  days_left: number;
+  urgent: boolean;
+  url: string;
+}
+
+export interface DashboardSummaryResponse {
+  cards: {
+    unread_alerts: number;
+    unread_alerts_two_day: number;
+    publications_today: number;
+    publications_week: number;
+    deadlines_active: number;
+    deadlines_week_with_due: number;
+  };
+  last_updated: string | null;
+  upcoming_deadlines: DashboardUpcomingDeadlineItem[];
+  profession: string;
+}
+
+export async function apiGetDashboardSummary() {
+  const res = await apiFetch('/dashboard-summary/', {}, SCRAPER_BASE_URL);
+  const data = await res.json();
+  if (!res.ok) throw data;
+  return data as DashboardSummaryResponse;
 }
 
 export { saveTokens, clearTokens, getAccessToken };

@@ -1,30 +1,107 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Filter, ChevronRight } from "lucide-react";
 import { FadeIn } from "@/components/ui/FadeIn";
 import Sidebar from "../components/layout/Sidebar";
 import { Header } from "../components/layout/Header";
 import { Footer } from "../components/Footer";
-import { cbicAlerts } from "../lib/cbicData";
+import { apiGetAlerts } from "@/lib/api";
 import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
+
+interface AlertRow {
+  id: string;
+  title: string;
+  authority: string;
+  desc: string;
+  date: string;
+  tag: string;
+  type: "critical" | "high" | "medium";
+  tagColor: string;
+  url: string;
+}
 
 export const Alerts = () => {
   const [activeTab, setActiveTab] = useState<"new" | "old">("new");
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const [filterType, setFilterType] = useState<"all" | "critical" | "high" | "medium">("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [alertsByTab, setAlertsByTab] = useState<{ new: AlertRow[]; old: AlertRow[] }>({ new: [], old: [] });
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
+  const severityFromTitle = (title: string): "critical" | "high" | "medium" => {
+    const normalized = title.toLowerCase();
+    if (normalized.includes("final result") || normalized.includes("not be available")) return "critical";
+    if (normalized.includes("budget") || normalized.includes("exam") || normalized.includes("seeking")) return "high";
+    return "medium";
+  };
 
+  const tagColorByTag = (tag: string): string => {
+    const normalized = (tag || "").toLowerCase();
+    if (normalized.includes("update")) return "bg-purple-100 text-purple-700";
+    if (normalized.includes("tender")) return "bg-emerald-100 text-emerald-700";
+    return "bg-amber-100 text-amber-700";
+  };
 
-  const alertsData = cbicAlerts.filter((item) => (activeTab === "new" ? item.isNew : !item.isNew));
+  const mapAlerts = (results: Awaited<ReturnType<typeof apiGetAlerts>>["results"]): AlertRow[] =>
+    results.map((item) => ({
+      id: item.id,
+      title: item.title,
+      authority: item.authority,
+      desc: item.summary || "No summary available.",
+      date: item.notice_date || "",
+      tag: item.tag,
+      type: severityFromTitle(item.title),
+      tagColor: tagColorByTag(item.tag),
+      url: item.url,
+    }));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAlerts = async () => {
+      setIsLoading(true);
+      setLoadError("");
+      try {
+        const needsInitialPrefetch = alertsByTab.new.length === 0 && alertsByTab.old.length === 0;
+
+        if (needsInitialPrefetch) {
+          const [newResponse, oldResponse] = await Promise.all([
+            apiGetAlerts({ tab: "new" }),
+            apiGetAlerts({ tab: "old" }),
+          ]);
+          if (cancelled) return;
+
+          setAlertsByTab({
+            new: mapAlerts(newResponse.results),
+            old: mapAlerts(oldResponse.results),
+          });
+          return;
+        }
+
+        const response = await apiGetAlerts({ tab: activeTab });
+        if (cancelled) return;
+
+        setAlertsByTab((prev) => ({ ...prev, [activeTab]: mapAlerts(response.results) }));
+      } catch {
+        if (cancelled) return;
+        setLoadError("Unable to load alerts right now.");
+        setAlertsByTab((prev) => ({ ...prev, [activeTab]: [] }));
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    void loadAlerts();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
 
   const severityColor = (type: string) =>
     type === "critical" ? "bg-red-500" : type === "high" ? "bg-amber-500" : "bg-blue-500";
 
   const getFilteredAlerts = () => {
-    let filtered = alertsData;
-    // Arbitrary split: IDs 1 & 2 are new, 3 & 4 are old. Or normally this is done by a read status.
-    filtered = filtered.filter(a => Number(a.id) <= 2 ? activeTab === "new" : activeTab === "old");
-    
+    let filtered = alertsByTab[activeTab];
     if (filterType !== "all") {
       filtered = filtered.filter(a => a.type === filterType);
     }
@@ -33,8 +110,8 @@ export const Alerts = () => {
 
   const filteredAlerts = getFilteredAlerts();
 
-  const newCount = alertsData.filter(a => Number(a.id) <= 2).length;
-  const oldCount = alertsData.filter(a => Number(a.id) > 2).length;
+  const newCount = alertsByTab.new.length;
+  const oldCount = alertsByTab.old.length;
 
   return (
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
@@ -106,6 +183,14 @@ export const Alerts = () => {
           </div>
 
           <div className="space-y-3">
+            {isLoading && (
+              <div className="py-8 text-center text-text-muted text-sm">Loading alerts...</div>
+            )}
+
+            {loadError && !isLoading && (
+              <div className="py-8 text-center text-red-600 text-sm">{loadError}</div>
+            )}
+
             {filteredAlerts.length > 0 ? (
               filteredAlerts.map((alert, idx) => (
               <FadeIn key={alert.id} delay={idx * 0.05} direction="up" fullWidth>
@@ -139,7 +224,7 @@ export const Alerts = () => {
             ))
             ) : (
               <div className="py-12 text-center text-text-muted text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                No alerts found matching your criteria.
+                No new updates Today
               </div>
             )}
           </div>

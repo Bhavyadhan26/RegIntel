@@ -6,7 +6,7 @@ from django.utils.html import format_html
 
 from scraper.admin_site import regintel_admin_site
 
-from .models import UserProfile
+from .models import ProfessionalCategory, UserProfile
 
 
 class UserProfileInline(admin.StackedInline):
@@ -14,7 +14,13 @@ class UserProfileInline(admin.StackedInline):
     can_delete = False
     extra = 0
     verbose_name_plural = "Profile Details"
-    fields = ("profession", "email_notifications")
+    fields = ("profession_category", "email_notifications")
+
+
+@admin.register(ProfessionalCategory, site=regintel_admin_site)
+class ProfessionalCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name",)
+    search_fields = ("name",)
 
 
 @admin.register(User, site=regintel_admin_site)
@@ -38,11 +44,11 @@ class RegIntelUserAdmin(UserAdmin):
 
 @admin.register(UserProfile, site=regintel_admin_site)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "profession", "email_notifications")
-    list_filter = ("profession", "email_notifications")
+    list_display = ("user", "profession_category", "email_notifications")
+    list_filter = ("profession_category", "email_notifications")
     search_fields = ("user__username", "user__email", "user__first_name", "user__last_name")
     readonly_fields = ("password_hash", "password_actions")
-    fields = ("user", "profession", "email_notifications", "password_hash", "password_actions")
+    fields = ("user", "profession_category", "email_notifications", "password_hash", "password_actions")
 
     @admin.display(description="Password (hashed)")
     def password_hash(self, obj):

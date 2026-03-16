@@ -1,10 +1,32 @@
 from django.db import models
 
 
+class ProfessionalCategory(models.Model):
+	category_name = models.CharField(max_length=100, unique=True)
+
+	class Meta:
+		managed = False
+		db_table = "Professional_Category"
+		ordering = ["category_name"]
+		verbose_name = "Professional Category"
+		verbose_name_plural = "Professional Categories"
+
+	def __str__(self):
+		return self.category_name
+
+
 class WebsiteScrapingSource(models.Model):
 	website_name = models.CharField(max_length=32, unique=True)
 	website_full_name = models.CharField(max_length=255)
 	start_url = models.CharField(max_length=2048)
+	professional_category = models.ForeignKey(
+		ProfessionalCategory,
+		on_delete=models.DO_NOTHING,
+		db_column="professional_category_id",
+		null=True,
+		blank=True,
+		related_name="sources",
+	)
 	active = models.BooleanField(default=True)
 	created_at = models.DateTimeField(null=True, blank=True)
 	updated_at = models.DateTimeField(null=True, blank=True)
@@ -106,3 +128,22 @@ class WebsiteScrapingRunSiteStat(models.Model):
 
 	def __str__(self):
 		return f"Run {self.run_id} - {self.website_name}: {self.new_rows}"
+
+
+class UserFeedback(models.Model):
+	full_name = models.CharField(max_length=150)
+	user_email = models.EmailField(max_length=254)
+	star_rating = models.PositiveSmallIntegerField()
+	type_of_feedback = models.CharField(max_length=32)
+	message = models.TextField()
+	created_at = models.DateTimeField(null=True, blank=True)
+
+	class Meta:
+		managed = False
+		db_table = "User_Feedback"
+		ordering = ["-created_at", "-id"]
+		verbose_name = "User Feedback"
+		verbose_name_plural = "User Feedback"
+
+	def __str__(self):
+		return f"{self.user_email} ({self.star_rating}★) - {self.type_of_feedback}"

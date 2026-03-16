@@ -26,9 +26,9 @@ const features = [
 
 export const Features = () => {
   return (
-    <section id="features" className="py-16 md:py-20 bg-background border-t border-border/40">
+    <section id="features" className="border-t border-border/40 bg-background py-16 md:py-20">
       {/* Upper Features Section (Value Proposition) */}
-      <div className="w-full px-10 md:px-20">
+      <div className="w-full px-4 sm:px-6 lg:px-20">
         <div id="value-proposition" className="text-center mb-24">
           <span className="text-sm font-bold text-primary tracking-[0.2em] uppercase mb-4 block">FEATURES</span>
           <h2 className="text-4xl md:text-5xl font-bold text-text-main leading-tight mb-6">
@@ -63,8 +63,8 @@ export const Features = () => {
       </div>
 
       {/* Redesigned Impact Section - Solution Grid Style */}
-      <div id="impact" className="mt-16 w-full px-10 md:px-20">
-        <div className="bg-slate-50/50 rounded-[3rem] py-16 px-10 md:px-20 border border-border/50">
+      <div id="impact" className="mt-16 w-full px-4 sm:px-6 lg:px-20">
+        <div className="rounded-[2rem] border border-border/50 bg-slate-50/50 px-6 py-12 sm:px-10 md:px-20 md:py-16 lg:rounded-[3rem]">
           <div className="text-center mb-20">
             <span className="text-sm font-bold text-primary tracking-[0.2em] uppercase mb-4 block">Impact & Value</span>
             <h3 className="text-4xl md:text-5xl font-bold text-text-main mb-6">How RegIntel makes an impact</h3>

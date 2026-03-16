@@ -42,9 +42,9 @@ export const Header = ({
         )}
       </div>
 
-      <div className="flex items-center gap-4 self-end md:self-auto">
+      <div className="flex items-center gap-4 self-start md:self-auto">
         {showSearch && (
-          <div className="relative w-72 hidden md:flex items-center gap-2">
+          <div className="relative hidden w-full max-w-xs md:flex items-center gap-2 lg:max-w-sm">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input

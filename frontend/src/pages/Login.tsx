@@ -94,7 +94,7 @@ export const Login = () => {
       </div>
 
       {/* Footer Links */}
-      <div className="py-6 text-center space-x-6 text-xs text-text-muted">
+      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 px-4 py-6 text-center text-xs text-text-muted">
         <a href="#" className="hover:text-text-main">Privacy Policy</a>
         <a href="#" className="hover:text-text-main">Terms of Service</a>
         <a href="#" className="hover:text-text-main">Contact Admin</a>

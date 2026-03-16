@@ -7,6 +7,7 @@ import Sidebar from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { Footer } from '../components/Footer';
 import { cbicPublications } from '../lib/cbicData';
+import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 
 const PUBLICATIONS_DATA: Publication[] = cbicPublications;
 
@@ -25,7 +26,7 @@ const Publications = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeWebsite, setActiveWebsite] = useState('All Websites');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
 
   const filteredData = PUBLICATIONS_DATA.filter((item) => {
     const matchCat = activeCategory === 'All' || item.type + 's' === activeCategory;
@@ -46,21 +47,21 @@ const Publications = () => {
   return (
     <div className="flex min-h-screen bg-background font-sans relative overflow-x-hidden">
       <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
       </div>
 
       {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/20 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
       {/* Main Content */}
       <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="p-8 flex-1">
-          <Header title="Publications" onMenuClick={() => setIsSidebarOpen(true)} isSidebarOpen={isSidebarOpen} />
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <Header title="Publications" onMenuClick={openSidebar} isSidebarOpen={isSidebarOpen} />
 
           <div className="relative mb-6">
             <input
@@ -73,8 +74,8 @@ const Publications = () => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           </div>
 
-          <div className="mb-7 flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex gap-2.5 overflow-x-auto pb-1 lg:pb-0">
+          <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex w-full gap-2.5 overflow-x-auto pb-1 lg:w-auto lg:pb-0">
               {CATEGORIES.map((cat) => (
                 <FilterButton key={cat} label={cat} active={activeCategory === cat} onClick={() => setActiveCategory(cat)} />
               ))}

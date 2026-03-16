@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 export const Hero = () => {
   return (
     // Changed: Used standard padding options to avoid too much spacing
-    <section className="relative px-6 lg:px-12 py-16 md:py-24 flex items-center overflow-hidden bg-background">
+    <section className="relative flex items-center overflow-hidden bg-background px-4 py-14 sm:px-6 md:py-20 lg:px-12 lg:py-24">
       <div className="w-full max-w-[1500px] mx-auto grid lg:grid-cols-[1fr_1.1fr] gap-12 lg:gap-16 items-center">
 
         {/* Text Content */}
@@ -21,19 +21,19 @@ export const Hero = () => {
             Next-Gen Compliance
           </div>
 
-          <h1 className="text-6xl md:text-7xl font-bold text-text-main leading-[1.05] tracking-tight mb-6">
+          <h1 className="mb-6 text-4xl font-bold text-text-main leading-[1.05] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
             The platform that makes{" "}
             <span className="text-primary block">regulatory data</span>{" "}
             work for you
           </h1>
 
-          <p className="text-xl text-text-muted leading-relaxed mb-8 max-w-xl">
+          <p className="mb-8 max-w-xl text-lg leading-relaxed text-text-muted sm:text-xl">
             Transforming complex compliance into actionable intelligence with high-end,
             real-time analytics and predictive reporting.
           </p>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8 mt-4">
-            <Link to="/signup">
+            <Link to="/signup" className="w-full sm:w-auto">
               <Button size="lg" className="h-14 px-10 text-lg shadow-xl shadow-primary/20 shrink-0">
                 Get Started
               </Button>

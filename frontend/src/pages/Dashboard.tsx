@@ -9,10 +9,11 @@ import { Header } from "../components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Footer } from "../components/Footer";
+import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
 
 
 export const Dashboard = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const [searchQuery, setSearchQuery] = useState("");
 
   const deadlines = [
@@ -29,25 +30,25 @@ export const Dashboard = () => {
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
 
       <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out`}>
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
       </div>
 
       {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/20 z-40 lg:hidden" 
-          onClick={() => setIsSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
       {/* Main Content */}
       <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="p-8 flex-1">
+        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {/* Header */}
           <Header 
             title="Dashboard" 
             subtitle="Welcome back, John. Here's what's happening today."
-            onMenuClick={() => setIsSidebarOpen(true)}
+            onMenuClick={openSidebar}
             isSidebarOpen={isSidebarOpen}
             showSearch={true}
             searchQuery={searchQuery}

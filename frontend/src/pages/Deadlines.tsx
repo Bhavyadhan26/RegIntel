@@ -1,11 +1,10 @@
 import Sidebar from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
-import { Calendar, ExternalLink, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
+import { Calendar, AlertCircle, Clock, CheckCircle2, Search, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import { Footer } from '../components/Footer';
 import { cbicDeadlines } from '../lib/cbicData';
 import { FadeIn } from "@/components/ui/FadeIn";
-import { Search } from 'lucide-react';
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 
 const Deadlines = () => {
@@ -17,6 +16,7 @@ const Deadlines = () => {
     return item.title.toLowerCase().includes(normalizedQuery) ||
            item.category.toLowerCase().includes(normalizedQuery);
   });
+
   const urgentCount = cbicDeadlines.filter((item) => item.status === 'Urgent').length;
   const weekCount = cbicDeadlines.filter((item) => item.daysLeft <= 7).length;
   const totalCount = cbicDeadlines.length;

@@ -88,7 +88,7 @@ export const ProfessionSelection = () => {
             size="lg"
             className="px-8 h-12 text-base shadow-xl shadow-primary/20"
             disabled={selectedIds.length === 0}
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/dashboard', { state: { showInfo: true } })}
           >
             Continue to Dashboard <ArrowRight className="ml-2 w-4 h-4" />
           </Button>

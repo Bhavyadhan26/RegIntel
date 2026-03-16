@@ -1,174 +1,118 @@
-RegIntel – Professional Regulatory Intelligence Platform
+# RegIntel
 
-## First-Time Local Setup
+RegIntel is a regulatory intelligence platform that collects official updates from multiple Indian regulatory websites, organizes them, and delivers role-based insights through a modern dashboard.
 
-### 1. Clone and prepare environment files
+## What It Does
 
-1. Clone the repository.
-2. Copy `.env.example` to `.env` in the repository root.
-3. Fill `.env` with your own values:
-  - `DJANGO_SECRET_KEY`
-  - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`
-  - `GEMINI_API_KEY`
+- Scrapes notices and updates from supported regulator websites
+- Stores and manages data in MySQL
+- Tracks scraper runs and additions over time
+- Shows role-aware Alerts, Publications, and Deadlines in the frontend
+- Supports admin operations with a custom Django admin dashboard
+- Supports manual scraper trigger from admin and scheduled runs via cron
 
-### 2. Backend setup (Django)
+## Key Features
 
-1. Open a terminal in `backend`.
-2. IGNORE
-3. Install dependencies:
+- JWT-based authentication (login/signup/profile/password)
+- Profession-based filtering for targeted updates
+- Publications with category and website filters, lazy loading, and detail links
+- Alerts split into New/Old with backend-driven counts
+- Deadlines with due-date status logic (Urgent/Upcoming/Normal)
+- Feedback submission and admin export
+- Scraper run analytics in admin
 
-  pip install -r requirements.txt
+## Tech Stack
 
-4. Install Playwright browser once:
+- Backend: Django, Django REST Framework, SimpleJWT
+- Frontend: React + TypeScript + Vite
+- Databases: MySQL (default + scraper data)
+- Scraping: Playwright + requests
 
-  playwright install chromium
+## Project Structure
 
-5. Run database migrations:
+- frontend: React app (UI and user flows)
+- backend: Django app (APIs, admin, scraper, auth)
 
-  python manage.py migrate
+## Quick Start
 
-6. (Optional) Create admin user:
+### Backend
 
-  python manage.py createsuperuser
+1. Go to backend:
 
-7. Start backend server:
+   ```bash
+   cd backend
+   ```
 
-  python manage.py runserver
+2. Install dependencies:
 
-### 3. Frontend setup (React + Vite)
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-1. Open a new terminal in `frontend`.
-2. Install packages:
+3. Install browser for scraper:
 
-  npm install
+   ```bash
+   playwright install chromium
+   ```
+
+4. Configure environment variables in root `.env` (see `.env.example`).
+
+5. Run migrations:
+
+   ```bash
+   python manage.py migrate
+   ```
+
+6. Initialize scraper tables:
+
+   ```bash
+   python manage.py init_scraper_tables
+   ```
+
+7. Start backend:
+
+   ```bash
+   python manage.py runserver
+   ```
+
+### Frontend
+
+1. Go to frontend:
+
+   ```bash
+   cd frontend
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
 
 3. Start frontend:
 
-  npm run dev
+   ```bash
+   npm run dev
+   ```
 
-4. Open the local URL printed by Vite (typically `http://localhost:5173`).
+## Scheduler
 
-### 4. Scraper setup (optional)
+To run scraping automatically at 10:00 AM and 6:00 PM (Linux cron):
 
-1. Ensure MySQL is running and `.env` DB values are correct.
-2. Initialize source and selector tables:
+```cron
+0 10,18 * * * /bin/bash /path/to/RegIntel/backend/scripts/run_website_scraper.sh
+```
 
-  python manage.py init_scraper_tables
+Manual trigger is also available in admin dashboard via `Run Scraper Now`.
 
-3. Run scraping:
+## Admin Access
 
-  python manage.py website_scraper
+- Admin URL: `/admin/`
+- Use a superuser account (`python manage.py createsuperuser`)
 
-### 5. Scheduled scraper runs
+## Notes for Deployment
 
-RegIntel supports two ways to run scraping on demand:
+- Frontend must use environment-based API URLs (not localhost)
+- Backend CORS must allow your deployed frontend domain
+- Set production DB credentials via environment variables
 
-1. Admin trigger:
-  - Open `/admin/`
-  - On the scraper dashboard, click `Run Scraper Now`
-  - The scraper starts in the background and logs to `backend/logs/website_scraper_manual.log`
-
-2. Cron schedule on Linux hosting:
-  - Use the helper script at `backend/scripts/run_website_scraper.sh`
-  - Example cron schedule for 10:00 AM and 6:00 PM every day:
-
-  0 10,18 * * * /bin/bash /path/to/RegIntel/backend/scripts/run_website_scraper.sh
-
-  - Example cron file template is available at `backend/deploy/scraper.cron.example`
-  - Cron output is written to `backend/logs/website_scraper_cron.log`
-
-## Pre-Push Security Checklist
-
-1. Confirm `.env` is not staged.
-2. Confirm no credentials are hardcoded in source files.
-3. Confirm `backend/db.sqlite3`, `frontend/node_modules`, and `frontend/dist` are not staged.
-4. Run:
-
-  git status
-
-5. Review staged diff before push:
-
-  git diff --staged
-
-A web‑based professional intelligence system that continuously monitors public regulatory and institutional websites, detects new or changed publications, classifies their relevance, summarizes them, and delivers personalized, action‑oriented alerts to professionals.
------------------------------------------------------------------------------------------------------------
-
-FRONTEND DEVELOPMENT PACKAGE INSTALLMENT CODES ARE BELOW:
-
-> npm create vite@latest frontend -- --template react-ts
-
-> cd frontend
-
-> npm install -D tailwindcss@3.4.17 postcss autoprefixer
-
-> npx tailwindcss init -p
-
-> npm install react-router-dom lucide-react clsx tailwind-merge class-variance-authority recharts
-
-> npm install -D @types/node
-------------------------------------------------------------------------------------------------------------------
-
-Open the newly created tailwind.config.js inside your frontend folder:
-
-Replace its content with this:
-
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {
-      colors: {
-        // We will add custom REGINTEL colors here later
-        sidebar: "#f8f9fa",
-      }
-    },
-  },
-  plugins: [],
-}
-
-File: Open src/index.css.
-
-replace everything in the file with below:
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-File: Open vite.config.ts
-Replace the content with this:
-
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from "path"
-
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-})
-
-tsconfig.app.json (or tsconfig.json if .app doesn't exist).
-
-Look for the "compilerOptions" section and add "baseUrl" and "paths" inside it, like this:
-
-{
-  "compilerOptions": {
-    // ... keep your existing settings ...
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  // ... keep the rest of the file ...
-}
-------------------------------------------------------------------------------------------------------------------
-> npm run dev
-
-> npm install react-router-dom 

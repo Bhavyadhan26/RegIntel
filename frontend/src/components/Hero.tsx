@@ -1,33 +1,29 @@
 import { Button } from "@/components/ui/Button";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Check } from "lucide-react";
+import { FadeIn } from "@/components/ui/FadeIn";
 
 export const Hero = () => {
   return (
     // Changed: Used standard padding options to avoid too much spacing
     <section className="relative px-6 lg:px-12 py-16 md:py-24 flex items-center overflow-hidden bg-background">
-      <div className="w-full max-w-[1500px] mx-auto grid lg:grid-cols-[1fr_1.1fr] gap-12 lg:gap-16 items-center">
+      <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-[1fr_1.1fr] gap-12 lg:gap-16 items-center">
 
         {/* Text Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="flex flex-col justify-center"
-        >
+        <div className="flex flex-col justify-center">
+          <FadeIn direction="up">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase mb-6 w-fit">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             Next-Gen Compliance
           </div>
 
-          <h1 className="text-6xl md:text-7xl font-bold text-text-main leading-[1.05] tracking-tight mb-6">
+          <h1 className="text-5xl md:text-6xl font-bold text-text-main leading-[1.05] tracking-tight mb-6">
             The platform that makes{" "}
             <span className="text-primary block">regulatory data</span>{" "}
             work for you
           </h1>
 
-          <p className="text-xl text-text-muted leading-relaxed mb-8 max-w-xl">
+          <p className="text-lg text-text-muted leading-relaxed mb-8 max-w-xl">
             Transforming complex compliance into actionable intelligence with high-end,
             real-time analytics and predictive reporting.
           </p>
@@ -47,15 +43,12 @@ export const Hero = () => {
               </div>
             </div>
           </div>
-        </motion.div>
+          </FadeIn>
+        </div>
 
         {/* Hero Image */}
-        <motion.div
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3, duration: 0.8 }}
-          className="relative hidden lg:block h-[450px] xl:h-[550px]"
-        >
+        <div className="relative hidden lg:block h-[450px] xl:h-[550px] w-full">
+          <FadeIn direction="left" delay={0.2} fullWidth className="h-full w-full">
           <div className="relative h-full w-full overflow-hidden rounded-3xl shadow-2xl bg-white flex items-center justify-center">
             <img
               src="https://images.unsplash.com/photo-1497215728101-856f4ea42174?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
@@ -66,7 +59,8 @@ export const Hero = () => {
 
           {/* Decor */}
           <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-primary/5 rounded-full blur-[120px]" />
-        </motion.div>
+          </FadeIn>
+        </div>
       </div>
     </section>
   );

@@ -1,9 +1,11 @@
 import Sidebar from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
-import { Calendar, ExternalLink, AlertCircle, Clock, CheckCircle2, Search } from 'lucide-react';
+import { Calendar, AlertCircle, Clock, CheckCircle2, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Footer } from '../components/Footer';
 import { cbicDeadlines } from '../lib/cbicData';
+import { FadeIn } from "@/components/ui/FadeIn";
+import { Button } from "@/components/ui/Button";
 
 const Deadlines = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
@@ -42,8 +44,8 @@ const Deadlines = () => {
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="p-8 flex-1">
+      <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
+        <div className="p-4 sm:p-6 lg:p-8 flex-1 w-full max-w-full overflow-hidden">
           <Header title="Upcoming Deadlines" onMenuClick={() => setIsSidebarOpen(true)} isSidebarOpen={isSidebarOpen} />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
@@ -73,58 +75,66 @@ const Deadlines = () => {
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="grid grid-cols-12 gap-4 bg-gray-50/50 px-6 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider border-b border-gray-200">
-              <div className="col-span-4">Title</div>
-              <div className="col-span-2">Category</div>
-              <div className="col-span-2">Body Date</div>
-              <div className="col-span-2">Due Date</div>
-              <div className="col-span-1 text-center">Status</div>
-              <div className="col-span-1 text-center">Action</div>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {filteredData.length > 0 ? (
-                filteredData.map((item) => (
-                <div key={item.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors">
-                  <div className="col-span-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
-                      <Calendar size={16} className="text-amber-600" />
-                    </div>
-                    <span className="text-sm font-medium text-text-main">{item.title}</span>
-                  </div>
-                  <div className="col-span-2 text-sm text-text-muted">{item.category}</div>
-                  <div className="col-span-2 text-sm text-text-muted">{item.bodyDate}</div>
-                  <div className="col-span-2">
-                    {!item.dueDate || item.dueDate === 'N/A' || item.dueDate.toLowerCase() === 'not applicable' ? (
-                      <div className="text-sm font-medium text-text-muted">-</div>
-                    ) : (
-                      <>
-                        <div className="text-sm font-medium text-text-main">{item.dueDate}</div>
-                        <div className="text-xs text-text-muted">{item.daysLeft} days left</div>
-                      </>
-                    )}
-                  </div>
-                  <div className="col-span-1 flex justify-center">
-                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${statusStyle(item.status)}`}>
-                       {statusIcon(item.status)} {item.status}
-                     </span>
-                  </div>
-                  <div className="col-span-1 flex justify-center">
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-primary hover:text-primary-hover flex items-center gap-1"
-                    >
-                      View <ExternalLink size={12} />
-                    </a>
-                  </div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[800px]">
+                <div className="grid grid-cols-12 gap-4 bg-gray-50/50 px-6 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider border-b border-gray-200">
+                  <div className="col-span-4">Title</div>
+                  <div className="col-span-2">Category</div>
+                  <div className="col-span-2">Body Date</div>
+                  <div className="col-span-2">Due Date</div>
+                  <div className="col-span-1 text-center">Status</div>
+                  <div className="col-span-1 text-center">Action</div>
                 </div>
-              ))
-            ) : (
-              <div className="py-8 text-center text-text-muted text-sm px-6">
-                No deadlines found matching your search.
+                <div className="divide-y divide-gray-100">
+                  {filteredData.length > 0 ? (
+                    filteredData.map((item, index) => (
+                    <FadeIn key={item.id} delay={index * 0.05} direction="up" fullWidth>
+                    <div className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors">
+                      <div className="col-span-4 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
+                          <Calendar size={16} className="text-amber-600" />
+                        </div>
+                        <span className="text-sm font-medium text-text-main pr-2">{item.title}</span>
+                      </div>
+                      <div className="col-span-2 text-sm text-text-muted">{item.category}</div>
+                      <div className="col-span-2 text-sm text-text-muted">{item.bodyDate}</div>
+                      <div className="col-span-2">
+                        {!item.dueDate || item.dueDate === 'N/A' || item.dueDate.toLowerCase() === 'not applicable' ? (
+                          <div className="text-sm font-medium text-text-muted">-</div>
+                        ) : (
+                          <>
+                            <div className="text-sm font-medium text-text-main">{item.dueDate}</div>
+                            <div className="text-xs text-text-amber-600 font-medium">{item.daysLeft} days left</div>
+                          </>
+                        )}
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                        <span className={`inline-flex items-center justify-center gap-1 w-24 py-1 rounded-full text-xs font-semibold border ${statusStyle(item.status)}`}>
+                          {statusIcon(item.status)} {item.status}
+                        </span>
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => window.open(item.url, '_blank')}
+                          className="text-primary hover:text-primary hover:bg-primary/10 transition-colors"
+                        >
+                          View
+                        </Button>
+                      </div>
+                    </div>
+                    </FadeIn>
+                    ))
+                  ) : (
+                    <div className="py-12 text-center">
+                      <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <h3 className="text-sm font-medium text-text-main">No deadlines found</h3>
+                      <p className="text-sm text-text-muted mt-1">Try adjusting your search query.</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
             </div>
           </div>
         </div>

@@ -46,6 +46,8 @@ class RegIntelAdminSite(AdminSite):
                 "selectors": "/admin/scraper/websitescrapingselector/",
                 "data": "/admin/scraper/websitescrapingdata/",
                 "runs": "/admin/scraper/websitescrapingrun/",
+                "users": "/admin/auth/user/",
+                "profiles": "/admin/users/userprofile/",
             },
         }
         try:

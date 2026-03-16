@@ -15,7 +15,7 @@ export const Login = () => {
     // Simulate login
     setTimeout(() => {
       setLoading(false);
-      navigate("/dashboard");
+      navigate("/dashboard", { state: { showInfo: true } });
     }, 1000);
   };
 
@@ -71,11 +71,6 @@ export const Login = () => {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="remember" className="rounded border-gray-300 text-primary focus:ring-primary" />
-                <label htmlFor="remember" className="text-sm text-text-muted">Remember this device for 30 days</label>
               </div>
 
               <Button type="submit" className="w-full h-11 text-base bg-primary hover:bg-primary-hover shadow-lg shadow-primary/20" isLoading={loading}>

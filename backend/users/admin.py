@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
+from django.urls import reverse
+from django.utils.html import format_html
 
 from scraper.admin_site import regintel_admin_site
 
@@ -39,3 +41,15 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "profession", "email_notifications")
     list_filter = ("profession", "email_notifications")
     search_fields = ("user__username", "user__email", "user__first_name", "user__last_name")
+    readonly_fields = ("password_hash", "password_actions")
+    fields = ("user", "profession", "email_notifications", "password_hash", "password_actions")
+
+    @admin.display(description="Password (hashed)")
+    def password_hash(self, obj):
+        # Django stores only password hashes; raw passwords are never retrievable.
+        return obj.user.password
+
+    @admin.display(description="Password Management")
+    def password_actions(self, obj):
+        change_url = reverse("admin:auth_user_password_change", args=[obj.user_id])
+        return format_html('<a class="button" href="{}">Change Password</a>', change_url)

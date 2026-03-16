@@ -39,7 +39,7 @@ export const Header = ({
         )}
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-4 self-end md:self-auto">
+      <div className="flex items-center gap-3 self-start sm:gap-4 md:self-auto">
         {rightContent}
         <button className="w-10 h-10 bg-white rounded-full border border-gray-200 flex items-center justify-center text-text-muted hover:text-text-main hover:border-gray-300 transition-colors relative shadow-sm shrink-0">
           <Bell className="w-5 h-5" />

@@ -27,26 +27,25 @@ const features = [
 
 export const Features = () => {
   return (
-    <section id="features" className="py-16 md:py-20 bg-background border-t border-border/40">
-      <div className="max-w-7xl mx-auto">
-        {/* Upper Features Section (Value Proposition) */}
+    <section id="features" className="border-t border-border/40 bg-background py-16 md:py-20">
+      <div className="mx-auto max-w-7xl">
         <FadeIn direction="up">
-        <div className="w-full px-6 lg:px-8">
-          <div id="value-proposition" className="text-center mb-16 md:mb-24">
-            <span className="text-sm font-bold text-primary tracking-[0.2em] uppercase mb-4 block">FEATURES</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-text-main leading-tight mb-6">
-              What is RegIntel?
-            </h2>
-            <p className="text-text-muted max-w-3xl mx-auto leading-relaxed text-lg">
-              A sophisticated compliance asset designed for the modern regulatory landscape.
-              We unify fragmented data into a cohesive intelligence layer that empowers
-              legal and compliance teams to lead with confidence.
-            </p>
+          <div className="w-full px-4 sm:px-6 lg:px-8">
+            <div id="value-proposition" className="mb-16 text-center md:mb-24">
+              <span className="mb-4 block text-sm font-bold uppercase tracking-[0.2em] text-primary">FEATURES</span>
+              <h2 className="mb-6 text-3xl font-bold leading-tight text-text-main md:text-4xl lg:text-5xl">
+                What is RegIntel?
+              </h2>
+              <p className="mx-auto max-w-3xl text-lg leading-relaxed text-text-muted md:text-xl">
+                A sophisticated compliance asset designed for the modern regulatory landscape.
+                We unify fragmented data into a cohesive intelligence layer that empowers
+                legal and compliance teams to lead with confidence.
+              </p>
+            </div>
           </div>
-        </div>
         </FadeIn>
 
-        <div className="w-full px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           {/* Feature Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {features.map((f, idx) => (
@@ -69,17 +68,17 @@ export const Features = () => {
 
       {/* Redesigned Impact Section - Solution Grid Style */}
       <FadeIn direction="up">
-      <div id="impact" className="mt-16 max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="bg-slate-50/50 rounded-[3rem] py-16 px-6 lg:px-12 border border-border/50">
-          <FadeIn>
-          <div className="text-center mb-16 md:mb-20">
-            <span className="text-sm font-bold text-primary tracking-[0.2em] uppercase mb-4 block">Impact & Value</span>
-            <h3 className="text-3xl md:text-4xl font-bold text-text-main mb-6">How RegIntel makes an impact</h3>
-            <p className="text-text-muted text-lg max-w-2xl mx-auto">Empowering your compliance journey with intelligence.</p>
-          </div>
-          </FadeIn>
+        <div id="impact" className="mt-16 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-[2rem] border border-border/50 bg-slate-50/50 px-6 py-12 sm:px-10 md:px-14 md:py-16 lg:rounded-[3rem] lg:px-12">
+            <FadeIn>
+              <div className="mb-16 text-center md:mb-20">
+                <span className="mb-4 block text-sm font-bold uppercase tracking-[0.2em] text-primary">Impact & Value</span>
+                <h3 className="mb-6 text-3xl font-bold text-text-main md:text-4xl">How RegIntel makes an impact</h3>
+                <p className="mx-auto max-w-2xl text-lg text-text-muted">Empowering your compliance journey with intelligence.</p>
+              </div>
+            </FadeIn>
 
-          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="grid gap-8 lg:grid-cols-3">
             {/* Card 1: Streamline Compliance */}
             <FadeIn delay={0.1}>
             <div className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md hover:-translate-y-1 duration-300 h-full">
@@ -148,7 +147,7 @@ export const Features = () => {
             </FadeIn>
           </div>
         </div>
-      </div>
+        </div>
       </FadeIn>
     </section>
   );

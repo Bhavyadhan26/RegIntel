@@ -5,10 +5,11 @@ import Sidebar from "../components/layout/Sidebar";
 import { Header } from "../components/layout/Header";
 import { Footer } from "../components/Footer";
 import { cbicAlerts } from "../lib/cbicData";
+import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
 
 export const Alerts = () => {
   const [activeTab, setActiveTab] = useState<"new" | "old">("new");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const [filterType, setFilterType] = useState<"all" | "critical" | "high" | "medium">("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -38,21 +39,21 @@ export const Alerts = () => {
   return (
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
       <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out`}>
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
       </div>
 
       {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/20 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
       {/* Main Content */}
       <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="p-4 sm:p-6 lg:p-8 flex-1 w-full max-w-full overflow-hidden">
-          <Header title="Alerts" onMenuClick={() => setIsSidebarOpen(true)} isSidebarOpen={isSidebarOpen} />
+        <div className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <Header title="Alerts" onMenuClick={openSidebar} isSidebarOpen={isSidebarOpen} />
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-7">
             <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
@@ -113,15 +114,15 @@ export const Alerts = () => {
               >
                 <div className={`absolute left-0 top-5 bottom-5 w-[3px] rounded-full ${severityColor(alert.type)}`} />
                 <div className="pl-5">
-                  <div className="flex justify-between items-start mb-1.5">
+                  <div className="mb-1.5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <h3 className="text-base font-bold text-text-main">{alert.title}</h3>
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full shrink-0 ml-3 ${alert.tagColor}`}>
+                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full shrink-0 sm:ml-3 ${alert.tagColor}`}>
                       {alert.tag}
                     </span>
                   </div>
                   <p className="text-sm text-text-muted mb-2 font-medium">{alert.authority}</p>
                   <p className="text-sm text-text-muted leading-relaxed mb-3">{alert.desc}</p>
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-xs text-gray-500">{alert.date}</span>
                     <a
                       href={alert.url}

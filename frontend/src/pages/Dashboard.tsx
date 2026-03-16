@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Calendar, Bell, ChevronRight,
   AlertCircle,
-  FileText, Briefcase, Clock
+  FileText, Briefcase, Clock, X
 } from "lucide-react";
 import Sidebar from "../components/layout/Sidebar";
 import { Header } from "../components/layout/Header";
@@ -11,11 +11,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { FadeIn } from "@/components/ui/FadeIn";
 import { Button } from "@/components/ui/Button";
 import { Footer } from "../components/Footer";
+import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
 
 
 export const Dashboard = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showInfoModal, setShowInfoModal] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.showInfo) {
+      setShowInfoModal(true);
+      // Clear the state so refreshing doesn't re-show it
+      window.history.replaceState({}, document.title);
+    }
+  }, []);
 
   const deadlines = [
     { title: "GST Return Filing", date: "Jan 28, 2026", urgent: true },
@@ -28,26 +39,57 @@ export const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
 
+      {/* Info Modal */}
+      {showInfoModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl p-8">
+            <button
+              onClick={() => setShowInfoModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+
+            <h2 className="text-xl font-bold text-text-main text-center mb-6">Important Notice</h2>
+
+            <div className="space-y-4 text-sm text-text-muted leading-relaxed">
+              <p>RegIntel is an independent regulatory intelligence platform and is not an official government website, regulator, or statutory authority. We aggregate and summarize publicly available notifications from official regulatory and government sources for informational purposes only.</p>
+              <p>While we make reasonable efforts to keep content accurate and up to date, users must verify all information against the original notification published on the respective official website before taking any decision or action.</p>
+              <p>RegIntel does not provide legal or compliance advice and shall not be responsible or liable for any loss, error, omission, delay, or consequence arising from reliance on the information presented on this platform.</p>
+            </div>
+
+            <button
+              onClick={() => setShowInfoModal(false)}
+              className="mt-8 w-full py-3 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-colors"
+            >
+              I understand, continue to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
+
       <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out`}>
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
       </div>
 
       {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/20 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
       {/* Main Content */}
       <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="p-4 sm:p-6 lg:p-8 flex-1 w-full max-w-full overflow-hidden">
+        <div className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {/* Header */}
           <Header
             title="Dashboard"
             subtitle="Welcome back, John. Here's what's happening today."
-            onMenuClick={() => setIsSidebarOpen(true)}
+            onMenuClick={openSidebar}
             isSidebarOpen={isSidebarOpen}
             rightContent={
               <div className="hidden sm:flex items-center text-xs font-semibold text-text-muted bg-gray-100/80 border border-gray-200 px-3 py-1.5 rounded-full whitespace-nowrap">

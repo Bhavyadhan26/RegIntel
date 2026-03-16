@@ -5,10 +5,11 @@ import { Card, CardContent } from "@/components/ui/Card";
 import Sidebar from "../components/layout/Sidebar";
 import { Header } from "../components/layout/Header";
 import { Footer } from "@/components/Footer";
+import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
 import { FadeIn } from "@/components/ui/FadeIn";
 
 export const UserProfile = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const [profile, setProfile] = useState({
     name: "John Doe",
     email: "john.doe@company.com",
@@ -50,24 +51,24 @@ export const UserProfile = () => {
   return (
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
       <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out`}>
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
       </div>
 
       {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/20 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
       {/* Main Content */}
       <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="p-4 sm:p-6 lg:p-8 flex-1 w-full max-w-full overflow-hidden">
+        <div className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Header 
             title="Profile" 
             subtitle="Manage your personal information, roles, and preferences." 
-            onMenuClick={() => setIsSidebarOpen(true)}
+            onMenuClick={openSidebar}
             isSidebarOpen={isSidebarOpen}
           />
 
@@ -116,7 +117,7 @@ export const UserProfile = () => {
                   <User size={24} className="text-primary" /> Personal Information
                 </h3>
                 <FadeIn delay={0.2}>
-                <Card className="border-0 shadow-lg shadow-black/5 bg-white overflow-hidden rounded-3xl h-[calc(100%-3rem)]">
+                <Card className="border-0 shadow-lg shadow-black/5 bg-white overflow-hidden rounded-3xl lg:h-[calc(100%-3rem)]">
                   <CardContent className="p-8 lg:p-10 space-y-8 flex flex-col justify-center h-full">
                     <div>
                       <label className="text-sm font-bold uppercase tracking-wider text-text-muted block mb-3">Full Name</label>
@@ -152,8 +153,8 @@ export const UserProfile = () => {
                 </h3>
                 <FadeIn delay={0.3}>
                 <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl overflow-hidden">
-                  <div className="p-8 flex items-center justify-between border-b border-border/50 hover:bg-slate-50 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-6">
+                  <div className="flex flex-col gap-5 border-b border-border/50 p-6 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                    <div className="flex items-center gap-4 sm:gap-6">
                       <div className="bg-orange-50 p-4 rounded-2xl">
                         <Bell size={28} className="text-orange-500" />
                       </div>
@@ -174,10 +175,10 @@ export const UserProfile = () => {
                   </div>
                   
                   <div 
-                    className={`p-8 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer group ${isChangingPassword ? 'bg-slate-50 border-b border-border/50' : ''}`}
+                    className={`group flex flex-col gap-5 p-6 transition-colors cursor-pointer hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:p-8 ${isChangingPassword ? 'bg-slate-50 border-b border-border/50' : ''}`}
                     onClick={() => setIsChangingPassword(!isChangingPassword)}
                   >
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-4 sm:gap-6">
                       <div className="bg-blue-50 p-4 rounded-2xl">
                         <Settings size={28} className="text-blue-500" />
                       </div>
@@ -236,7 +237,7 @@ export const UserProfile = () => {
                   <Briefcase size={24} className="text-primary" /> Professional Focus
                 </h3>
                 <FadeIn delay={0.4}>
-                <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl p-8 lg:p-10 h-[calc(100%-3rem)] flex flex-col justify-center">
+                <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl p-8 lg:p-10 flex flex-col justify-center lg:h-[calc(100%-3rem)]">
                   <p className="text-base text-text-muted mb-8 leading-relaxed">
                     Select your roles to receive tailored regulatory updates and specific compliance alerts.
                   </p>
@@ -266,7 +267,7 @@ export const UserProfile = () => {
               <Button 
                 onClick={handleSave} 
                 disabled={isSaving}
-                className="w-full lg:w-1/3 px-16 py-8 text-xl rounded-2xl bg-primary hover:bg-primary/95 text-white shadow-2xl shadow-primary/30 font-black transition-all hover:-translate-y-1 active:scale-[0.98]"
+                className="w-full px-8 py-5 text-base rounded-2xl bg-primary hover:bg-primary/95 text-white shadow-2xl shadow-primary/30 font-black transition-all hover:-translate-y-1 active:scale-[0.98] sm:text-lg lg:w-1/3 lg:px-16 lg:py-8 lg:text-xl"
               >
                 {isSaving ? "Saving Configuration..." : "Save Profile Changes"}
               </Button>

@@ -6,11 +6,11 @@ export const Footer = ({ showCTA = false }: { showCTA?: boolean }) => {
       <div className="max-w-7xl mx-auto">
         {/* CTA Section */}
         {showCTA && (
-          <div className="bg-primary/100 rounded-3xl py-20 px-6 text-center shadow-2xl mb-20">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white">
+          <div className="mb-16 rounded-3xl bg-primary/100 px-5 py-14 text-center shadow-2xl sm:px-6 sm:py-16 md:mb-20 md:py-20">
+            <h2 className="mb-6 text-3xl font-bold text-white md:text-5xl">
               Ready to transform your regulatory workflow?
             </h2>
-            <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">
+            <p className="mb-10 max-w-2xl mx-auto text-lg text-gray-400">
             </p>
             <p className="text-gray-400 text-lg text-white">Stop chasing regulations and start leading with the industry-standard intelligence platform.</p>
           </div>

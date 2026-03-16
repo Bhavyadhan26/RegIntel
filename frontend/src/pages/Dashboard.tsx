@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Calendar, Bell, ChevronRight,
   AlertCircle,
-  FileText, Briefcase
+  FileText, Briefcase, Clock
 } from "lucide-react";
 import Sidebar from "../components/layout/Sidebar";
 import { Header } from "../components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { FadeIn } from "@/components/ui/FadeIn";
 import { Button } from "@/components/ui/Button";
 import { Footer } from "../components/Footer";
 import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
@@ -14,7 +15,7 @@ import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
 
 export const Dashboard = () => {
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
-  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
 
   const deadlines = [
     { title: "GST Return Filing", date: "Jan 28, 2026", urgent: true },
@@ -22,9 +23,7 @@ export const Dashboard = () => {
     { title: "Quarterly Audit Submission", date: "Feb 15, 2026", urgent: false },
   ];
 
-  const filteredDeadlines = deadlines.filter((d) => 
-    d.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredDeadlines = deadlines;
 
   return (
     <div className="min-h-screen bg-background flex font-sans relative overflow-x-hidden">
@@ -35,29 +34,33 @@ export const Dashboard = () => {
 
       {/* Sidebar Overlay (Mobile only) */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-40 lg:hidden" 
+        <div
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
           onClick={closeSidebar}
         />
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
+        <div className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {/* Header */}
-          <Header 
-            title="Dashboard" 
+          <Header
+            title="Dashboard"
             subtitle="Welcome back, John. Here's what's happening today."
             onMenuClick={openSidebar}
             isSidebarOpen={isSidebarOpen}
-            showSearch={true}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            rightContent={
+              <div className="hidden sm:flex items-center text-xs font-semibold text-text-muted bg-gray-100/80 border border-gray-200 px-3 py-1.5 rounded-full whitespace-nowrap">
+                <Clock size={12} className="mr-1.5" />
+                Last updated: {new Date().toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+              </div>
+            }
           />
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-orange-500 rounded-xl overflow-hidden bg-white/70 backdrop-blur">
+            <FadeIn delay={0.1}>
+            <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-green-500 rounded-xl overflow-hidden bg-white/70 backdrop-blur h-full">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div className="w-11 h-11 bg-orange-50 rounded-xl flex items-center justify-center shadow-sm">
@@ -65,11 +68,13 @@ export const Dashboard = () => {
                   </div>
                   <span className="bg-orange-100/80 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">+2 new</span>
                 </div>
-                <div className="text-4xl font-black text-text-main tracking-tight">2</div>
+                <div className="text-4xl font-black text-text-main tracking-tight">12</div>
                 <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Unread Alerts</div>
               </CardContent>
             </Card>
+            </FadeIn>
 
+            <FadeIn delay={0.2}>
             <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-blue-500 rounded-xl overflow-hidden bg-white/70 backdrop-blur">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
@@ -82,8 +87,10 @@ export const Dashboard = () => {
                 <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Number of Publications</div>
               </CardContent>
             </Card>
+            </FadeIn>
 
-            <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-purple-500 rounded-xl overflow-hidden md:col-span-1 bg-white/70 backdrop-blur">
+            <FadeIn delay={0.3}>
+            <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-purple-500 rounded-xl overflow-hidden md:col-span-1 bg-white/70 backdrop-blur h-full">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div className="w-11 h-11 bg-purple-50 rounded-xl flex items-center justify-center shadow-sm">
@@ -95,13 +102,15 @@ export const Dashboard = () => {
                 <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Deadlines</div>
               </CardContent>
             </Card>
+            </FadeIn>
           </div>
 
           {/* Upcoming Deadlines */}
+          <FadeIn delay={0.4} direction="up">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-bold">Upcoming Deadlines</CardTitle>
-              <Button variant="ghost" size="sm" className="text-primary hover:text-primary-hover h-auto py-1 px-2">
+              <Button variant="ghost" size="sm" className="text-primary hover:text-primary-hover h-auto py-1 px-2" onClick={() => navigate('/deadlines')}>
                 View all <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </CardHeader>
@@ -135,6 +144,7 @@ export const Dashboard = () => {
               </div>
             </CardContent>
           </Card>
+          </FadeIn>
         </div>
         <Footer />
       </main>

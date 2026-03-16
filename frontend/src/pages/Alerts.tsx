@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Filter, ChevronRight } from "lucide-react";
-import { motion } from "framer-motion";
+import { FadeIn } from "@/components/ui/FadeIn";
 import Sidebar from "../components/layout/Sidebar";
 import { Header } from "../components/layout/Header";
 import { Footer } from "../components/Footer";
@@ -51,8 +51,8 @@ export const Alerts = () => {
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
+        <div className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Header title="Alerts" onMenuClick={openSidebar} isSidebarOpen={isSidebarOpen} />
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-7">
@@ -108,11 +108,8 @@ export const Alerts = () => {
           <div className="space-y-3">
             {filteredAlerts.length > 0 ? (
               filteredAlerts.map((alert, idx) => (
-              <motion.div
-                key={alert.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.06 }}
+              <FadeIn key={alert.id} delay={idx * 0.05} direction="up" fullWidth>
+              <div
                 className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-md transition-all relative"
               >
                 <div className={`absolute left-0 top-5 bottom-5 w-[3px] rounded-full ${severityColor(alert.type)}`} />
@@ -137,7 +134,8 @@ export const Alerts = () => {
                     </a>
                   </div>
                 </div>
-              </motion.div>
+              </div>
+              </FadeIn>
             ))
             ) : (
               <div className="py-12 text-center text-text-muted text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">

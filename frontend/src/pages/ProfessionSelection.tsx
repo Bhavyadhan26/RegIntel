@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Calculator, Scale, Briefcase, Check, ArrowRight, ShieldCheck, Landmark, ClipboardCheck
+  Calculator, Scale, Briefcase, Check, ArrowRight, ShieldCheck, Landmark
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -9,10 +9,9 @@ import { professionOptions } from "../lib/cbicData";
 const iconById = {
   ca: Calculator,
   legal: Scale,
-  cs: Briefcase,
-  'corporate-auditor': ShieldCheck,
-  'tax-consultant': Landmark,
-  'compliance-officer': ClipboardCheck,
+  'cost-accountant': Briefcase,
+  'banking-finance': ShieldCheck,
+  'indirect-taxes': Landmark,
 };
 
 export const ProfessionSelection = () => {

@@ -1,6 +1,7 @@
 import {
   Bell, LayoutDashboard, TrendingUp, Globe, BarChart3, ShieldCheck
 } from "lucide-react";
+import { FadeIn } from "@/components/ui/FadeIn";
 import { motion } from "framer-motion";
 
 const features = [
@@ -27,56 +28,60 @@ const features = [
 export const Features = () => {
   return (
     <section id="features" className="border-t border-border/40 bg-background py-16 md:py-20">
-      {/* Upper Features Section (Value Proposition) */}
-      <div className="w-full px-4 sm:px-6 lg:px-20">
-        <div id="value-proposition" className="text-center mb-24">
-          <span className="text-sm font-bold text-primary tracking-[0.2em] uppercase mb-4 block">FEATURES</span>
-          <h2 className="text-4xl md:text-5xl font-bold text-text-main leading-tight mb-6">
-            What is RegIntel?
-          </h2>
-          <p className="text-text-muted max-w-3xl mx-auto leading-relaxed text-xl">
-            A sophisticated compliance asset designed for the modern regulatory landscape.
-            We unify fragmented data into a cohesive intelligence layer that empowers
-            legal and compliance teams to lead with confidence.
-          </p>
-        </div>
+      <div className="mx-auto max-w-7xl">
+        <FadeIn direction="up">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
+            <div id="value-proposition" className="mb-16 text-center md:mb-24">
+              <span className="mb-4 block text-sm font-bold uppercase tracking-[0.2em] text-primary">FEATURES</span>
+              <h2 className="mb-6 text-3xl font-bold leading-tight text-text-main md:text-4xl lg:text-5xl">
+                What is RegIntel?
+              </h2>
+              <p className="mx-auto max-w-3xl text-lg leading-relaxed text-text-muted md:text-xl">
+                A sophisticated compliance asset designed for the modern regulatory landscape.
+                We unify fragmented data into a cohesive intelligence layer that empowers
+                legal and compliance teams to lead with confidence.
+              </p>
+            </div>
+          </div>
+        </FadeIn>
 
-        {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-          {features.map((f, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1, duration: 0.5 }}
-              className="group bg-surface rounded-2xl p-10 border border-border/60 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 hover:-translate-y-2 hover:border-primary/20"
-            >
-              <div className={`w-14 h-14 ${f.color} rounded-xl flex items-center justify-center mb-8 transition-transform duration-500 group-hover:scale-110`}>
-                <f.icon className="w-6 h-6" />
-              </div>
-              <h3 className="text-2xl font-bold text-text-main mb-4">{f.title}</h3>
-              <p className="text-text-muted leading-relaxed text-lg">{f.desc}</p>
-            </motion.div>
-          ))}
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          {/* Feature Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            {features.map((f, idx) => (
+              <FadeIn
+                key={idx}
+                delay={idx * 0.1}
+              >
+                <div className="group bg-surface rounded-2xl p-10 border border-border/60 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 hover:-translate-y-2 hover:border-primary/20 h-full">
+                  <div className={`w-14 h-14 ${f.color} rounded-xl flex items-center justify-center mb-8 transition-transform duration-500 group-hover:scale-110`}>
+                    <f.icon className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-text-main mb-4">{f.title}</h3>
+                  <p className="text-text-muted leading-relaxed text-lg">{f.desc}</p>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Redesigned Impact Section - Solution Grid Style */}
-      <div id="impact" className="mt-16 w-full px-4 sm:px-6 lg:px-20">
-        <div className="rounded-[2rem] border border-border/50 bg-slate-50/50 px-6 py-12 sm:px-10 md:px-20 md:py-16 lg:rounded-[3rem]">
-          <div className="text-center mb-20">
-            <span className="text-sm font-bold text-primary tracking-[0.2em] uppercase mb-4 block">Impact & Value</span>
-            <h3 className="text-4xl md:text-5xl font-bold text-text-main mb-6">How RegIntel makes an impact</h3>
-            <p className="text-text-muted text-xl max-w-2xl mx-auto">Empowering your compliance journey with intelligence.</p>
-          </div>
+      <FadeIn direction="up">
+        <div id="impact" className="mt-16 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-[2rem] border border-border/50 bg-slate-50/50 px-6 py-12 sm:px-10 md:px-14 md:py-16 lg:rounded-[3rem] lg:px-12">
+            <FadeIn>
+              <div className="mb-16 text-center md:mb-20">
+                <span className="mb-4 block text-sm font-bold uppercase tracking-[0.2em] text-primary">Impact & Value</span>
+                <h3 className="mb-6 text-3xl font-bold text-text-main md:text-4xl">How RegIntel makes an impact</h3>
+                <p className="mx-auto max-w-2xl text-lg text-text-muted">Empowering your compliance journey with intelligence.</p>
+              </div>
+            </FadeIn>
 
-          <div className="grid lg:grid-cols-3 gap-10">
+            <div className="grid gap-8 lg:grid-cols-3">
             {/* Card 1: Streamline Compliance */}
-            <motion.div
-              whileHover={{ y: -5 }}
-              className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md"
-            >
+            <FadeIn delay={0.1}>
+            <div className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md hover:-translate-y-1 duration-300 h-full">
               <div className="w-14 h-14 bg-green-50 text-green-600 rounded-xl flex items-center justify-center mb-8">
                 <ShieldCheck className="w-7 h-7" />
               </div>
@@ -94,13 +99,12 @@ export const Features = () => {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
+            </FadeIn>
 
             {/* Card 2: Actionable Insights */}
-            <motion.div
-              whileHover={{ y: -5 }}
-              className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md"
-            >
+            <FadeIn delay={0.2}>
+            <div className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md hover:-translate-y-1 duration-300 h-full">
               <div className="w-14 h-14 bg-green-50 text-green-600 rounded-xl flex items-center justify-center mb-8">
                 <BarChart3 className="w-7 h-7" />
               </div>
@@ -115,13 +119,12 @@ export const Features = () => {
                 <div className="flex-1 bg-primary/100 h-[90%] rounded-t-md transition-all hover:h-[100%]" />
                 <div className="flex-1 bg-primary/35 h-[75%] rounded-t-md transition-all hover:h-[85%]" />
               </div>
-            </motion.div>
+            </div>
+            </FadeIn>
 
             {/* Card 3: Global Coverage */}
-            <motion.div
-              whileHover={{ y: -5 }}
-              className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md"
-            >
+            <FadeIn delay={0.3}>
+            <div className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md hover:-translate-y-1 duration-300 h-full">
               <div className="w-14 h-14 bg-sky-50 text-green-600 rounded-xl flex items-center justify-center mb-8">
                 <Globe className="w-7 h-7" />
               </div>
@@ -140,10 +143,12 @@ export const Features = () => {
                   />
                 </div>
               </div>
-            </motion.div>
+            </div>
+            </FadeIn>
           </div>
         </div>
-      </div>
+        </div>
+      </FadeIn>
     </section>
   );
 };

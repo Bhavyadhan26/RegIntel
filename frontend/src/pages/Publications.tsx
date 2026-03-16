@@ -8,10 +8,11 @@ import { Header } from '../components/layout/Header';
 import { Footer } from '../components/Footer';
 import { cbicPublications } from '../lib/cbicData';
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
+import { FadeIn } from "@/components/ui/FadeIn";
 
 const PUBLICATIONS_DATA: Publication[] = cbicPublications;
 
-const CATEGORIES = ['All', 'Notices', 'Updates',  'Tenders'];
+const CATEGORIES = ['All', 'Notifications', 'Updates', 'Tenders'];
 
 const WEBSITE_FILTERS = [
   { label: 'All Websites', domains: [] },
@@ -29,7 +30,12 @@ const Publications = () => {
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
 
   const filteredData = PUBLICATIONS_DATA.filter((item) => {
-    const matchCat = activeCategory === 'All' || item.type + 's' === activeCategory;
+    let matchCat = activeCategory === 'All';
+    if (!matchCat) {
+      if (activeCategory === 'Notifications' && item.type === 'Notice') matchCat = true;
+      else if (activeCategory === 'Updates' && (item.type === 'Circular' || item.type === 'Amendment')) matchCat = true;
+      else if (activeCategory === 'Tenders' && item.type === 'Tender') matchCat = true;
+    }
     const selectedWebsite = WEBSITE_FILTERS.find((site) => site.label === activeWebsite);
     const normalizedUrl = item.url.toLowerCase();
     const matchWebsite =
@@ -59,8 +65,8 @@ const Publications = () => {
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
+        <div className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Header title="Publications" onMenuClick={openSidebar} isSidebarOpen={isSidebarOpen} />
 
           <div className="relative mb-6">
@@ -98,8 +104,10 @@ const Publications = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {filteredData.map((pub) => (
-              <PublicationCard key={pub.id} data={pub} />
+            {filteredData.map((pub, index) => (
+              <FadeIn key={pub.id} delay={index * 0.05} direction="up">
+                <PublicationCard data={pub} />
+              </FadeIn>
             ))}
           </div>
 

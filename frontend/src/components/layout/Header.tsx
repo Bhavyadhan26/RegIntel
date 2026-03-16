@@ -1,14 +1,13 @@
-import { Menu, Search, Bell } from "lucide-react";
+import { Menu, Bell } from "lucide-react";
 import { Link } from "react-router-dom";
+import React from "react";
 
 export interface HeaderProps {
   title: string;
   subtitle?: string;
   onMenuClick: () => void;
   isSidebarOpen: boolean;
-  showSearch?: boolean;
-  searchQuery?: string;
-  onSearchChange?: (val: string) => void;
+  rightContent?: React.ReactNode;
 }
 
 export const Header = ({ 
@@ -16,9 +15,7 @@ export const Header = ({
   subtitle, 
   onMenuClick, 
   isSidebarOpen,
-  showSearch = false,
-  searchQuery = "",
-  onSearchChange = () => {}
+  rightContent
 }: HeaderProps) => {
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -42,22 +39,8 @@ export const Header = ({
         )}
       </div>
 
-      <div className="flex items-center gap-4 self-start md:self-auto">
-        {showSearch && (
-          <div className="relative hidden w-full max-w-xs md:flex items-center gap-2 lg:max-w-sm">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-text-main shadow-sm"
-              />
-            </div>
-          </div>
-        )}
-
+      <div className="flex items-center gap-3 self-start sm:gap-4 md:self-auto">
+        {rightContent}
         <button className="w-10 h-10 bg-white rounded-full border border-gray-200 flex items-center justify-center text-text-muted hover:text-text-main hover:border-gray-300 transition-colors relative shadow-sm shrink-0">
           <Bell className="w-5 h-5" />
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full" />

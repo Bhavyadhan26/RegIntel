@@ -3,7 +3,7 @@
 export const Footer = ({ showCTA = false }: { showCTA?: boolean }) => {
   return (
     <footer className="bg-gradient-to-b from-white to-slate-100 pt-4 pb-4 px-6 border-t border-slate-200">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* CTA Section */}
         {showCTA && (
           <div className="bg-primary/100 rounded-3xl py-20 px-6 text-center shadow-2xl mb-20">

@@ -73,7 +73,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     Back to Home
                 </Link>
                 <Link
-                    to="/login"
+                    to="/"
                     onClick={() => {
                         if (window.innerWidth < 1024) onClose();
                     }}

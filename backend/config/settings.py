@@ -10,10 +10,22 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR.parent / ".env")
+
+try:
+    import pymysql
+
+    pymysql.install_as_MySQLdb()
+except Exception:
+    # Keep startup tolerant in environments where MySQL extras are not installed yet.
+    pass
 
 
 # Quick-start development settings - unsuitable for production
@@ -31,12 +43,14 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'scraper',
 ]
 
 MIDDLEWARE = [
@@ -54,7 +68,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -76,7 +90,36 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    },
+    'scraper_db': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME', 'regintel'),
+        'USER': os.getenv('DB_USER', 'root'),
+        'PASSWORD': os.getenv('DB_PASS', 'root'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
+    },
+}
+
+DATABASE_ROUTERS = ['scraper.db_router.ScraperDatabaseRouter']
+
+JAZZMIN_SETTINGS = {
+    'site_title': 'RegIntel Admin',
+    'site_header': 'RegIntel Control Panel',
+    'site_brand': 'RegIntel',
+    'welcome_sign': 'Welcome to RegIntel Admin',
+    'copyright': 'RegIntel',
+    'show_sidebar': True,
+    'navigation_expanded': True,
+    'order_with_respect_to': ['scraper.WebsiteScrapingSource', 'scraper.WebsiteScrapingSelector'],
+    'topmenu_links': [
+        {'name': 'Dashboard', 'url': 'admin:index', 'permissions': ['auth.view_user']},
+        {'model': 'scraper.WebsiteScrapingSource'},
+        {'model': 'scraper.WebsiteScrapingSelector'},
+    ],
 }
 
 

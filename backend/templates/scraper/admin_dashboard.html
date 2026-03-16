@@ -1,0 +1,166 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+  <style>
+    .ri-stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .ri-quick-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .ri-stats-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 600px) {
+      .ri-stats-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <div class="ri-stats-row">
+    <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
+      <div style="font-size: 12px; color: #666;">Total Sources</div>
+      <div style="font-size: 24px; font-weight: 700; line-height: 1.2;">{{ scraper_dashboard.source_count }}</div>
+    </div>
+    <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
+      <div style="font-size: 12px; color: #666;">Active Sources</div>
+      <div style="font-size: 24px; font-weight: 700; line-height: 1.2;">{{ scraper_dashboard.active_source_count }}</div>
+    </div>
+    <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
+      <div style="font-size: 12px; color: #666;">Total Selectors</div>
+      <div style="font-size: 24px; font-weight: 700; line-height: 1.2;">{{ scraper_dashboard.selector_count }}</div>
+    </div>
+    <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
+      <div style="font-size: 12px; color: #666;">Total Data Rows</div>
+      <div style="font-size: 24px; font-weight: 700; line-height: 1.2;">{{ scraper_dashboard.data_count }}</div>
+    </div>
+  </div>
+
+  <div class="ri-quick-row">
+    <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
+      <div style="font-size: 12px; color: #666;">Quick Actions</div>
+      <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+        <a href="{{ scraper_dashboard.links.sources }}" style="padding: 6px 10px; border-radius: 6px; background: #0f766e; color: #fff; text-decoration: none; font-size: 12px;">Manage Sources</a>
+        <a href="{{ scraper_dashboard.links.selectors }}" style="padding: 6px 10px; border-radius: 6px; background: #1d4ed8; color: #fff; text-decoration: none; font-size: 12px;">Manage Selectors</a>
+        <a href="{{ scraper_dashboard.links.data }}" style="padding: 6px 10px; border-radius: 6px; background: #b45309; color: #fff; text-decoration: none; font-size: 12px;">View Data Rows</a>
+        <a href="{{ scraper_dashboard.links.runs }}" style="padding: 6px 10px; border-radius: 6px; background: #6b21a8; color: #fff; text-decoration: none; font-size: 12px;">View Run Logs</a>
+      </div>
+    </div>
+
+    <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
+      <div style="font-size: 12px; color: #666;">Latest Run Snapshot</div>
+      <div style="margin-top: 8px; font-size: 14px;">
+        {% if scraper_dashboard.last_run %}
+          <div><strong>Status:</strong> {{ scraper_dashboard.last_run.status }}</div>
+          <div><strong>Started:</strong> {{ scraper_dashboard.last_run.started_at|default:"N/A" }}</div>
+          <div><strong>Finished:</strong> {{ scraper_dashboard.last_run.finished_at|default:"N/A" }}</div>
+          <div><strong>New additions:</strong> {{ scraper_dashboard.new_additions_total }}</div>
+        {% else %}
+          <div>No run analytics yet. Execute <code>python manage.py website_scraper</code> to record run stats.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
+      <div style="font-size: 12px; color: #666;">Per-Website New Additions (Latest Run)</div>
+      <div style="margin-top: 8px; font-size: 14px;">
+        {% if scraper_dashboard.per_website_additions %}
+          {% for item in scraper_dashboard.per_website_additions %}
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #ececec; padding: 4px 0;">
+              <span>{{ item.website_name }}</span>
+              <strong>{{ item.new_rows }}</strong>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div>No additions captured yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
+      <div style="font-size: 12px; color: #666;">Per-Website Additions: Today vs Last 7 Days</div>
+      <div style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; font-size: 13px;">
+        <span style="background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 999px; padding: 2px 10px;">
+          Today Total ({{ scraper_dashboard.period_today_date|default:"today" }}): <strong>{{ scraper_dashboard.today_total_additions }}</strong>
+        </span>
+        <span style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 999px; padding: 2px 10px;">
+          Last 7 Days Total: <strong>{{ scraper_dashboard.week_total_additions }}</strong>
+        </span>
+      </div>
+      <div style="margin-top: 10px;">
+        {% if scraper_dashboard.website_period_additions %}
+          {% for item in scraper_dashboard.website_period_additions %}
+            <div style="border-top: 1px dashed #efefef; padding: 8px 0;">
+              <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                <strong>{{ item.website_name }}</strong>
+                <span>Today: {{ item.today_new }} | 7D: {{ item.week_new }}</span>
+              </div>
+              <div style="display: grid; gap: 4px;">
+                <div style="display: grid; grid-template-columns: 70px 1fr 40px; align-items: center; gap: 8px;">
+                  <span style="font-size: 12px; color: #0e7490;">Today</span>
+                  <div style="background: #cffafe; border-radius: 999px; height: 8px; overflow: hidden;">
+                    <div style="background: #0891b2; width: {{ item.today_pct }}%; height: 100%;"></div>
+                  </div>
+                  <span style="font-size: 12px; text-align: right;">{{ item.today_new }}</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 70px 1fr 40px; align-items: center; gap: 8px;">
+                  <span style="font-size: 12px; color: #c2410c;">Last 7D</span>
+                  <div style="background: #ffedd5; border-radius: 999px; height: 8px; overflow: hidden;">
+                    <div style="background: #ea580c; width: {{ item.week_pct }}%; height: 100%;"></div>
+                  </div>
+                  <span style="font-size: 12px; text-align: right;">{{ item.week_new }}</span>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div style="margin-top: 8px; font-size: 14px;">No website additions found for this period yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if scraper_dashboard.status == "error" %}
+    <div style="margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #fff4e5; border: 1px solid #f1c27d; color: #7a4b00;">
+      {{ scraper_dashboard.message }}
+    </div>
+  {% else %}
+    <div style="margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #ecfdf3; border: 1px solid #98dfb6; color: #14532d;">
+      Last Source Update:
+      {% if scraper_dashboard.last_source_update and scraper_dashboard.last_source_update.updated_at %}
+        {{ scraper_dashboard.last_source_update.website_name }} at {{ scraper_dashboard.last_source_update.updated_at }}
+      {% else %}
+        N/A
+      {% endif %}
+      <br>
+      Last Selector Update:
+      {% if scraper_dashboard.last_selector_update and scraper_dashboard.last_selector_update.updated_at %}
+        {{ scraper_dashboard.last_selector_update.website_name }}.{{ scraper_dashboard.last_selector_update.selector_key }} at {{ scraper_dashboard.last_selector_update.updated_at }}
+      {% else %}
+        N/A
+      {% endif %}
+      <br>
+      Last Data Addition:
+      {% if scraper_dashboard.last_data_addition and scraper_dashboard.last_data_addition.created_at %}
+        {{ scraper_dashboard.last_data_addition.website_name }} at {{ scraper_dashboard.last_data_addition.created_at }}
+      {% else %}
+        N/A
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{{ block.super }}
+{% endblock %}

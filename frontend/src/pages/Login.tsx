@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
-
 export const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -16,7 +15,7 @@ export const Login = () => {
     // Simulate login
     setTimeout(() => {
       setLoading(false);
-      navigate("/dashboard");
+      navigate("/dashboard", { state: { showInfo: true } });
     }, 1000);
   };
 
@@ -74,11 +73,6 @@ export const Login = () => {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="remember" className="rounded border-gray-300 text-primary focus:ring-primary" />
-                <label htmlFor="remember" className="text-sm text-text-muted">Remember this device for 30 days</label>
-              </div>
-
               <Button type="submit" className="w-full h-11 text-base bg-primary hover:bg-primary-hover shadow-lg shadow-primary/20" isLoading={loading}>
                 Sign In →
               </Button>
@@ -94,7 +88,7 @@ export const Login = () => {
       </div>
 
       {/* Footer Links */}
-      <div className="py-6 text-center space-x-6 text-xs text-text-muted">
+      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 px-4 py-6 text-center text-xs text-text-muted">
         <a href="#" className="hover:text-text-main">Privacy Policy</a>
         <a href="#" className="hover:text-text-main">Terms of Service</a>
         <a href="#" className="hover:text-text-main">Contact Admin</a>

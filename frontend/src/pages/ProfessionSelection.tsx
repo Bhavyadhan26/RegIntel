@@ -16,20 +16,16 @@ const iconById = {
 
 export const ProfessionSelection = () => {
   const navigate = useNavigate();
-  const [selectedIds, setSelectedIds] = useState<string[]>(["legal"]);
+  const [selectedId, setSelectedId] = useState<string>("legal");
 
   const toggleProfessionSelection = (id: string) => {
-    setSelectedIds((previous) =>
-      previous.includes(id)
-        ? previous.filter((selectedId) => selectedId !== id)
-        : [...previous, id]
-    );
+    setSelectedId(id);
   };
 
   return (
     <div className="min-h-screen bg-background font-sans flex flex-col">
       {/* Header */}
-      <div className="px-8 py-6 flex justify-between items-center bg-transparent">
+      <div className="flex flex-col gap-4 bg-transparent px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <Link to="/" className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">
             <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" /></svg>
@@ -37,23 +33,23 @@ export const ProfessionSelection = () => {
           <span className="text-xl font-bold text-text-main">RegIntel</span>
         </Link>
 
-        <div className="flex gap-6 text-sm font-medium text-text-muted">
+        <div className="flex flex-wrap gap-4 text-sm font-medium text-text-muted sm:gap-6">
           <button className="hover:text-text-main">Support</button>
           <button onClick={() => navigate('/')} className="hover:text-text-main">Sign Out</button>
         </div>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <h1 className="text-4xl font-bold text-text-main mb-4 tracking-tight">Welcome to RegIntel.</h1>
-          <p className="text-xl text-text-muted">
+        <div className="mx-auto mb-12 max-w-2xl text-center sm:mb-16">
+          <h1 className="mb-4 text-3xl font-bold tracking-tight text-text-main sm:text-4xl">Welcome to RegIntel.</h1>
+          <p className="text-lg text-text-muted sm:text-xl">
             Tailor your regulatory intelligence experience. Which best describes your profession?
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl w-full mb-12">
+        <div className="mb-12 grid w-full max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {professionOptions.map((p) => {
-            const isSelected = selectedIds.includes(p.id);
+            const isSelected = selectedId === p.id;
             const Icon = iconById[p.id as keyof typeof iconById] ?? Briefcase;
             return (
               <div
@@ -87,8 +83,8 @@ export const ProfessionSelection = () => {
           <Button
             size="lg"
             className="px-8 h-12 text-base shadow-xl shadow-primary/20"
-            disabled={selectedIds.length === 0}
-            onClick={() => navigate('/dashboard')}
+            disabled={!selectedId}
+            onClick={() => navigate('/dashboard', { state: { showInfo: true } })}
           >
             Continue to Dashboard <ArrowRight className="ml-2 w-4 h-4" />
           </Button>

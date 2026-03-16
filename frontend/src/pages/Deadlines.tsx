@@ -67,7 +67,7 @@ const Deadlines = () => {
             <input
               type="text"
               placeholder="Search deadlines..."
-              value={searchQuery} //added
+              value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-11 pr-4 py-3 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-sm text-text-main placeholder:text-text-muted transition-all shadow-sm"
             />

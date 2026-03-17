@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ScrollToTop from "@/components/ScrollToTop";
 import { Home } from "@/pages/Home";
 import { Signup } from "@/pages/Signup";
@@ -19,7 +19,14 @@ function App() {
       <BrowserRouter>
         <ScrollToTop />
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route
@@ -38,6 +45,14 @@ function App() {
           <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
           <Route path="/deadlines" element={<ProtectedRoute><Deadlines /></ProtectedRoute>} />
           <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
+          <Route
+            path="*"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/dashboard" replace />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from subprocess import Popen
 from datetime import timedelta
+from datetime import timezone as dt_timezone
 
 from django.contrib import messages
 from django.contrib.admin import AdminSite
@@ -17,6 +18,19 @@ from .models import (
     WebsiteScrapingSelector,
     WebsiteScrapingSource,
 )
+
+
+def _format_ist(dt_value):
+    if not dt_value:
+        return None
+
+    # MySQL + managed=False models can return naive datetimes depending on backend settings.
+    # Normalize to UTC first, then convert to IST for consistent dashboard display.
+    if timezone.is_naive(dt_value):
+        dt_value = timezone.make_aware(dt_value, dt_timezone.utc)
+
+    ist_dt = timezone.localtime(dt_value, timezone.get_fixed_timezone(330))
+    return ist_dt.strftime("%d %b %Y, %I:%M:%S %p")
 
 
 class RegIntelAdminSite(AdminSite):
@@ -114,6 +128,8 @@ class RegIntelAdminSite(AdminSite):
             dashboard["last_source_update"] = sources.order_by("-updated_at").first()
             dashboard["last_selector_update"] = selectors.order_by("-updated_at").first()
             dashboard["last_run"] = last_run
+            dashboard["last_run_started_ist"] = _format_ist(last_run.started_at) if last_run else None
+            dashboard["last_run_finished_ist"] = _format_ist(last_run.finished_at) if last_run else None
 
             today_date = timezone.localdate()
             week_start = timezone.now() - timedelta(days=7)

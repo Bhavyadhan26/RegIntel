@@ -72,8 +72,8 @@
       <div style="margin-top: 8px; font-size: 14px;">
         {% if scraper_dashboard.last_run %}
           <div><strong>Status:</strong> {{ scraper_dashboard.last_run.status }}</div>
-          <div><strong>Started:</strong> {{ scraper_dashboard.last_run.started_at|timezone:"Asia/Kolkata"|date:"d M Y, h:i:s A"|default:"N/A" }}</div>
-          <div><strong>Finished:</strong> {{ scraper_dashboard.last_run.finished_at|timezone:"Asia/Kolkata"|date:"d M Y, h:i:s A"|default:"N/A" }}</div>
+          <div><strong>Started:</strong> {{ scraper_dashboard.last_run_started_ist|default:"N/A" }}</div>
+          <div><strong>Finished:</strong> {{ scraper_dashboard.last_run_finished_ist|default:"N/A" }}</div>
           <div><strong>New additions:</strong> {{ scraper_dashboard.new_additions_total }}</div>
         {% else %}
           <div>No run analytics yet. Execute <code>python manage.py website_scraper</code> to record run stats.</div>

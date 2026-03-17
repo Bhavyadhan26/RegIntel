@@ -7,6 +7,8 @@ import { apiGetDeadlines } from '@/lib/api';
 import { FadeIn } from "@/components/ui/FadeIn";
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 
+const DEADLINES_CACHE_TTL_MS = 5 * 60 * 1000;
+
 interface DeadlineRow {
   id: string;
   title: string;
@@ -18,16 +20,35 @@ interface DeadlineRow {
   url: string;
 }
 
+type DeadlinesCache = {
+  rows: DeadlineRow[];
+  counts: { urgent: number; thisWeek: number; total: number };
+  cachedAt: number;
+};
+
+let deadlinesPageCache: DeadlinesCache | null = null;
+
 const Deadlines = () => {
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const [searchQuery, setSearchQuery] = useState('');
-  const [deadlinesData, setDeadlinesData] = useState<DeadlineRow[]>([]);
-  const [counts, setCounts] = useState({ urgent: 0, thisWeek: 0, total: 0 });
+  const [deadlinesData, setDeadlinesData] = useState<DeadlineRow[]>(deadlinesPageCache?.rows ?? []);
+  const [counts, setCounts] = useState(deadlinesPageCache?.counts ?? { urgent: 0, thisWeek: 0, total: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
+
+    const cached = deadlinesPageCache;
+    const cacheIsFresh = cached && Date.now() - cached.cachedAt < DEADLINES_CACHE_TTL_MS;
+    if (cacheIsFresh && cached) {
+      setDeadlinesData(cached.rows);
+      setCounts(cached.counts);
+      setIsLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
 
     const loadDeadlines = async () => {
       setIsLoading(true);
@@ -47,12 +68,20 @@ const Deadlines = () => {
           url: item.url,
         }));
 
-        setDeadlinesData(mapped);
-        setCounts({
+        const nextCounts = {
           urgent: response.counts.urgent,
           thisWeek: response.counts.this_week,
           total: response.counts.total,
-        });
+        };
+
+        setDeadlinesData(mapped);
+        setCounts(nextCounts);
+
+        deadlinesPageCache = {
+          rows: mapped,
+          counts: nextCounts,
+          cachedAt: Date.now(),
+        };
       } catch {
         if (cancelled) return;
         setDeadlinesData([]);
@@ -117,10 +146,6 @@ const Deadlines = () => {
             </div>
           </div>
 
-          {isLoading && (
-            <div className="mb-4 text-center text-text-muted text-sm">Loading deadlines...</div>
-          )}
-
           {loadError && !isLoading && (
             <div className="mb-4 text-center text-red-600 text-sm">{loadError}</div>
           )}
@@ -148,7 +173,17 @@ const Deadlines = () => {
                   <div className="col-span-1 text-center">Action</div>
                 </div>
                 <div className="divide-y divide-gray-100">
-                  {filteredData.length > 0 ? (
+                  {isLoading ? (
+                    <div className="px-6 py-6">
+                      <div className="animate-pulse space-y-4">
+                        <div className="h-4 w-28 rounded bg-gray-200" />
+                        <div className="h-4 w-full rounded bg-gray-200" />
+                        <div className="h-4 w-5/6 rounded bg-gray-200" />
+                        <div className="h-4 w-2/3 rounded bg-gray-200" />
+                      </div>
+                      <div className="mt-4 text-sm text-text-muted">Loading deadlines...</div>
+                    </div>
+                  ) : filteredData.length > 0 ? (
                     filteredData.map((item, index) => (
                     <FadeIn key={item.id} delay={index * 0.05} direction="up" fullWidth>
                     <div className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors">
@@ -201,7 +236,16 @@ const Deadlines = () => {
           </div>
 
           <div className="space-y-4 md:hidden">
-            {filteredData.length > 0 ? filteredData.map((item, index) => (
+            {isLoading ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 w-28 rounded bg-gray-200" />
+                  <div className="h-4 w-full rounded bg-gray-200" />
+                  <div className="h-4 w-3/4 rounded bg-gray-200" />
+                </div>
+                <div className="mt-4 text-sm text-text-muted">Loading deadlines...</div>
+              </div>
+            ) : filteredData.length > 0 ? filteredData.map((item, index) => (
               <FadeIn key={item.id} delay={index * 0.05} direction="up">
               <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-start gap-3">

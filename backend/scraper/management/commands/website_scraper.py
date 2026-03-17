@@ -23,6 +23,7 @@ def _required_env(name):
 
 
 _conn: pymysql.connections.Connection | None = None
+FORCE_FULL_SCAN = False
 
 
 def get_conn() -> pymysql.connections.Connection:
@@ -673,7 +674,7 @@ async def scrape_icai(page):
         category = "Notification"
         if row_exists("ICAI", title, category):
             print(f"ICAI exists: {title}")
-            if new_count == 0:
+            if not FORCE_FULL_SCAN and new_count == 0:
                 print("ICAI up to date (first item exists), stopping.")
                 break
             continue
@@ -723,7 +724,7 @@ async def scrape_rbi(page):
         category = "Notification"
         if row_exists("RBI", title, category):
             print(f"RBI exists: {title}")
-            if new_count == 0:
+            if not FORCE_FULL_SCAN and new_count == 0:
                 print("RBI up to date (first item exists), stopping.")
                 break
             continue
@@ -774,7 +775,7 @@ async def scrape_icmai(page):
 
             if row_exists("ICMAI", title, category):
                 print(f"ICMAI exists ({category}): {title}")
-                if new_count == 0:
+                if not FORCE_FULL_SCAN and new_count == 0:
                     print(f"ICMAI {category} up to date (first item exists), stopping category.")
                     if category == "Updates":
                         print("ICMAI website up to date, stopping ICMAI scraping.")
@@ -844,7 +845,7 @@ async def scrape_bci(page, context):
         category = "Notification"
         if row_exists("BCI", title, category):
             print(f"BCI exists: {title}")
-            if new_count == 0:
+            if not FORCE_FULL_SCAN and new_count == 0:
                 print("BCI up to date (first item exists), stopping.")
                 break
             continue
@@ -879,7 +880,7 @@ async def scrape_cbic(page):
             category = "Notification"
 
             if row_exists("CBIC", title, category):
-                if new_count == 0 and page_num == 1:
+                if not FORCE_FULL_SCAN and new_count == 0 and page_num == 1:
                     print("CBIC up to date (first item exists), stopping.")
                     return
                 continue
@@ -967,11 +968,24 @@ def process_all_pdfs():
 class Command(BaseCommand):
     help = "Scrape websites and process PDFs using raw SQL tables."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--full-scan",
+            action="store_true",
+            help="Run one full top-to-bottom scan without early stop on first existing item.",
+        )
+
     def handle(self, *args, **kwargs):
+        global FORCE_FULL_SCAN
+        FORCE_FULL_SCAN = bool(kwargs.get("full_scan"))
+
         print("Initializing unified tables and selector configuration...")
         init_tables()
         seed_sources_and_selectors()
         print("DB setup complete\n")
+
+        if FORCE_FULL_SCAN:
+            print("FULL_SCAN mode enabled: ignoring first-existing-item early stops for this run.\n")
 
         run_id = create_run()
         before_total = get_total_data_count()

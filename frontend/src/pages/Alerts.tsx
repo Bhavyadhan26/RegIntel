@@ -19,12 +19,27 @@ interface AlertRow {
   url: string;
 }
 
+const ALERTS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+type AlertsCache = {
+  fetchedTabs: { new: boolean; old: boolean };
+  alertsByTab: { new: AlertRow[]; old: AlertRow[] };
+  cachedAt: number;
+};
+
+let alertsPageCache: AlertsCache | null = null;
+
 export const Alerts = () => {
   const [activeTab, setActiveTab] = useState<"new" | "old">("new");
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const [filterType, setFilterType] = useState<"all" | "critical" | "high" | "medium">("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [alertsByTab, setAlertsByTab] = useState<{ new: AlertRow[]; old: AlertRow[] }>({ new: [], old: [] });
+  const [alertsByTab, setAlertsByTab] = useState<{ new: AlertRow[]; old: AlertRow[] }>(
+    alertsPageCache?.alertsByTab ?? { new: [], old: [] },
+  );
+  const [fetchedTabs, setFetchedTabs] = useState<{ new: boolean; old: boolean }>(
+    alertsPageCache?.fetchedTabs ?? { new: false, old: false },
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -58,11 +73,23 @@ export const Alerts = () => {
   useEffect(() => {
     let cancelled = false;
 
+    const cached = alertsPageCache;
+    const cacheIsFresh = cached && Date.now() - cached.cachedAt < ALERTS_CACHE_TTL_MS;
+
+    if (cacheIsFresh && cached) {
+      setAlertsByTab(cached.alertsByTab);
+      setFetchedTabs(cached.fetchedTabs);
+      setIsLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const loadAlerts = async () => {
       setIsLoading(true);
       setLoadError("");
       try {
-        const needsInitialPrefetch = alertsByTab.new.length === 0 && alertsByTab.old.length === 0;
+        const needsInitialPrefetch = !fetchedTabs.new && !fetchedTabs.old;
 
         if (needsInitialPrefetch) {
           const [newResponse, oldResponse] = await Promise.all([
@@ -71,17 +98,43 @@ export const Alerts = () => {
           ]);
           if (cancelled) return;
 
-          setAlertsByTab({
+          const nextAlertsByTab = {
             new: mapAlerts(newResponse.results),
             old: mapAlerts(oldResponse.results),
-          });
+          };
+          const nextFetchedTabs = { new: true, old: true };
+
+          setAlertsByTab(nextAlertsByTab);
+          setFetchedTabs(nextFetchedTabs);
+          alertsPageCache = {
+            alertsByTab: nextAlertsByTab,
+            fetchedTabs: nextFetchedTabs,
+            cachedAt: Date.now(),
+          };
+          return;
+        }
+
+        if (fetchedTabs[activeTab]) {
+          setIsLoading(false);
           return;
         }
 
         const response = await apiGetAlerts({ tab: activeTab });
         if (cancelled) return;
 
-        setAlertsByTab((prev) => ({ ...prev, [activeTab]: mapAlerts(response.results) }));
+        const mapped = mapAlerts(response.results);
+
+        setAlertsByTab((prev) => {
+          const next = { ...prev, [activeTab]: mapped };
+          const nextFetchedTabs = { ...fetchedTabs, [activeTab]: true };
+          alertsPageCache = {
+            alertsByTab: next,
+            fetchedTabs: nextFetchedTabs,
+            cachedAt: Date.now(),
+          };
+          return next;
+        });
+        setFetchedTabs((prev) => ({ ...prev, [activeTab]: true }));
       } catch {
         if (cancelled) return;
         setLoadError("Unable to load alerts right now.");
@@ -95,7 +148,7 @@ export const Alerts = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeTab]);
+  }, [activeTab, fetchedTabs]);
 
   const severityColor = (type: string) =>
     type === "critical" ? "bg-red-500" : type === "high" ? "bg-amber-500" : "bg-blue-500";
@@ -184,14 +237,22 @@ export const Alerts = () => {
 
           <div className="space-y-3">
             {isLoading && (
-              <div className="py-8 text-center text-text-muted text-sm">Loading alerts...</div>
+              <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 w-36 rounded bg-gray-200" />
+                  <div className="h-4 w-full rounded bg-gray-200" />
+                  <div className="h-4 w-5/6 rounded bg-gray-200" />
+                  <div className="h-4 w-2/3 rounded bg-gray-200" />
+                </div>
+                <div className="mt-4 text-xs text-text-muted">Loading alerts...</div>
+              </div>
             )}
 
             {loadError && !isLoading && (
               <div className="py-8 text-center text-red-600 text-sm">{loadError}</div>
             )}
 
-            {filteredAlerts.length > 0 ? (
+            {!isLoading && !loadError && filteredAlerts.length > 0 ? (
               filteredAlerts.map((alert, idx) => (
               <FadeIn key={alert.id} delay={idx * 0.05} direction="up" fullWidth>
               <div
@@ -222,11 +283,11 @@ export const Alerts = () => {
               </div>
               </FadeIn>
             ))
-            ) : (
+            ) : !isLoading && !loadError ? (
               <div className="py-12 text-center text-text-muted text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">
                 No new updates Today
               </div>
-            )}
+            ) : null}
           </div>
         </div>
         <Footer />

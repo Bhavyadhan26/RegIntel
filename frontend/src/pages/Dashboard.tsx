@@ -15,6 +15,24 @@ import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
 import { useAuth } from "@/context/AuthContext";
 import { apiGetDashboardSummary } from "@/lib/api";
 
+const DASHBOARD_CACHE_TTL_MS = 5 * 60 * 1000;
+
+type DashboardCache = {
+  stats: {
+    unreadAlerts: number;
+    unreadAlertsTwoDay: number;
+    publicationsToday: number;
+    publicationsWeek: number;
+    deadlinesActive: number;
+    deadlinesWeekWithDue: number;
+  };
+  lastUpdated: string | null;
+  deadlines: Array<{ title: string; date: string; urgent: boolean; url: string }>;
+  cachedAt: number;
+};
+
+let dashboardPageCache: DashboardCache | null = null;
+
 
 export const Dashboard = () => {
   const DASHBOARD_BACK_WARNING_KEY = "dashboard_back_warning_shown";
@@ -80,6 +98,19 @@ export const Dashboard = () => {
   useEffect(() => {
     let cancelled = false;
 
+    const cached = dashboardPageCache;
+    const cacheIsFresh = cached && Date.now() - cached.cachedAt < DASHBOARD_CACHE_TTL_MS;
+    if (cacheIsFresh && cached) {
+      setStats(cached.stats);
+      setLastUpdated(cached.lastUpdated);
+      setDeadlines(cached.deadlines);
+      setSummaryError("");
+      setIsLoadingSummary(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const loadDashboardSummary = async () => {
       setIsLoadingSummary(true);
       setSummaryError("");
@@ -87,23 +118,30 @@ export const Dashboard = () => {
         const response = await apiGetDashboardSummary();
         if (cancelled) return;
 
-        setStats({
+        const nextStats = {
           unreadAlerts: response.cards.unread_alerts,
           unreadAlertsTwoDay: response.cards.unread_alerts_two_day,
           publicationsToday: response.cards.publications_today,
           publicationsWeek: response.cards.publications_week,
           deadlinesActive: response.cards.deadlines_active,
           deadlinesWeekWithDue: response.cards.deadlines_week_with_due,
-        });
+        };
+        const nextDeadlines = response.upcoming_deadlines.map((item) => ({
+          title: item.title,
+          date: item.due_date,
+          urgent: item.urgent,
+          url: item.url,
+        }));
+
+        setStats(nextStats);
         setLastUpdated(response.last_updated);
-        setDeadlines(
-          response.upcoming_deadlines.map((item) => ({
-            title: item.title,
-            date: item.due_date,
-            urgent: item.urgent,
-            url: item.url,
-          })),
-        );
+        setDeadlines(nextDeadlines);
+        dashboardPageCache = {
+          stats: nextStats,
+          lastUpdated: response.last_updated,
+          deadlines: nextDeadlines,
+          cachedAt: Date.now(),
+        };
       } catch {
         if (cancelled) return;
         setSummaryError("Unable to load dashboard summary right now.");

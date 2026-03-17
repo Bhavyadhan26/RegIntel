@@ -23,6 +23,7 @@ const WEBSITE_FILTERS = [
 ];
 
 const PAGE_SIZE = 10;
+const PUBLICATIONS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const WEBSITE_LABEL_BY_CODE: Record<string, string> = {
   ICAI: 'ICAI',
@@ -30,6 +31,22 @@ const WEBSITE_LABEL_BY_CODE: Record<string, string> = {
   ICMAI: 'ICMAI',
   RBI: 'RBI',
   CBIC: 'CBIC',
+};
+
+type PublicationsCacheEntry = {
+  rows: Publication[];
+  page: number;
+  hasMore: boolean;
+  cachedAt: number;
+};
+
+const publicationsPageCache = new Map<string, PublicationsCacheEntry>();
+
+const EMPTY_MESSAGE_BY_CATEGORY: Record<Category, string> = {
+  All: 'No publications found',
+  Notifications: 'No Notifications found',
+  Updates: 'No Updates found',
+  Tenders: 'No tenders found',
 };
 
 const Publications = () => {
@@ -51,6 +68,10 @@ const Publications = () => {
     return selectedWebsite?.code ?? 'all';
   }, [activeWebsite]);
 
+  const cacheKey = useMemo(() => {
+    return [activeCategory, selectedWebsiteCode, searchQuery.trim().toLowerCase()].join('::');
+  }, [activeCategory, searchQuery, selectedWebsiteCode]);
+
   const mapAuthority = (websiteName: string) => {
     const code = (websiteName || '').toUpperCase();
     return WEBSITE_LABEL_BY_CODE[code] ?? websiteName;
@@ -60,6 +81,20 @@ const Publications = () => {
     async (targetPage: number, replace: boolean) => {
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
+
+      if (replace) {
+        const cached = publicationsPageCache.get(cacheKey);
+        const cacheIsFresh = cached && Date.now() - cached.cachedAt < PUBLICATIONS_CACHE_TTL_MS;
+        if (cacheIsFresh && cached) {
+          setPublications(cached.rows);
+          setPage(cached.page);
+          setHasMore(cached.hasMore);
+          setIsInitialLoading(false);
+          setIsLoadingMore(false);
+          setLoadError('');
+          return;
+        }
+      }
 
       if (replace) {
         setIsInitialLoading(true);
@@ -90,7 +125,16 @@ const Publications = () => {
           url: item.url,
         }));
 
-        setPublications((prev) => (replace ? mappedRows : [...prev, ...mappedRows]));
+        setPublications((prev) => {
+          const nextRows = replace ? mappedRows : [...prev, ...mappedRows];
+          publicationsPageCache.set(cacheKey, {
+            rows: nextRows,
+            page: targetPage,
+            hasMore: response.has_more,
+            cachedAt: Date.now(),
+          });
+          return nextRows;
+        });
         setPage(targetPage);
         setHasMore(response.has_more);
       } catch (error) {
@@ -103,7 +147,7 @@ const Publications = () => {
         }
       }
     },
-    [activeCategory, selectedWebsiteCode, searchQuery],
+    [activeCategory, cacheKey, searchQuery, selectedWebsiteCode],
   );
 
   useEffect(() => {
@@ -201,7 +245,7 @@ const Publications = () => {
           )}
 
           {!isInitialLoading && visiblePublications.length === 0 && !loadError && (
-            <div className="text-center py-20 text-text-muted text-sm">No publications found.</div>
+            <div className="text-center py-20 text-text-muted text-sm">{EMPTY_MESSAGE_BY_CATEGORY[activeCategory]}.</div>
           )}
         </div>
         <Footer />

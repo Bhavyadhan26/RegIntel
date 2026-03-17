@@ -336,9 +336,13 @@ class DashboardSummaryView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request):
+		tz = timezone.get_current_timezone()
 		today = timezone.localdate()
-		two_day_start = today - timedelta(days=1)
 		week_start = today - timedelta(days=6)
+		today_start_dt = timezone.make_aware(datetime.combine(today, datetime.min.time()), tz)
+		tomorrow_start_dt = today_start_dt + timedelta(days=1)
+		two_day_start_dt = today_start_dt - timedelta(days=1)
+		week_start_dt = today_start_dt - timedelta(days=6)
 
 		user_category, profession_source_names, profession_source_urls = _resolve_user_sources(request)
 
@@ -357,12 +361,24 @@ class DashboardSummaryView(APIView):
 			profession_rows = WebsiteScrapingData.objects.none()
 
 		# Card 1: unread alerts + two-day new count from profession-specific websites
-		unread_alerts_count = profession_rows.filter(created_at__date=today).count()
-		unread_alerts_two_day_count = profession_rows.filter(created_at__date__gte=two_day_start).count()
+		unread_alerts_count = profession_rows.filter(
+			created_at__gte=today_start_dt,
+			created_at__lt=tomorrow_start_dt,
+		).count()
+		unread_alerts_two_day_count = profession_rows.filter(
+			created_at__gte=two_day_start_dt,
+			created_at__lt=tomorrow_start_dt,
+		).count()
 
 		# Card 2: publications today and in current 7-day window
-		publications_today_count = all_rows.filter(created_at__date=today).count()
-		publications_week_count = all_rows.filter(created_at__date__gte=week_start).count()
+		publications_today_count = all_rows.filter(
+			created_at__gte=today_start_dt,
+			created_at__lt=tomorrow_start_dt,
+		).count()
+		publications_week_count = all_rows.filter(
+			created_at__gte=week_start_dt,
+			created_at__lt=tomorrow_start_dt,
+		).count()
 
 		# Card 3: deadline metrics from all websites
 		deadlines_active_count = 0
@@ -376,7 +392,8 @@ class DashboardSummaryView(APIView):
 			if due >= today:
 				deadlines_active_count += 1
 
-			if row.created_at and row.created_at.date() >= week_start and due >= today:
+			created_local_date = timezone.localtime(row.created_at, tz).date() if row.created_at else None
+			if created_local_date and created_local_date >= week_start and due >= today:
 				deadlines_week_with_due_count += 1
 
 		# Upcoming deadlines: user profession websites only, max 5, nearest due first

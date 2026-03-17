@@ -121,6 +121,8 @@ DATABASES = {
         'PASSWORD': _required_database_value('DEFAULT_DB_PASS', 'DB_PASS'),
         'HOST': _get_env('DEFAULT_DB_HOST', 'DB_HOST', 'localhost'),
         'PORT': _get_env('DEFAULT_DB_PORT', 'DB_PORT', '3306'),
+        'CONN_MAX_AGE': None,
+        'CONN_HEALTH_CHECKS': True,
         'OPTIONS': {
             'charset': 'utf8mb4',
         },
@@ -132,6 +134,8 @@ DATABASES = {
         'PASSWORD': _required_database_value('SCRAPER_DB_PASS', 'DB_PASS'),
         'HOST': _get_env('SCRAPER_DB_HOST', 'DB_HOST', 'localhost'),
         'PORT': _get_env('SCRAPER_DB_PORT', 'DB_PORT', '3306'),
+        'CONN_MAX_AGE': None,
+        'CONN_HEALTH_CHECKS': True,
         'OPTIONS': {
             'charset': 'utf8mb4',
         },

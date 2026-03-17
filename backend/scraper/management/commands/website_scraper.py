@@ -22,17 +22,49 @@ def _required_env(name):
     return value
 
 
-def get_conn():
-    return pymysql.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", "3306")),
-        user=_required_env("DB_USER"),
-        password=_required_env("DB_PASS"),
-        database=_required_env("DB_NAME"),
-        charset="utf8mb4",
-        cursorclass=DictCursor,
-        autocommit=False,
-    )
+_conn: pymysql.connections.Connection | None = None
+
+
+def get_conn() -> pymysql.connections.Connection:
+    """Return the module-level persistent connection, creating or reconnecting as needed."""
+    global _conn
+    if _conn is None:
+        _conn = pymysql.connect(
+            host=os.getenv("DB_HOST", "localhost"),
+            port=int(os.getenv("DB_PORT", "3306")),
+            user=_required_env("DB_USER"),
+            password=_required_env("DB_PASS"),
+            database=_required_env("DB_NAME"),
+            charset="utf8mb4",
+            cursorclass=DictCursor,
+            autocommit=False,
+        )
+    else:
+        try:
+            _conn.ping(reconnect=True)
+        except Exception:
+            _conn = pymysql.connect(
+                host=os.getenv("DB_HOST", "localhost"),
+                port=int(os.getenv("DB_PORT", "3306")),
+                user=_required_env("DB_USER"),
+                password=_required_env("DB_PASS"),
+                database=_required_env("DB_NAME"),
+                charset="utf8mb4",
+                cursorclass=DictCursor,
+                autocommit=False,
+            )
+    return _conn
+
+
+def close_conn() -> None:
+    """Close the persistent connection at the end of the run."""
+    global _conn
+    if _conn is not None:
+        try:
+            _conn.close()
+        except Exception:
+            pass
+        _conn = None
 
 
 def init_tables():
@@ -177,7 +209,6 @@ def init_tables():
     )
 
     conn.commit()
-    conn.close()
 
 
 def seed_sources_and_selectors():
@@ -333,7 +364,6 @@ def seed_sources_and_selectors():
         )
 
     conn.commit()
-    conn.close()
 
 
 def get_source(website_name):
@@ -348,7 +378,6 @@ def get_source(website_name):
         (website_name,),
     )
     row = cur.fetchone()
-    conn.close()
     return row
 
 
@@ -360,7 +389,6 @@ def get_selectors(website_name):
         (website_name,),
     )
     rows = cur.fetchall()
-    conn.close()
     return {r["selector_key"]: r["selector_value"] for r in rows}
 
 
@@ -372,7 +400,6 @@ def row_exists(website_name, title, category):
         (website_name, title, category),
     )
     exists = cur.fetchone() is not None
-    conn.close()
     return exists
 
 
@@ -393,14 +420,13 @@ def insert_row(website_name, title, category, detail_url, notice_date, pdf_url):
         print(f"Added [{website_name}] {category}: {title}")
         return row_id
     except pymysql.IntegrityError:
+        conn.rollback()
         cur.execute(
             "SELECT id FROM Website_Scraping_data WHERE website_name=%s AND title=%s AND category=%s",
             (website_name, title, category),
         )
         found = cur.fetchone()
         return found["id"] if found else None
-    finally:
-        conn.close()
 
 
 def update_pdf_processed(row_id, local_path, marker_text, summary, due_date):
@@ -419,7 +445,6 @@ def update_pdf_processed(row_id, local_path, marker_text, summary, due_date):
         (local_path, marker_text, summary, due_date or "-", row_id),
     )
     conn.commit()
-    conn.close()
 
 
 def get_pending_pdf_rows():
@@ -433,7 +458,6 @@ def get_pending_pdf_rows():
         """
     )
     rows = cur.fetchall()
-    conn.close()
     return rows
 
 
@@ -442,7 +466,6 @@ def get_total_data_count():
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) AS total FROM Website_Scraping_data")
     row = cur.fetchone()
-    conn.close()
     return int(row["total"]) if row else 0
 
 
@@ -457,7 +480,6 @@ def get_site_data_counts():
         """
     )
     rows = cur.fetchall()
-    conn.close()
     return {r["website_name"]: int(r["total"]) for r in rows}
 
 
@@ -467,7 +489,6 @@ def create_run():
     cur.execute("INSERT INTO Website_Scraping_Runs (status) VALUES ('running')")
     run_id = cur.lastrowid
     conn.commit()
-    conn.close()
     return run_id
 
 
@@ -499,7 +520,6 @@ def complete_run(run_id, total_new_rows, per_site_new_rows):
         )
 
     conn.commit()
-    conn.close()
 
 
 def fail_run(run_id, error_text):
@@ -516,7 +536,6 @@ def fail_run(run_id, error_text):
         (error_text[:4000], run_id),
     )
     conn.commit()
-    conn.close()
 
 
 def download_pdf(pdf_url, website_name, row_id):
@@ -981,3 +1000,5 @@ class Command(BaseCommand):
         except Exception as exc:
             fail_run(run_id, str(exc))
             raise
+        finally:
+            close_conn()

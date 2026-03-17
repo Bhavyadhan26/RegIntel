@@ -1,5 +1,6 @@
-const BASE_URL = 'http://localhost:8000/api/auth';
-const SCRAPER_BASE_URL = 'http://localhost:8000/api/scraper';
+const API_ROOT = import.meta.env.VITE_API_ROOT || 'http://localhost:8000';
+const BASE_URL = `${API_ROOT}/api/auth`;
+const SCRAPER_BASE_URL = `${API_ROOT}/api/scraper`;
 
 function getAccessToken(): string | null {
   return sessionStorage.getItem('access_token');

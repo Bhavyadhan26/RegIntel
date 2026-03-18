@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Check, Eye, EyeOff, UserPlus, X } from "lucide-react";
+import { Check, Eye, EyeOff, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { apiRegister } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { Smiley } from "@/components/Smiley";
 
 export const Signup = () => {
   const navigate = useNavigate();
@@ -78,9 +79,7 @@ export const Signup = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-gray-100 bg-white">
           <CardHeader className="text-center pb-8">
-            <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
-              <UserPlus size={20} />
-            </div>
+            <Smiley />
             <CardTitle className="text-2xl font-bold text-text-main">Create your account</CardTitle>
             <CardDescription className="text-text-muted mt-2">
               Start your regulatory intelligence journey.

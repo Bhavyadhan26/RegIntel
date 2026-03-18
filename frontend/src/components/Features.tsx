@@ -32,7 +32,7 @@ export const Features = () => {
         <FadeIn direction="up">
           <div className="w-full px-4 sm:px-6 lg:px-8">
             <div id="value-proposition" className="mb-16 text-center md:mb-24">
-              <span className="mb-4 block text-sm font-bold uppercase tracking-[0.2em] text-primary">FEATURES</span>
+              <span className="mb-4 inline-flex items-center rounded-full bg-primary/10 px-4 py-1.5 text-sm font-bold uppercase tracking-widest text-primary">FEATURES</span>
               <h2 className="mb-6 text-3xl font-bold leading-tight text-text-main md:text-4xl lg:text-5xl">
                 What is RegIntel?
               </h2>
@@ -72,7 +72,7 @@ export const Features = () => {
           <div className="rounded-[2rem] border border-border/50 bg-slate-50/50 px-6 py-12 sm:px-10 md:px-14 md:py-16 lg:rounded-[3rem] lg:px-12">
             <FadeIn>
               <div className="mb-16 text-center md:mb-20">
-                <span className="mb-4 block text-sm font-bold uppercase tracking-[0.2em] text-primary">Impact & Value</span>
+                <span className="mb-4 inline-flex items-center rounded-full bg-primary/10 px-4 py-1.5 text-sm font-bold uppercase tracking-widest text-primary">Impact & Value</span>
                 <h3 className="mb-6 text-3xl font-bold text-text-main md:text-4xl">How RegIntel makes an impact</h3>
                 <p className="mx-auto max-w-2xl text-lg text-text-muted">Empowering your compliance journey with intelligence.</p>
               </div>

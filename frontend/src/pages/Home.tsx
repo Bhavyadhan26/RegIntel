@@ -3,6 +3,7 @@
 import { Navbar } from "@/components/layout/Navbar"; // Double check this path
 import { Hero } from "@/components/Hero";
 import { Features } from "@/components/Features";
+import { About } from "@/components/About";
 import { Footer } from "@/components/Footer";
 
 // Make sure 'export' is right before 'const'
@@ -13,8 +14,9 @@ export const Home = () => {
       <main className="overflow-x-hidden">
         <Hero />
         <Features />
+        <About />
       </main>
-      <Footer showCTA={true} />
+      <Footer showCTA={false} />
     </div>
   );
 };

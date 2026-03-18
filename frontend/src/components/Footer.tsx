@@ -19,7 +19,7 @@ export const Footer = ({ showCTA = false }: { showCTA?: boolean }) => {
         {/* Footer Links */}
         <div className="border-slate-200 flex flex-col md:flex-row justify-center items-center gap-4 text-sm text-slate-500">
           <div className="flex items-center gap-2">
-            <img src="/WEBLOGO.png" alt="RegIntel Logo" className="h-8 w-auto" />
+            <img src="/assets/logo1.png" alt="RegIntel Logo" className="h-8 w-auto" />
             <span className="text-text-main font-bold">RegIntel</span>
           </div>
 

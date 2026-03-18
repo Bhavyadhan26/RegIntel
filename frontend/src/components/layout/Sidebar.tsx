@@ -23,7 +23,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             {/* Logo and Menu Toggle */}
             <div className="px-5 h-[72px] flex items-center justify-between mt-2">
                 <div className="flex items-center gap-2">
-                    <img src="/WEBLOGO.png" alt="RegIntel Logo" className="h-[2.75rem] w-auto" />
+                    <img src="/assets/logo1.png" alt="RegIntel Logo" className="h-[2.75rem] w-auto" />
                     <span className="text-xl font-bold text-text-main tracking-tight">RegIntel</span>
                 </div>
                 

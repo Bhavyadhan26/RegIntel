@@ -20,7 +20,7 @@ export const Navbar = () => {
             <div className="mx-auto flex h-12 max-w-7xl items-center justify-between px-4 sm:px-6">
                 {/* Logo */}
                 <Link to="/" className="flex items-center gap-2.5">
-                    <img src="/WEBLOGO.png" alt="RegIntel Logo" className="h-[3.25rem] w-auto" />
+                    <img src="/assets/logo1.png" alt="RegIntel Logo" className="h-[3.25rem] w-auto" />
                     <span className="text-lg font-bold text-text-main tracking-tight sm:text-xl">RegIntel</span>
                 </Link>
 

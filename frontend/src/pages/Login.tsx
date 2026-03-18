@@ -42,7 +42,7 @@ export const Login = () => {
       {/* Header */}
       <div className="p-6">
         <Link to="/" className="flex items-center gap-2">
-          <img src="/WEBLOGO.png" alt="RegIntel Logo" className="h-10 w-auto" />
+          <img src="/assets/logo1.png" alt="RegIntel Logo" className="h-10 w-auto" />
           <span className="text-xl font-bold text-text-main">RegIntel</span>
         </Link>
       </div>

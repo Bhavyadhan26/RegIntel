@@ -26,9 +26,9 @@ export const Navbar = () => {
 
                 {/* Desktop Links */}
                 <div className="hidden md:flex items-center gap-8">
-                    <a href="#features" className="text-sm font-medium text-text-main hover:text-primary transition-colors uppercase">FEATURES</a>
-                    <a href="#impact" className="text-sm font-medium text-text-main hover:text-primary transition-colors uppercase">IMPACT</a>
-                    <a href="#about" className="text-sm font-medium text-text-main hover:text-primary transition-colors uppercase">ABOUT</a>
+                    <a href="#features" className="text-sm font-medium text-text-main hover:text-primary transition-colors uppercase relative after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-0 hover:after:w-full after:bg-primary after:transition-all after:duration-300">FEATURES</a>
+                    <a href="#impact" className="text-sm font-medium text-text-main hover:text-primary transition-colors uppercase relative after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-0 hover:after:w-full after:bg-primary after:transition-all after:duration-300">IMPACT</a>
+                    <a href="#about" className="text-sm font-medium text-text-main hover:text-primary transition-colors uppercase relative after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-0 hover:after:w-full after:bg-primary after:transition-all after:duration-300">ABOUT</a>
                 </div>
 
                 {/* Desktop CTA */}

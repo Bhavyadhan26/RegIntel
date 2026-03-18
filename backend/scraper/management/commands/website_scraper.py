@@ -1,7 +1,9 @@
 import asyncio
+import html
 import json
 import os
 import re
+import shutil
 import time
 from urllib.parse import urljoin
 import pymysql
@@ -83,7 +85,6 @@ def init_tables():
             notice_date VARCHAR(64),
             due_date VARCHAR(64) NOT NULL DEFAULT '-',
             pdf_url VARCHAR(2048),
-            pdf_local_path VARCHAR(2048),
             raw_text LONGTEXT,
             processed TINYINT DEFAULT 0,
             summary LONGTEXT,
@@ -101,6 +102,15 @@ def init_tables():
             ALTER TABLE Website_Scraping_data
             ADD COLUMN due_date VARCHAR(64) NOT NULL DEFAULT '-'
             AFTER notice_date
+            """
+        )
+
+    cur.execute("SHOW COLUMNS FROM Website_Scraping_data LIKE 'pdf_local_path'")
+    if cur.fetchone() is not None:
+        cur.execute(
+            """
+            ALTER TABLE Website_Scraping_data
+            DROP COLUMN pdf_local_path
             """
         )
 
@@ -430,20 +440,19 @@ def insert_row(website_name, title, category, detail_url, notice_date, pdf_url):
         return found["id"] if found else None
 
 
-def update_pdf_processed(row_id, local_path, marker_text, summary, due_date):
+def update_pdf_processed(row_id, marker_text, summary, due_date):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
         """
         UPDATE Website_Scraping_data
         SET processed = 1,
-            pdf_local_path = %s,
             raw_text = %s,
             summary = %s,
             due_date = %s
         WHERE id = %s
         """,
-        (local_path, marker_text, summary, due_date or "-", row_id),
+        (marker_text, summary, due_date or "", row_id),
     )
     conn.commit()
 
@@ -453,13 +462,21 @@ def get_pending_pdf_rows():
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT id, website_name, title, category, pdf_url
+        SELECT id, website_name, title, category, pdf_url, detail_url
         FROM Website_Scraping_data
-        WHERE pdf_url IS NOT NULL AND (processed = 0 OR summary IS NULL)
+        WHERE (pdf_url IS NOT NULL OR detail_url IS NOT NULL)
+          AND (processed = 0 OR summary IS NULL)
         """
     )
     rows = cur.fetchall()
     return rows
+
+
+def is_probable_pdf_url(url):
+    if not url:
+        return False
+    lowered = url.lower()
+    return ".pdf" in lowered
 
 
 def get_total_data_count():
@@ -578,19 +595,162 @@ def extract_json_payload(response_text):
 
 def normalize_due_date(value):
     if not value:
-        return "-"
+        return ""
 
     due_date = str(value).strip()
     if not due_date:
-        return "-"
+        return ""
 
     if due_date.lower() in {"n/a", "na", "none", "null", "not applicable", "no due date", "-"}:
-        return "-"
+        return ""
 
     return due_date[:64]
 
 
-def generate_summary_from_pdf(pdf_path, title, category, website_name, api_key):
+def extract_text_from_pdf(pdf_path):
+    """Extract text from PDF using PyPDF2. Returns text if successful, None if extraction fails."""
+    try:
+        from PyPDF2 import PdfReader
+        
+        reader = PdfReader(pdf_path)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text()
+        
+        if not text or len(text.strip()) == 0:
+            return None
+        return text
+    except Exception as e:
+        print(f"PDF text extraction failed: {e}")
+        return None
+
+
+def extract_due_date_from_text(text):
+    """Extract due date from extracted PDF text using regex patterns."""
+    if not text:
+        return ""
+    
+    # Common date patterns in official documents
+    date_patterns = [
+        r'\b(?:due\s+)?(?:date|deadline|submission\s+date|last\s+date|on\s+or\s+before)\s*[:\-]?\s*(\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4})',
+        r'\b(\d{1,2}(?:st|nd|rd|th)?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})',
+        r'\b(?:due|deadline|submit)\s+(?:by|on|before)?\s*[:\-]?\s*(\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})',
+        r'\b(\d{4})[./\-](\d{1,2})[./\-](\d{1,2})\b',
+    ]
+    
+    for pattern in date_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1)
+    
+    return ""
+
+
+def clean_html_to_text(content):
+    """Convert raw HTML to plain text suitable for summary generation."""
+    if not content:
+        return ""
+
+    cleaned = re.sub(r"<script[^>]*>.*?</script>", " ", content, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r"<style[^>]*>.*?</style>", " ", cleaned, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r"<[^>]+>", " ", cleaned)
+    cleaned = html.unescape(cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def is_js_gate_placeholder(text):
+    """Detect pages that require JS and don't contain the actual document body."""
+    if not text:
+        return True
+
+    lowered = text.lower()
+    markers = [
+        "you are using an outdated browser",
+        "you must enable javascript to view this page",
+        "please upgrade your browser",
+        "enable javascript",
+    ]
+    marker_hits = sum(1 for marker in markers if marker in lowered)
+    return marker_hits >= 2 or len(text) < 120
+
+
+def extract_text_with_playwright(page_url):
+    """Render the page in a browser and extract visible text from the DOM."""
+    try:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            try:
+                page = browser.new_page(viewport={"width": 1366, "height": 900})
+                page.goto(page_url, wait_until="networkidle", timeout=60000)
+                body_text = page.locator("body").inner_text(timeout=15000)
+                body_text = re.sub(r"\s+", " ", body_text or "").strip()
+                return body_text if len(body_text) >= 120 else None
+            finally:
+                browser.close()
+    except Exception as e:
+        print(f"Playwright HTML extraction failed: {e}")
+        return None
+
+
+def extract_text_from_html_page(page_url):
+    """Fetch and extract readable text from an HTML detail page."""
+    try:
+        resp = requests.get(page_url, timeout=25, verify=False)
+        resp.raise_for_status()
+        content = resp.text or ""
+        if not content.strip():
+            return None
+
+        text_content = clean_html_to_text(content)
+        if is_js_gate_placeholder(text_content):
+            print("HTML page appears JS-gated; retrying extraction via Playwright rendering")
+            rendered_text = extract_text_with_playwright(page_url)
+            return rendered_text
+
+        return text_content if len(text_content) >= 80 else None
+    except Exception as e:
+        print(f"HTML text extraction failed: {e}")
+        return None
+
+
+def generate_summary_from_python_extraction(text, title, category, website_name):
+    """Generate summary from extracted PDF text using heuristics and regex."""
+    try:
+        if not text:
+            return None
+        
+        # Try to find key sections
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        if not lines:
+            return None
+        
+        # Build summary from first few meaningful lines (usually contain key info)
+        summary_lines = []
+        for line in lines[:20]:
+            if len(line) > 20 and len(line) < 500:
+                summary_lines.append(line)
+                if len(summary_lines) >= 3:
+                    break
+        
+        if not summary_lines:
+            return None
+        
+        summary = " ".join(summary_lines)[:500].strip()
+        
+        # Extract due date
+        due_date = extract_due_date_from_text(text)
+        
+        return {"summary": summary, "due_date": due_date}
+    except Exception as e:
+        print(f"Python extraction summary generation error: {e}")
+        return None
+
+
+def generate_summary_from_gemini_fallback(pdf_path, title, category, website_name, api_key):
+    """Fallback method: Use Gemini API to generate summary when Python extraction fails."""
     try:
         import google.genai as genai
 
@@ -603,13 +763,13 @@ Title: {title}
 Return valid JSON only with this exact shape:
 {{
   "summary": "concise 3-4 sentence summary",
-  "due_date": "exact due/compliance/last submission date if explicitly present, otherwise -"
+    "due_date": "exact due/compliance/last submission date if explicitly present, otherwise empty string"
 }}
 
 Rules:
 1. Keep summary actionable and concise.
 2. For due_date, return the exact date wording from the document when explicitly stated.
-3. If the document has no explicit due/compliance deadline, set due_date to "-".
+3. If the document has no explicit due/compliance deadline, set due_date to "".
 4. Do not include markdown fences or extra commentary."""
 
         client = genai.Client(api_key=api_key)
@@ -624,7 +784,7 @@ Rules:
             uploaded = client.files.get(name=uploaded.name)
 
         if uploaded.state.name == "FAILED":
-            print("Gemini file upload failed")
+            print(f"Gemini file upload failed for row (title={title})")
             return None
 
         response = client.models.generate_content(
@@ -644,8 +804,125 @@ Rules:
         due_date = normalize_due_date(payload.get("due_date"))
         return {"summary": summary, "due_date": due_date}
     except Exception as e:
-        print(f"Gemini summary error: {e}")
+        print(f"Gemini fallback error: {e}")
         return None
+
+
+def generate_summary_from_gemini_text_fallback(source_text, title, category, website_name, source_url, api_key):
+    """Fallback method: Use Gemini API on extracted text when local extraction fails to summarize well."""
+    try:
+        import google.genai as genai
+
+        prompt = f"""You are analyzing an official notification document.
+
+Website: {website_name}
+Category: {category}
+Title: {title}
+Source URL: {source_url}
+
+Document text:
+{source_text[:18000]}
+
+Return valid JSON only with this exact shape:
+{{
+  "summary": "concise 3-4 sentence summary",
+  "due_date": "exact due/compliance/last submission date if explicitly present, otherwise empty string"
+}}
+
+Rules:
+1. Keep summary actionable and concise.
+2. For due_date, return the exact date wording from the document when explicitly stated.
+3. If the document has no explicit due/compliance deadline, set due_date to "".
+4. Do not include markdown fences or extra commentary."""
+
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
+
+        payload = extract_json_payload(response.text)
+        if not payload:
+            return None
+
+        summary = str(payload.get("summary", "")).strip()
+        if not summary:
+            return None
+
+        due_date = normalize_due_date(payload.get("due_date"))
+        return {"summary": summary, "due_date": due_date}
+    except Exception as e:
+        print(f"Gemini text fallback error: {e}")
+        return None
+
+
+def generate_summary_from_pdf(pdf_path, title, category, website_name, api_key):
+    """
+    Generate summary from PDF using Python extraction first, fallback to Gemini.
+    Returns {"summary": str, "due_date": str} on success, None on failure.
+    """
+    # Step 1: Try Python-only text extraction
+    print(f"  Attempting Python text extraction for row (title={title})")
+    extracted_text = extract_text_from_pdf(pdf_path)
+    
+    if extracted_text and len(extracted_text.strip()) > 100:
+        # Extraction succeeded with meaningful text
+        result = generate_summary_from_python_extraction(extracted_text, title, category, website_name)
+        if result:
+            print(f"  ✓ Summary generated via Python extraction")
+            return result
+        else:
+            print(f"  ✗ Python extraction failed to generate summary, trying Gemini fallback")
+    else:
+        print(f"  ✗ Python text extraction failed or returned minimal text, trying Gemini fallback")
+    
+    # Step 2: Fallback to Gemini API
+    if api_key:
+        print(f"  Attempting Gemini API fallback for row (title={title})")
+        result = generate_summary_from_gemini_fallback(pdf_path, title, category, website_name, api_key)
+        if result:
+            print(f"  ✓ Summary generated via Gemini API")
+            return result
+        else:
+            print(f"  ✗ Gemini API fallback also failed")
+    else:
+        print(f"  ✗ GEMINI_API_KEY not set, skipping Gemini fallback")
+    
+    # Both methods failed
+    return None
+
+
+def generate_summary_from_detail_page(detail_url, title, category, website_name, api_key):
+    """Generate summary from HTML detail page when no real PDF is available."""
+    print(f"  Attempting HTML extraction for row (title={title})")
+    extracted_text = extract_text_from_html_page(detail_url)
+
+    if extracted_text and len(extracted_text.strip()) > 100:
+        result = generate_summary_from_python_extraction(extracted_text, title, category, website_name)
+        if result:
+            print("  ✓ Summary generated via HTML text extraction")
+            return result
+        print("  ✗ HTML extraction text was weak for summary, trying Gemini fallback")
+    else:
+        print("  ✗ HTML text extraction failed/minimal, trying Gemini fallback")
+
+    if api_key and extracted_text:
+        result = generate_summary_from_gemini_text_fallback(
+            extracted_text,
+            title,
+            category,
+            website_name,
+            detail_url,
+            api_key,
+        )
+        if result:
+            print("  ✓ Summary generated via Gemini text fallback")
+            return result
+        print("  ✗ Gemini text fallback also failed")
+    elif not api_key:
+        print("  ✗ GEMINI_API_KEY not set, skipping Gemini fallback")
+
+    return None
 
 
 async def scrape_icai(page):
@@ -925,44 +1202,107 @@ async def scrape_all_sites():
 
 
 def process_all_pdfs():
+    """Process pending records from PDF URLs or detail URLs, save summaries, and cleanup temp files."""
     api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        print("GEMINI_API_KEY not set. Skipping summary generation.")
-        return
-
+    
     rows = get_pending_pdf_rows()
     if not rows:
         print("No pending PDFs for summary.")
         return
 
-    print(f"Found {len(rows)} PDF rows to process")
+    print(f"Found {len(rows)} pending rows to process")
+    processed_count = 0
+    failed_count = 0
+    
     for row in rows:
-        if not row["pdf_url"]:
+        source_url = row.get("pdf_url") or row.get("detail_url")
+        if not source_url:
             continue
 
-        local_pdf = download_pdf(row["pdf_url"], row["website_name"], row["id"])
-        if not local_pdf:
-            continue
+        row_id = row["id"]
+        website_name = row["website_name"]
+        title = row["title"]
+        
+        print(f"\nProcessing row {row_id}: {title[:60]}...")
 
-        result = generate_summary_from_pdf(
-            local_pdf,
-            row["title"],
-            row["category"],
-            row["website_name"],
-            api_key,
-        )
+        local_pdf = None
+        pdf_folder = None
+        result = None
+        used_html_detail = False
 
-        if result:
-            update_pdf_processed(
-                row["id"],
+        if is_probable_pdf_url(source_url):
+            local_pdf = download_pdf(source_url, website_name, row_id)
+            if not local_pdf:
+                print(f"  ✗ PDF download failed for row {row_id}, skipping (will retry next run)")
+                failed_count += 1
+                continue
+            pdf_folder = os.path.dirname(local_pdf)
+            result = generate_summary_from_pdf(
                 local_pdf,
-                "[PDF sent directly to Gemini]",
+                title,
+                row["category"],
+                website_name,
+                api_key,
+            )
+        else:
+            used_html_detail = True
+            result = generate_summary_from_detail_page(
+                source_url,
+                title,
+                row["category"],
+                website_name,
+                api_key,
+            )
+        
+        if result:
+            # Success: save to database and cleanup files
+            update_pdf_processed(
+                row_id,
+                "[Generated via detail page extraction/Gemini fallback]"
+                if used_html_detail
+                else "[Generated via Python extraction or Gemini fallback]",
                 result["summary"],
                 result["due_date"],
             )
-            print(f"Summary and due date saved for row {row['id']}")
+            print(f"  ✓ Summary and due date saved for row {row_id}")
+            processed_count += 1
+            
+            # Cleanup: delete the PDF file and folder
+            try:
+                if local_pdf and os.path.exists(local_pdf):
+                    os.remove(local_pdf)
+                    print(f"  ✓ Deleted PDF file: {local_pdf}")
+                
+                if pdf_folder and os.path.exists(pdf_folder) and os.path.isdir(pdf_folder):
+                    # Only delete if folder is now empty
+                    if not os.listdir(pdf_folder):
+                        os.rmdir(pdf_folder)
+                        print(f"  ✓ Deleted empty folder: {pdf_folder}")
+            except Exception as e:
+                print(f"  ⚠ Cleanup warning: {e}")
         else:
-            print(f"Summary/due date extraction failed for row {row['id']} (will retry next run)")
+            # Failure: cleanup PDF but don't mark as processed (will retry next run)
+            print(f"  ✗ Summary/due date extraction failed for row {row_id} (will retry next run)")
+            failed_count += 1
+            
+            # Still cleanup the downloaded file to save space
+            try:
+                if local_pdf and os.path.exists(local_pdf):
+                    os.remove(local_pdf)
+                    print(f"  ✓ Deleted failed PDF: {local_pdf}")
+                
+                if pdf_folder and os.path.exists(pdf_folder) and os.path.isdir(pdf_folder):
+                    if not os.listdir(pdf_folder):
+                        os.rmdir(pdf_folder)
+                        print(f"  ✓ Deleted empty folder: {pdf_folder}")
+            except Exception as e:
+                print(f"  ⚠ Cleanup warning: {e}")
+    
+    print(f"\n=== PDF Processing Summary ===")
+    print(f"Total processed: {processed_count}")
+    print(f"Total failed (will retry): {failed_count}")
+    print(f"Total rows: {len(rows)}")
+
 
 
 class Command(BaseCommand):

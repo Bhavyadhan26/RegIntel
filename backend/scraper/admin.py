@@ -86,7 +86,7 @@ class WebsiteScrapingDataAdmin(SuperuserOnlyAdminMixin, admin.ModelAdmin):
 
 	fieldsets = (
 		("Record", {"fields": ("website_name", "category", "title", "notice_date", "due_date")}),
-		("Links", {"fields": ("detail_url", "pdf_url", "pdf_local_path")}),
+		("Links", {"fields": ("detail_url", "pdf_url")}),
 		("Processing", {"fields": ("processed", "raw_text", "summary")}),
 		("Audit", {"fields": ("created_at", "updated_at")}),
 	)

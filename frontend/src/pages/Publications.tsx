@@ -77,6 +77,26 @@ const Publications = () => {
     return WEBSITE_LABEL_BY_CODE[code] ?? websiteName;
   };
 
+  const formatCreatedAtDate = (createdAt: string) => {
+    if (!createdAt) return '';
+    const parsed = new Date(createdAt);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const resolveCardDate = (noticeDate: string, createdAt: string) => {
+    const normalizedNotice = (noticeDate || '').trim();
+    const missingNoticeValues = new Set(['', 'N/A', 'NA', '-', 'NOT APPLICABLE']);
+    if (!missingNoticeValues.has(normalizedNotice.toUpperCase())) {
+      return normalizedNotice;
+    }
+    return formatCreatedAtDate(createdAt) || normalizedNotice;
+  };
+
   const loadPublications = useCallback(
     async (targetPage: number, replace: boolean) => {
       const requestId = requestIdRef.current + 1;
@@ -120,7 +140,7 @@ const Publications = () => {
           title: item.title,
           authority: mapAuthority(item.website_name || item.authority),
           description: item.summary || '',
-          date: item.notice_date || '',
+          date: resolveCardDate(item.notice_date, item.created_at),
           type: item.type,
           url: item.url,
         }));

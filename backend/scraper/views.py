@@ -157,6 +157,7 @@ class PublicationListView(APIView):
 					"authority": row.website_name,
 					"summary": row.summary or "",
 					"notice_date": row.notice_date or "",
+					"created_at": row.created_at.isoformat() if row.created_at else "",
 					"category": row.category or "",
 					"type": normalize_type(row.category),
 					"website_name": row.website_name,

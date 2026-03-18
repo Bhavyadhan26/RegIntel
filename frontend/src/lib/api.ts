@@ -172,6 +172,7 @@ export interface PublicationApiItem {
   authority: string;
   summary: string;
   notice_date: string;
+  created_at: string;
   category: string;
   type: 'Notice' | 'Circular' | 'Amendment' | 'Tender' | 'Notifications' | 'Updates' | 'Tenders';
   website_name: string;

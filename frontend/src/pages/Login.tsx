@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Eye, EyeOff, Lock } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Smiley } from "@/components/Smiley";
 export const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -33,9 +34,7 @@ export const Login = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-gray-100 bg-white">
           <CardHeader className="text-center pb-8">
-            <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
-              <Lock size={20} />
-            </div>
+            <Smiley />
             <CardTitle className="text-2xl font-bold text-text-main">Welcome to RegIntel</CardTitle>
             <CardDescription className="text-text-muted mt-2">
               Please enter your credentials to access the platform.
@@ -88,11 +87,6 @@ export const Login = () => {
       </div>
 
       {/* Footer Links */}
-      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 px-4 py-6 text-center text-xs text-text-muted">
-        <a href="#" className="hover:text-text-main">Privacy Policy</a>
-        <a href="#" className="hover:text-text-main">Terms of Service</a>
-        <a href="#" className="hover:text-text-main">Contact Admin</a>
-      </div>
       <div className="pb-6 text-center text-[10px] text-gray-400 uppercase tracking-widest">
         © 2024 RegIntel Security Systems. All Rights Reserved.
       </div>

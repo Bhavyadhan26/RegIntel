@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { Check, Eye, EyeOff, UserPlus, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -11,6 +11,7 @@ export const Signup = () => {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -18,8 +19,28 @@ export const Signup = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const passwordRules = {
+    length: password.length >= 8,
+    digit: /\d/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+    uppercase: /[A-Z]/.test(password),
+  };
+
+  const isPasswordValid = Object.values(passwordRules).every(Boolean);
+
+  const passwordRuleItems = [
+    { key: "length", label: "Must be 8 characters long", valid: passwordRules.length },
+    { key: "digit", label: "Must contain at least one digit", valid: passwordRules.digit },
+    { key: "special", label: "Must contain at least one special character", valid: passwordRules.special },
+    { key: "uppercase", label: "Must contain one uppercase letter", valid: passwordRules.uppercase },
+  ];
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isPasswordValid) {
+      setErrors({ password: "Password does not meet all required rules" });
+      return;
+    }
     if (password !== confirmPassword) {
       setErrors({ confirm_password: "Passwords do not match" });
       return;
@@ -98,9 +119,11 @@ export const Signup = () => {
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a strong password"
                     value={password}
+                    onFocus={() => setIsPasswordFocused(true)}
+                    onBlur={() => setIsPasswordFocused(false)}
                     onChange={(e) => {
                       setPassword(e.target.value);
-                      if (errors.password) setErrors((p) => ({ ...p, password: '' }));
+                      if (errors.password) setErrors((p) => ({ ...p, password: "" }));
                     }}
                     required
                   />
@@ -112,6 +135,22 @@ export const Signup = () => {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {isPasswordFocused && (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs">
+                    <ul className="space-y-2">
+                      {passwordRuleItems.map((item) => (
+                        <li key={item.key} className="flex items-center gap-2">
+                          {item.valid ? (
+                            <Check size={14} className="text-emerald-600" />
+                          ) : (
+                            <X size={14} className="text-red-500" />
+                          )}
+                          <span className={item.valid ? "text-emerald-700" : "text-text-muted"}>{item.label}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
               </div>
 
@@ -120,11 +159,12 @@ export const Signup = () => {
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Confirm your password"
+                    placeholder={isPasswordValid ? "Confirm your password" : "Complete password rules first"}
                     value={confirmPassword}
+                    disabled={!isPasswordValid}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
-                      if (errors.confirm_password) setErrors((p) => ({ ...p, confirm_password: '' }));
+                      if (errors.confirm_password) setErrors((p) => ({ ...p, confirm_password: "" }));
                     }}
                     required
                   />
@@ -150,14 +190,8 @@ export const Signup = () => {
         </Card>
       </div>
 
-      {/* Footer Links */}
-      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 px-4 py-6 text-center text-xs text-text-muted">
-        <a href="#" className="hover:text-text-main">Privacy Policy</a>
-        <a href="#" className="hover:text-text-main">Terms of Service</a>
-        <a href="#" className="hover:text-text-main">Contact Admin</a>
-      </div>
-      <div className="pb-6 text-center text-[10px] text-gray-400 uppercase tracking-widest">
-        © 2024 RegIntel Security Systems. All Rights Reserved.
+      <div className="pb-6 text-center text-[10px] text-gray-400 tracking-widest">
+        © 2026 RegIntel Intelligence Systems. All rights reserved.
       </div>
     </div>
   );

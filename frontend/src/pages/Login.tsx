@@ -113,14 +113,8 @@ export const Login = () => {
         </Card>
       </div>
 
-      {/* Footer Links */}
-      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 px-4 py-6 text-center text-xs text-text-muted">
-        <a href="#" className="hover:text-text-main">Privacy Policy</a>
-        <a href="#" className="hover:text-text-main">Terms of Service</a>
-        <a href="#" className="hover:text-text-main">Contact Admin</a>
-      </div>
-      <div className="pb-6 text-center text-[10px] text-gray-400 uppercase tracking-widest">
-        © 2024 RegIntel Security Systems. All Rights Reserved.
+      <div className="pb-6 text-center text-[10px] text-gray-400 tracking-widest">
+        © 2026 RegIntel Intelligence Systems. All rights reserved.
       </div>
     </div>
   );

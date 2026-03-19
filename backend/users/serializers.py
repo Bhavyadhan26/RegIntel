@@ -143,3 +143,20 @@ class FeedbackSerializer(serializers.Serializer):
         if len(words) < 10:
             raise serializers.ValidationError("Feedback message must be at least 10 words long.")
         return value.strip()
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+        validate_password(data['new_password'])
+        return data

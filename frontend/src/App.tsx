@@ -3,6 +3,8 @@ import ScrollToTop from "@/components/ScrollToTop";
 import { Home } from "@/pages/Home";
 import { Signup } from "@/pages/Signup";
 import { Login } from "@/pages/Login";
+import { ForgotPassword } from "@/pages/ForgotPassword";
+import { ResetPassword } from "@/pages/ResetPassword";
 import { ProfessionSelection } from "@/pages/ProfessionSelection";
 import { Dashboard } from "@/pages/Dashboard";
 import { Alerts } from "@/pages/Alerts";
@@ -22,6 +24,8 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             path="/select-profession"
             element={

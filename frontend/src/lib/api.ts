@@ -166,6 +166,33 @@ export async function apiSubmitFeedback(payload: {
   return data;
 }
 
+export async function apiForgotPassword(email: string) {
+  const res = await fetch(`${BASE_URL}/forgot-password/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw data;
+  return data;
+}
+
+export async function apiResetPassword(payload: {
+  uid: string;
+  token: string;
+  new_password: string;
+  confirm_password: string;
+}) {
+  const res = await fetch(`${BASE_URL}/reset-password/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw data;
+  return data;
+}
+
 export interface PublicationApiItem {
   id: string;
   title: string;

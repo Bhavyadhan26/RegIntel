@@ -5,6 +5,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+import threading
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -183,20 +184,23 @@ class ForgotPasswordView(APIView):
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
         reset_link = f"{frontend_url}/reset-password?uid={uid}&token={token}"
 
-        send_mail(
-            subject='Reset your RegIntel password',
-            message=(
-                f"Hi {user.get_full_name() or user.email},\n\n"
-                f"We received a request to reset your RegIntel password.\n"
-                f"Click the link below to set a new password (valid for 1 hour):\n\n"
-                f"{reset_link}\n\n"
-                f"If you did not request a password reset, you can safely ignore this email.\n\n"
-                f"— The RegIntel Team"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
+        def send_reset_email():
+            send_mail(
+                subject='Reset your RegIntel password',
+                message=(
+                    f"Hi {user.get_full_name() or user.email},\n\n"
+                    f"We received a request to reset your RegIntel password.\n"
+                    f"Click the link below to set a new password (valid for 1 hour):\n\n"
+                    f"{reset_link}\n\n"
+                    f"If you did not request a password reset, you can safely ignore this email.\n\n"
+                    f"— The RegIntel Team"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+
+        threading.Thread(target=send_reset_email, daemon=True).start()
 
         return Response({'message': 'If an account with that email exists, a reset link has been sent.'}, status=status.HTTP_200_OK)
 

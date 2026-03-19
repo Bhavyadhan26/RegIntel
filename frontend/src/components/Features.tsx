@@ -19,8 +19,8 @@ const features = [
   },
   {
     icon: TrendingUp,
-    title: "Trend Analysis",
-    desc: "Leverage predictive insights and historical data patterns to future-proof your long-term regulatory strategy.",
+    title: "Profession-Scoped Alerts",
+    desc: "Your feed is automatically filtered based on your profile, ensuring you only see the regulatory updates relevant to your specific jurisdiction.",
     color: "bg-green-100 text-green-700"
   }
 ];
@@ -126,7 +126,7 @@ export const Features = () => {
               </div>
               <h4 className="text-2xl font-bold text-text-main mb-4">Actionable Insights</h4>
               <p className="text-text-muted leading-relaxed text-lg mb-8">
-                Turn raw regulatory data into strategic advantages with real-time analytics and trend reporting.
+                Transforms dense regulatory documents into AI-generated summaries and prioritized compliance deadlines.
               </p>
               {/* Visual Placeholder for Bar Chart */}
               <div className="mt-auto w-full h-44 bg-slate-50 rounded-xl border border-slate-100 p-8 flex items-end gap-3">

@@ -25,7 +25,7 @@ export const Hero = () => {
 
           <p className="mb-8 max-w-xl text-lg leading-relaxed text-text-muted sm:text-xl">
             Transforming complex compliance into actionable intelligence with high-end,
-            real-time analytics and predictive reporting.
+            real-time alerting and predictive reporting.
           </p>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8 mt-4">

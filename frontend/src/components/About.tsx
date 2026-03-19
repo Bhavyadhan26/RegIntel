@@ -73,7 +73,7 @@ export const About = () => {
           }, {
             icon: Users,
             title: "Expert Team",
-            desc: "Built by legal experts and elite technologists, our team brings decades of cross-industry experience to solve your toughest challenges.",
+            desc: "Driven by the vision of Excellence and Service, we developed RegIntel to bridge the gap between complex regulatory publications and modern professional workflows.",
             color: "text-purple-600",
             bg: "bg-purple-100",
             gradientEnd: "to-purple-50/50"

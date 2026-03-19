@@ -79,7 +79,7 @@ export const Signup = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-gray-100 bg-white">
           <CardHeader className="text-center pb-8">
-            <Smiley />
+            <Smiley isEyesClosed={isPasswordFocused} />
             <CardTitle className="text-2xl font-bold text-text-main">Create your account</CardTitle>
             <CardDescription className="text-text-muted mt-2">
               Start your regulatory intelligence journey.

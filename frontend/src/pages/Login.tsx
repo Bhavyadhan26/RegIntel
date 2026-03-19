@@ -18,6 +18,7 @@ export const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
 
@@ -54,7 +55,7 @@ export const Login = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-gray-100 bg-white">
           <CardHeader className="text-center pb-8">
-            <Smiley />
+            <Smiley isEyesClosed={isPasswordFocused} />
             <CardTitle className="text-2xl font-bold text-text-main">Welcome to RegIntel</CardTitle>
             <CardDescription className="text-text-muted mt-2">
               Please enter your credentials to access the platform.
@@ -84,6 +85,8 @@ export const Login = () => {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setIsPasswordFocused(true)}
+                    onBlur={() => setIsPasswordFocused(false)}
                     required
                   />
                   <button

@@ -184,6 +184,7 @@ class ForgotPasswordView(APIView):
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
         reset_link = f"{frontend_url}/reset-password?uid={uid}&token={token}"
 
+        # Send email in a background thread so the API responds immediately
         def send_reset_email():
             send_mail(
                 subject='Reset your RegIntel password',

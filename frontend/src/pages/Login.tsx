@@ -9,6 +9,7 @@ export const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +35,7 @@ export const Login = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-gray-100 bg-white">
           <CardHeader className="text-center pb-8">
-            <Smiley />
+            <Smiley isEyesClosed={isPasswordFocused} />
             <CardTitle className="text-2xl font-bold text-text-main">Welcome to RegIntel</CardTitle>
             <CardDescription className="text-text-muted mt-2">
               Please enter your credentials to access the platform.
@@ -60,6 +61,8 @@ export const Login = () => {
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
+                    onFocus={() => setIsPasswordFocused(true)}
+                    onBlur={() => setIsPasswordFocused(false)}
                     required
                   />
                   <button

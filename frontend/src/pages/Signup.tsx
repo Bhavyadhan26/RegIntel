@@ -9,6 +9,7 @@ export const Signup = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +35,7 @@ export const Signup = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-gray-100 bg-white">
           <CardHeader className="text-center pb-8">
-            <Smiley />
+            <Smiley isEyesClosed={isPasswordFocused} />
             <CardTitle className="text-2xl font-bold text-text-main">Create your account</CardTitle>
             <CardDescription className="text-text-muted mt-2">
               Start your regulatory intelligence journey.
@@ -58,6 +59,8 @@ export const Signup = () => {
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a strong password"
+                    onFocus={() => setIsPasswordFocused(true)}
+                    onBlur={() => setIsPasswordFocused(false)}
                     required
                   />
                   <button

@@ -36,11 +36,14 @@ let dashboardPageCache: DashboardCache | null = null;
 
 export const Dashboard = () => {
   const DASHBOARD_BACK_WARNING_KEY = "dashboard_back_warning_shown";
+  const DASHBOARD_INFO_MODAL_KEY = "dashboard_info_modal_pending";
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(
+    () => sessionStorage.getItem(DASHBOARD_INFO_MODAL_KEY) === "1"
+  );
   const [showBackWarningModal, setShowBackWarningModal] = useState(false);
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [summaryError, setSummaryError] = useState("");
@@ -60,13 +63,24 @@ export const Dashboard = () => {
     user?.email?.split("@")[0] ||
     "there";
 
+  const handleCloseInfoModal = () => {
+    sessionStorage.removeItem(DASHBOARD_INFO_MODAL_KEY);
+    setShowInfoModal(false);
+  };
+
   useEffect(() => {
-    if (location.state?.showInfo) {
+    const shouldForceShow = Boolean(location.state?.showInfo);
+    if (shouldForceShow) {
+      sessionStorage.setItem(DASHBOARD_INFO_MODAL_KEY, "1");
       setShowInfoModal(true);
-      // Clear the state so refreshing doesn't re-show it
-      window.history.replaceState({}, document.title);
+      return;
     }
-  }, []);
+
+    const pending = sessionStorage.getItem(DASHBOARD_INFO_MODAL_KEY) === "1";
+    if (pending) {
+      setShowInfoModal(true);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     // Keep one dashboard state in history so first back press can be intercepted.
@@ -186,7 +200,7 @@ export const Dashboard = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
           <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl p-8">
             <button
-              onClick={() => setShowInfoModal(false)}
+              onClick={handleCloseInfoModal}
               className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
               aria-label="Close"
             >
@@ -202,7 +216,7 @@ export const Dashboard = () => {
             </div>
 
             <button
-              onClick={() => setShowInfoModal(false)}
+              onClick={handleCloseInfoModal}
               className="mt-8 w-full py-3 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-colors"
             >
               I understand, continue to Dashboard

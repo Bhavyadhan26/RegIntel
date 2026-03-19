@@ -49,6 +49,20 @@ const EMPTY_MESSAGE_BY_CATEGORY: Record<Category, string> = {
   Tenders: 'No tenders found',
 };
 
+const LOADING_MESSAGE_BY_CATEGORY: Record<Category, string> = {
+  All: 'Loading publications...',
+  Notifications: 'Loading notifications...',
+  Updates: 'Loading updates...',
+  Tenders: 'Loading tenders...',
+};
+
+const LOADING_MORE_MESSAGE_BY_CATEGORY: Record<Category, string> = {
+  All: 'Loading more publications...',
+  Notifications: 'Loading more notifications...',
+  Updates: 'Loading more updates...',
+  Tenders: 'Loading more tenders...',
+};
+
 const Publications = () => {
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -248,16 +262,28 @@ const Publications = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {visiblePublications.map((pub, index) => (
-              <FadeIn key={pub.id} delay={index * 0.05} direction="up">
-                <PublicationCard data={pub} />
-              </FadeIn>
-            ))}
-          </div>
+          {isInitialLoading ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 w-40 rounded bg-gray-200" />
+                <div className="h-4 w-full rounded bg-gray-200" />
+                <div className="h-4 w-5/6 rounded bg-gray-200" />
+                <div className="h-4 w-3/4 rounded bg-gray-200" />
+              </div>
+              <div className="mt-4 text-xs text-text-muted">{LOADING_MESSAGE_BY_CATEGORY[activeCategory]}</div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {visiblePublications.map((pub, index) => (
+                <FadeIn key={pub.id} delay={index * 0.05} direction="up">
+                  <PublicationCard data={pub} />
+                </FadeIn>
+              ))}
+            </div>
+          )}
 
           {isLoadingMore && (
-            <div className="text-center py-5 text-text-muted text-sm">Loading more publications...</div>
+            <div className="text-center py-5 text-text-muted text-sm">{LOADING_MORE_MESSAGE_BY_CATEGORY[activeCategory]}</div>
           )}
 
           {loadError && (

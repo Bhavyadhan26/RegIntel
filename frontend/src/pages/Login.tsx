@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Smiley } from "@/components/Smiley";
 
 export const Login = () => {
+  const DASHBOARD_INFO_MODAL_KEY = "dashboard_info_modal_pending";
   const navigate = useNavigate();
   const location = useLocation();
   const { setUser } = useAuth();
@@ -27,6 +28,7 @@ export const Login = () => {
     try {
       const data = await apiLogin(email, password);
       setUser(data.user);
+      sessionStorage.setItem(DASHBOARD_INFO_MODAL_KEY, "1");
       navigate(from, { replace: true });
     } catch (err: unknown) {
       const msg =

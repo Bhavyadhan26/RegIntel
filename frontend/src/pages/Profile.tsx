@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { Camera, Shield, User, Briefcase, Settings, Bell } from "lucide-react";
+import { Shield, User, Briefcase, Settings, Bell } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import Sidebar from "../components/layout/Sidebar";
 import { Header } from "../components/layout/Header";
 import { Footer } from "@/components/Footer";
+import { Smiley } from "@/components/Smiley";
 import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
 import { FadeIn } from "@/components/ui/FadeIn";
 import { useAuth } from "@/context/AuthContext";
@@ -38,8 +39,8 @@ export const UserProfile = () => {
     }
   }, [user]);
 
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isPasswordFieldFocused, setIsPasswordFieldFocused] = useState(false);
   const [passwords, setPasswords] = useState({ current: "", new: "", confirm: "" });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -121,14 +122,6 @@ export const UserProfile = () => {
     }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setAvatarUrl(url);
-    }
-  };
-
   const selectRole = (role: string) => {
     setProfile({ ...profile, roles: [role] });
   };
@@ -166,28 +159,11 @@ export const UserProfile = () => {
                 <FadeIn delay={0.1}>
                 <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl h-full flex flex-col items-center justify-center py-16 px-8 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-slate-50 to-transparent"></div>
-                  <label className="relative group cursor-pointer mb-6 block z-10 block">
-                    <input 
-                      type="file" 
-                      className="hidden" 
-                      accept="image/*" 
-                      onChange={handlePhotoUpload} 
-                    />
-                    <div className="w-48 h-48 rounded-full border-[6px] border-white bg-slate-100 flex items-center justify-center text-primary text-5xl font-black shadow-xl overflow-hidden transition-transform duration-300 group-hover:scale-[1.03] relative">
-                      {avatarUrl ? (
-                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        profile.name.split(' ').map(n => n[0]).join('')
-                      )}
-                      <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
-                        <Camera className="text-white w-10 h-10 mb-2" />
-                        <span className="text-white text-sm font-bold tracking-wider uppercase">Upload Photo</span>
-                      </div>
+                  <div className="relative mb-6 z-10 block">
+                    <div className="w-48 h-48 rounded-full border-[6px] border-white bg-slate-100 flex items-center justify-center text-primary text-5xl font-black shadow-xl overflow-hidden relative">
+                      {profile.name.split(' ').map(n => n[0]).join('')}
                     </div>
-                    <div className="absolute bottom-2 right-2 p-3.5 bg-primary border-[4px] border-white rounded-full shadow-lg text-white hover:bg-primary/90 transition-colors">
-                      <Camera size={20} />
-                    </div>
-                  </label>
+                  </div>
                   <h2 className="text-4xl font-black text-text-main mt-4 z-10 text-center tracking-tight">{profile.name}</h2>
                   <p className="text-primary font-bold mt-4 bg-primary/10 px-6 py-2 rounded-full text-sm z-10 text-center">
                     {profile.roles.join(", ") || "No Focus Selected"}
@@ -278,6 +254,7 @@ export const UserProfile = () => {
                   {/* Password Fields */}
                   {isChangingPassword && (
                     <div className="p-8 bg-slate-50/80 space-y-6 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
+                      <Smiley isEyesClosed={isPasswordFieldFocused} />
                       {pwError && <p className="text-sm text-red-600 font-semibold">{pwError}</p>}
                       {pwSuccess && <p className="text-sm text-green-600 font-semibold">Password changed successfully!</p>}
                       <div>
@@ -285,6 +262,8 @@ export const UserProfile = () => {
                         <input 
                           type="password" 
                           value={passwords.current}
+                          onFocus={() => setIsPasswordFieldFocused(true)}
+                          onBlur={() => setIsPasswordFieldFocused(false)}
                           onChange={(e) => setPasswords({...passwords, current: e.target.value})}
                           className="w-full bg-white border-2 border-slate-100 rounded-xl p-4 text-base text-text-main focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-semibold" 
                           placeholder="••••••••"
@@ -296,6 +275,8 @@ export const UserProfile = () => {
                           <input 
                             type="password" 
                             value={passwords.new}
+                            onFocus={() => setIsPasswordFieldFocused(true)}
+                            onBlur={() => setIsPasswordFieldFocused(false)}
                             onChange={(e) => setPasswords({...passwords, new: e.target.value})}
                             className="w-full bg-white border-2 border-slate-100 rounded-xl p-4 text-base text-text-main focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-semibold" 
                             placeholder="••••••••"
@@ -306,6 +287,8 @@ export const UserProfile = () => {
                           <input 
                             type="password" 
                             value={passwords.confirm}
+                            onFocus={() => setIsPasswordFieldFocused(true)}
+                            onBlur={() => setIsPasswordFieldFocused(false)}
                             onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
                             className="w-full bg-white border-2 border-slate-100 rounded-xl p-4 text-base text-text-main focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-semibold" 
                             placeholder="••••••••"

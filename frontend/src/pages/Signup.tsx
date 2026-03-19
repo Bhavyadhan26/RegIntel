@@ -12,7 +12,7 @@ export const Signup = () => {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [isPasswordFieldFocused, setIsPasswordFieldFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -79,7 +79,7 @@ export const Signup = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-gray-100 bg-white">
           <CardHeader className="text-center pb-8">
-            <Smiley isEyesClosed={isPasswordFocused} />
+            <Smiley isEyesClosed={isPasswordFieldFocused} />
             <CardTitle className="text-2xl font-bold text-text-main">Create your account</CardTitle>
             <CardDescription className="text-text-muted mt-2">
               Start your regulatory intelligence journey.
@@ -118,8 +118,8 @@ export const Signup = () => {
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a strong password"
                     value={password}
-                    onFocus={() => setIsPasswordFocused(true)}
-                    onBlur={() => setIsPasswordFocused(false)}
+                    onFocus={() => setIsPasswordFieldFocused(true)}
+                    onBlur={() => setIsPasswordFieldFocused(false)}
                     onChange={(e) => {
                       setPassword(e.target.value);
                       if (errors.password) setErrors((p) => ({ ...p, password: "" }));
@@ -134,7 +134,7 @@ export const Signup = () => {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                {isPasswordFocused && (
+                {isPasswordFieldFocused && (
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs">
                     <ul className="space-y-2">
                       {passwordRuleItems.map((item) => (
@@ -161,6 +161,8 @@ export const Signup = () => {
                     placeholder={isPasswordValid ? "Confirm your password" : "Complete password rules first"}
                     value={confirmPassword}
                     disabled={!isPasswordValid}
+                    onFocus={() => setIsPasswordFieldFocused(true)}
+                    onBlur={() => setIsPasswordFieldFocused(false)}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
                       if (errors.confirm_password) setErrors((p) => ({ ...p, confirm_password: "" }));

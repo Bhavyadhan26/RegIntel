@@ -186,20 +186,25 @@ class ForgotPasswordView(APIView):
 
         # Send email in a background thread so the API responds immediately
         def send_reset_email():
-            send_mail(
-                subject='Reset your RegIntel password',
-                message=(
-                    f"Hi {user.get_full_name() or user.email},\n\n"
-                    f"We received a request to reset your RegIntel password.\n"
-                    f"Click the link below to set a new password (valid for 1 hour):\n\n"
-                    f"{reset_link}\n\n"
-                    f"If you did not request a password reset, you can safely ignore this email.\n\n"
-                    f"— The RegIntel Team"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=True,
-            )
+            print(f"DEBUG: Starting email thread for {user.email}")
+            try:
+                sent = send_mail(
+                    subject='Reset your RegIntel password',
+                    message=(
+                        f"Hi {user.get_full_name() or user.email},\n\n"
+                        f"We received a request to reset your RegIntel password.\n"
+                        f"Click the link below to set a new password (valid for 1 hour):\n\n"
+                        f"{reset_link}\n\n"
+                        f"If you did not request a password reset, you can safely ignore this email.\n\n"
+                        f"— The RegIntel Team"
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=False, # Set to False temporarily to see errors in terminal
+                )
+                print(f"DEBUG: Email send_mail returned: {sent}")
+            except Exception as e:
+                print(f"DEBUG: EMAIL SENDING FAILED: {type(e).__name__}: {e}")
 
         threading.Thread(target=send_reset_email, daemon=True).start()
 

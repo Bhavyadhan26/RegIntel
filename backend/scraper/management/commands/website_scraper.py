@@ -85,7 +85,6 @@ def init_tables():
             notice_date VARCHAR(64),
             due_date VARCHAR(64) NOT NULL DEFAULT '-',
             pdf_url VARCHAR(2048),
-            raw_text LONGTEXT,
             processed TINYINT DEFAULT 0,
             summary LONGTEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -111,6 +110,15 @@ def init_tables():
             """
             ALTER TABLE Website_Scraping_data
             DROP COLUMN pdf_local_path
+            """
+        )
+
+    cur.execute("SHOW COLUMNS FROM Website_Scraping_data LIKE 'raw_text'")
+    if cur.fetchone() is not None:
+        cur.execute(
+            """
+            ALTER TABLE Website_Scraping_data
+            DROP COLUMN raw_text
             """
         )
 
@@ -440,19 +448,18 @@ def insert_row(website_name, title, category, detail_url, notice_date, pdf_url):
         return found["id"] if found else None
 
 
-def update_pdf_processed(row_id, marker_text, summary, due_date):
+def update_pdf_processed(row_id, summary, due_date):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
         """
         UPDATE Website_Scraping_data
         SET processed = 1,
-            raw_text = %s,
             summary = %s,
             due_date = %s
         WHERE id = %s
         """,
-        (marker_text, summary, due_date or "", row_id),
+        (summary, due_date or "", row_id),
     )
     conn.commit()
 
@@ -659,20 +666,107 @@ def clean_html_to_text(content):
     return cleaned
 
 
+PLACEHOLDER_MARKERS = [
+    "you are using an outdated browser",
+    "you must enable javascript to view this page",
+    "please upgrade your browser",
+    "enable javascript",
+]
+
+
+def _contains_placeholder_marker(text):
+    lowered = (text or "").lower()
+    return any(marker in lowered for marker in PLACEHOLDER_MARKERS)
+
+
 def is_js_gate_placeholder(text):
     """Detect pages that require JS and don't contain the actual document body."""
     if not text:
         return True
 
     lowered = text.lower()
-    markers = [
-        "you are using an outdated browser",
-        "you must enable javascript to view this page",
-        "please upgrade your browser",
-        "enable javascript",
+    marker_hits = sum(1 for marker in PLACEHOLDER_MARKERS if marker in lowered)
+    return marker_hits >= 1 or len(text) < 120
+
+
+def _build_meaningful_summary(text, title=""):
+    """Extract concise, meaningful summary text from noisy source text."""
+    if not text:
+        return ""
+
+    normalized = re.sub(r"\s+", " ", text).strip()
+    if not normalized:
+        return ""
+
+    chunks = re.split(r"(?<=[.!?])\s+|[\n\r]+", normalized)
+    useful = []
+    seen = set()
+    title_tokens = {
+        tok for tok in re.findall(r"[a-zA-Z]{4,}", (title or "").lower()) if tok not in {"notification", "regarding"}
+    }
+    regulatory_tokens = {
+        "circular", "notification", "amendment", "compliance", "deadline", "submission", "tax", "duty",
+        "regulation", "gst", "customs", "act", "order", "clause", "effective", "applicable",
+    }
+    ignore_markers = [
+        "skip to main content",
+        "privacy policy",
+        "cookie",
+        "terms and conditions",
+        "all rights reserved",
+        "javascript",
+        "outdated browser",
     ]
-    marker_hits = sum(1 for marker in markers if marker in lowered)
-    return marker_hits >= 2 or len(text) < 120
+
+    scored = []
+    for idx, chunk in enumerate(chunks):
+        line = chunk.strip(" -|:\t")
+        if len(line) < 35 or len(line) > 450:
+            continue
+
+        low = line.lower()
+        if any(marker in low for marker in ignore_markers):
+            continue
+
+        if low in seen:
+            continue
+
+        alpha_count = sum(1 for ch in line if ch.isalpha())
+        if alpha_count < 20:
+            continue
+
+        words = set(re.findall(r"[a-zA-Z]{3,}", low))
+        title_hits = len(words & title_tokens)
+        regulation_hits = len(words & regulatory_tokens)
+        score = (3 * title_hits) + regulation_hits + (1 if len(line) > 90 else 0)
+        scored.append((score, idx, low, line))
+
+    if not scored:
+        return ""
+
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    for score, idx, low, line in scored:
+        if low in seen:
+            continue
+        seen.add(low)
+        useful.append(line)
+        if len(useful) >= 4:
+            break
+
+    return " ".join(useful)[:700].strip()
+
+
+def is_meaningful_summary(summary_text):
+    """Reject placeholder or low-information summaries before saving to DB."""
+    summary = re.sub(r"\s+", " ", (summary_text or "")).strip()
+    if len(summary) < 60:
+        return False
+    if _contains_placeholder_marker(summary):
+        return False
+    alpha_count = sum(1 for ch in summary if ch.isalpha())
+    if alpha_count < 40:
+        return False
+    return True
 
 
 def extract_text_with_playwright(page_url):
@@ -722,23 +816,12 @@ def generate_summary_from_python_extraction(text, title, category, website_name)
         if not text:
             return None
         
-        # Try to find key sections
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
-        if not lines:
+        summary = _build_meaningful_summary(text, title=title)
+        if not summary:
             return None
-        
-        # Build summary from first few meaningful lines (usually contain key info)
-        summary_lines = []
-        for line in lines[:20]:
-            if len(line) > 20 and len(line) < 500:
-                summary_lines.append(line)
-                if len(summary_lines) >= 3:
-                    break
-        
-        if not summary_lines:
+
+        if not is_meaningful_summary(summary):
             return None
-        
-        summary = " ".join(summary_lines)[:500].strip()
         
         # Extract due date
         due_date = extract_due_date_from_text(text)
@@ -800,6 +883,8 @@ Rules:
         summary = str(payload.get("summary", "")).strip()
         if not summary:
             return None
+        if not is_meaningful_summary(summary):
+            return None
 
         due_date = normalize_due_date(payload.get("due_date"))
         return {"summary": summary, "due_date": due_date}
@@ -847,6 +932,8 @@ Rules:
 
         summary = str(payload.get("summary", "")).strip()
         if not summary:
+            return None
+        if not is_meaningful_summary(summary):
             return None
 
         due_date = normalize_due_date(payload.get("due_date"))
@@ -1228,7 +1315,6 @@ def process_all_pdfs():
         local_pdf = None
         pdf_folder = None
         result = None
-        used_html_detail = False
 
         if is_probable_pdf_url(source_url):
             local_pdf = download_pdf(source_url, website_name, row_id)
@@ -1245,7 +1331,6 @@ def process_all_pdfs():
                 api_key,
             )
         else:
-            used_html_detail = True
             result = generate_summary_from_detail_page(
                 source_url,
                 title,
@@ -1255,12 +1340,26 @@ def process_all_pdfs():
             )
         
         if result:
+            if not is_meaningful_summary(result.get("summary")):
+                print(f"  ✗ Generated summary quality check failed for row {row_id} (will retry next run)")
+                failed_count += 1
+                # Cleanup any temporary local files when quality validation fails
+                try:
+                    if local_pdf and os.path.exists(local_pdf):
+                        os.remove(local_pdf)
+                        print(f"  ✓ Deleted failed PDF: {local_pdf}")
+
+                    if pdf_folder and os.path.exists(pdf_folder) and os.path.isdir(pdf_folder):
+                        if not os.listdir(pdf_folder):
+                            os.rmdir(pdf_folder)
+                            print(f"  ✓ Deleted empty folder: {pdf_folder}")
+                except Exception as e:
+                    print(f"  ⚠ Cleanup warning: {e}")
+                continue
+
             # Success: save to database and cleanup files
             update_pdf_processed(
                 row_id,
-                "[Generated via detail page extraction/Gemini fallback]"
-                if used_html_detail
-                else "[Generated via Python extraction or Gemini fallback]",
                 result["summary"],
                 result["due_date"],
             )

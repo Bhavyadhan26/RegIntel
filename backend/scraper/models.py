@@ -69,7 +69,6 @@ class WebsiteScrapingData(models.Model):
 	notice_date = models.CharField(max_length=64, null=True, blank=True)
 	due_date = models.CharField(max_length=64, default="-")
 	pdf_url = models.CharField(max_length=2048, null=True, blank=True)
-	raw_text = models.TextField(null=True, blank=True)
 	processed = models.BooleanField(default=False)
 	summary = models.TextField(null=True, blank=True)
 	created_at = models.DateTimeField(null=True, blank=True)

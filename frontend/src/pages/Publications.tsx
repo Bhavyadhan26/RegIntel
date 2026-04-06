@@ -24,6 +24,7 @@ const WEBSITE_FILTERS = [
 
 const PAGE_SIZE = 10;
 const PUBLICATIONS_CACHE_TTL_MS = 5 * 60 * 1000;
+const PUBLICATIONS_CACHE_KEY = "publications_cache";
 
 const WEBSITE_LABEL_BY_CODE: Record<string, string> = {
   ICAI: 'ICAI',
@@ -40,7 +41,25 @@ type PublicationsCacheEntry = {
   cachedAt: number;
 };
 
-const publicationsPageCache = new Map<string, PublicationsCacheEntry>();
+const getPublicationsCache = (): Map<string, PublicationsCacheEntry> => {
+  try {
+    const cached = sessionStorage.getItem(PUBLICATIONS_CACHE_KEY);
+    if (!cached) return new Map();
+    const obj = JSON.parse(cached);
+    return new Map(Object.entries(obj) as [string, PublicationsCacheEntry][]);
+  } catch {
+    return new Map();
+  }
+};
+
+const setPublicationsCache = (cache: Map<string, PublicationsCacheEntry>): void => {
+  try {
+    const obj = Object.fromEntries(cache);
+    sessionStorage.setItem(PUBLICATIONS_CACHE_KEY, JSON.stringify(obj));
+  } catch {
+    // Ignore storage errors
+  }
+};
 
 const EMPTY_MESSAGE_BY_CATEGORY: Record<Category, string> = {
   All: 'No publications found',
@@ -117,6 +136,7 @@ const Publications = () => {
       requestIdRef.current = requestId;
 
       if (replace) {
+        const publicationsPageCache = getPublicationsCache();
         const cached = publicationsPageCache.get(cacheKey);
         const cacheIsFresh = cached && Date.now() - cached.cachedAt < PUBLICATIONS_CACHE_TTL_MS;
         if (cacheIsFresh && cached) {
@@ -161,12 +181,14 @@ const Publications = () => {
 
         setPublications((prev) => {
           const nextRows = replace ? mappedRows : [...prev, ...mappedRows];
+          const publicationsPageCache = getPublicationsCache();
           publicationsPageCache.set(cacheKey, {
             rows: nextRows,
             page: targetPage,
             hasMore: response.has_more,
             cachedAt: Date.now(),
           });
+          setPublicationsCache(publicationsPageCache);
           return nextRows;
         });
         setPage(targetPage);

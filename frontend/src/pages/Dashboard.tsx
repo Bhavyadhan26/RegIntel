@@ -16,6 +16,7 @@ import { useAuth } from "@/context/AuthContext";
 import { apiGetDashboardSummary } from "@/lib/api";
 
 const DASHBOARD_CACHE_TTL_MS = 5 * 60 * 1000;
+const DASHBOARD_CACHE_KEY = "dashboard_cache";
 
 type DashboardCache = {
   stats: {
@@ -31,7 +32,22 @@ type DashboardCache = {
   cachedAt: number;
 };
 
-let dashboardPageCache: DashboardCache | null = null;
+const getDashboardCache = (): DashboardCache | null => {
+  try {
+    const cached = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+    return cached ? JSON.parse(cached) : null;
+  } catch {
+    return null;
+  }
+};
+
+const setDashboardCache = (cache: DashboardCache): void => {
+  try {
+    sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Ignore storage errors
+  }
+};
 
 
 export const Dashboard = () => {
@@ -112,7 +128,7 @@ export const Dashboard = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const cached = dashboardPageCache;
+    const cached = getDashboardCache();
     const cacheIsFresh = cached && Date.now() - cached.cachedAt < DASHBOARD_CACHE_TTL_MS;
     if (cacheIsFresh && cached) {
       setStats(cached.stats);
@@ -150,12 +166,12 @@ export const Dashboard = () => {
         setStats(nextStats);
         setLastUpdated(response.last_updated);
         setDeadlines(nextDeadlines);
-        dashboardPageCache = {
+        setDashboardCache({
           stats: nextStats,
           lastUpdated: response.last_updated,
           deadlines: nextDeadlines,
           cachedAt: Date.now(),
-        };
+        });
       } catch {
         if (cancelled) return;
         setSummaryError("Unable to load dashboard summary right now.");

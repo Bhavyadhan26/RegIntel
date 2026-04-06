@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ScrollToTop from "@/components/ScrollToTop";
+import { LogoutOverlay } from "@/components/LogoutOverlay";
 import { Home } from "@/pages/Home";
 import { Signup } from "@/pages/Signup";
 import { Login } from "@/pages/Login";
@@ -18,6 +19,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 function App() {
   return (
     <AuthProvider>
+      <LogoutOverlay />
       <BrowserRouter>
         <ScrollToTop />
         <Routes>

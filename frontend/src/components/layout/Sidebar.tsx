@@ -1,4 +1,4 @@
-import { LayoutDashboard, Bell, FileText, Calendar, HelpCircle, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, Bell, FileText, Calendar, HelpCircle, LogOut, Menu, Loader2 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
@@ -11,7 +11,7 @@ interface SidebarProps {
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { logout } = useAuth();
+    const { logout, isLoggingOut } = useAuth();
 
     const handleLogout = async () => {
         if (window.innerWidth < 1024) onClose();
@@ -74,10 +74,20 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 <button
                     type="button"
                     onClick={handleLogout}
-                    className="flex items-center gap-3 px-3 py-2.5 w-full rounded-md text-[15px] font-medium text-red-500 hover:bg-red-50 transition-colors text-left"
+                    disabled={isLoggingOut}
+                    className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 w-full rounded-md text-[15px] font-medium transition-colors text-left",
+                        isLoggingOut
+                            ? "text-gray-400 cursor-not-allowed bg-gray-50"
+                            : "text-red-500 hover:bg-red-50"
+                    )}
                 >
-                    <LogOut size={20} className="text-red-500" />
-                    Logout
+                    {isLoggingOut ? (
+                        <Loader2 size={20} className="text-gray-400 animate-spin" />
+                    ) : (
+                        <LogOut size={20} className="text-red-500" />
+                    )}
+                    {isLoggingOut ? "Logging out..." : "Logout"}
                 </button>
             </div>
         </div>

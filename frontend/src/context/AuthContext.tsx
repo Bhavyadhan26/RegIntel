@@ -12,6 +12,7 @@ interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
+  isLoggingOut: boolean;
   isAuthenticated: boolean;
   setUser: (user: AuthUser | null) => void;
   logout: () => Promise<void>;
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const refreshUser = async () => {
     if (!getAccessToken()) {
@@ -43,10 +45,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = async () => {
+    setIsLoggingOut(true);
     try {
       await apiLogout();
     } finally {
       setUser(null);
+      setIsLoggingOut(false);
     }
   };
 
@@ -55,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
+        isLoggingOut,
         isAuthenticated: user !== null,
         setUser,
         logout,

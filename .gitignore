@@ -18,6 +18,7 @@ frontend/dist/
 
 # Scraper generated artifacts
 backend/*_pdfs/
+backend/reports/
 
 # Logs and OS files
 *.log

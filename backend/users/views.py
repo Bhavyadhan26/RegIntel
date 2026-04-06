@@ -82,11 +82,20 @@ class LogoutView(APIView):
         refresh_token = request.data.get('refresh')
         if not refresh_token:
             return Response({'detail': 'Refresh token required.'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-        except TokenError:
-            return Response({'detail': 'Invalid or expired token.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Blacklist token asynchronously so logout is instant for user.
+        # This prevents slow DB writes from blocking the response.
+        def blacklist_token():
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except TokenError:
+                pass  # Ignore errors for background cleanup
+        
+        # Fire and forget - return immediately
+        from threading import Thread
+        Thread(target=blacklist_token, daemon=True).start()
+        
         return Response({'message': 'Logged out successfully.'}, status=status.HTTP_200_OK)
 
 

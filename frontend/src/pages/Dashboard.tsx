@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import type { CSSProperties } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Calendar, Bell, ChevronRight,
@@ -16,12 +17,42 @@ import { useAuth } from "@/context/AuthContext";
 import { apiGetDashboardSummary } from "@/lib/api";
 
 const DASHBOARD_CACHE_TTL_MS = 5 * 60 * 1000;
-const DASHBOARD_CACHE_KEY = "dashboard_cache";
+const DASHBOARD_CACHE_KEY = "dashboard_cache_v2";
+const DASHBOARD_DEADLINES_PAGE_SIZE = 10;
+const DASHBOARD_TOUR_SEEN_KEY_PREFIX = "dashboard_tour_seen_v1";
+
+type TourTarget = "timestamp" | "stats" | "deadlines";
+
+const TOUR_STEPS: Array<{
+  title: string;
+  description: string;
+  target: TourTarget;
+}> = [
+  {
+    title: "Last Run Timestamp",
+    description:
+      "This time shows when the scraper last completed successfully across all sources. It tells you how fresh the platform data is.",
+    target: "timestamp",
+  },
+  {
+    title: "Website Analytics Snapshot",
+    description:
+      "Think of these cards as your daily analytics. The big number is today’s count. The small badge shows short-term trend. Unread Alerts is profession-specific, while Publications and Deadlines are overall metrics from all active websites.",
+    target: "stats",
+  },
+  {
+    title: "Upcoming Deadlines For You",
+    description:
+      "This list shows deadlines relevant to your profession. Clicking View all opens the full deadlines page with entries from all websites.",
+    target: "deadlines",
+  },
+];
 
 type DashboardCache = {
   stats: {
     unreadAlerts: number;
-    unreadAlertsTwoDay: number;
+    unreadAlertsThreeDay?: number;
+    unreadAlertsTwoDay?: number;
     publicationsToday: number;
     publicationsWeek: number;
     deadlinesActive: number;
@@ -29,6 +60,8 @@ type DashboardCache = {
   };
   lastUpdated: string | null;
   deadlines: Array<{ title: string; date: string; urgent: boolean; url: string }>;
+  deadlinesPage: number;
+  deadlinesHasMore: boolean;
   cachedAt: number;
 };
 
@@ -63,9 +96,16 @@ export const Dashboard = () => {
   const [showBackWarningModal, setShowBackWarningModal] = useState(false);
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [summaryError, setSummaryError] = useState("");
+  const [isLoadingMoreDeadlines, setIsLoadingMoreDeadlines] = useState(false);
+  const [deadlinesPage, setDeadlinesPage] = useState(1);
+  const [deadlinesHasMore, setDeadlinesHasMore] = useState(false);
+  const [showDashboardTour, setShowDashboardTour] = useState(false);
+  const [tourStepIndex, setTourStepIndex] = useState(0);
+  const [tourHighlightStyle, setTourHighlightStyle] = useState<CSSProperties | null>(null);
+  const [tourCardStyle, setTourCardStyle] = useState<CSSProperties | null>(null);
   const [stats, setStats] = useState({
     unreadAlerts: 0,
-    unreadAlertsTwoDay: 0,
+    unreadAlertsThreeDay: 0,
     publicationsToday: 0,
     publicationsWeek: 0,
     deadlinesActive: 0,
@@ -74,10 +114,17 @@ export const Dashboard = () => {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [deadlines, setDeadlines] = useState<Array<{ title: string; date: string; urgent: boolean; url: string }>>([]);
   const backWarnedRef = useRef(false);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const timestampRef = useRef<HTMLDivElement | null>(null);
+  const statsRef = useRef<HTMLDivElement | null>(null);
+  const deadlinesRef = useRef<HTMLDivElement | null>(null);
   const userDisplayName =
     user?.full_name?.trim() ||
     user?.email?.split("@")[0] ||
     "there";
+  const dashboardTourSeenKey = user?.email
+    ? `${DASHBOARD_TOUR_SEEN_KEY_PREFIX}:${user.email.toLowerCase()}`
+    : `${DASHBOARD_TOUR_SEEN_KEY_PREFIX}:anonymous`;
 
   const handleCloseInfoModal = () => {
     sessionStorage.removeItem(DASHBOARD_INFO_MODAL_KEY);
@@ -131,9 +178,19 @@ export const Dashboard = () => {
     const cached = getDashboardCache();
     const cacheIsFresh = cached && Date.now() - cached.cachedAt < DASHBOARD_CACHE_TTL_MS;
     if (cacheIsFresh && cached) {
-      setStats(cached.stats);
+      setStats({
+        unreadAlerts: cached.stats.unreadAlerts ?? 0,
+        unreadAlertsThreeDay:
+          cached.stats.unreadAlertsThreeDay ?? cached.stats.unreadAlertsTwoDay ?? 0,
+        publicationsToday: cached.stats.publicationsToday ?? 0,
+        publicationsWeek: cached.stats.publicationsWeek ?? 0,
+        deadlinesActive: cached.stats.deadlinesActive ?? 0,
+        deadlinesWeekWithDue: cached.stats.deadlinesWeekWithDue ?? 0,
+      });
       setLastUpdated(cached.lastUpdated);
       setDeadlines(cached.deadlines);
+      setDeadlinesPage(cached.deadlinesPage ?? 1);
+      setDeadlinesHasMore(cached.deadlinesHasMore ?? false);
       setSummaryError("");
       setIsLoadingSummary(false);
       return () => {
@@ -145,12 +202,12 @@ export const Dashboard = () => {
       setIsLoadingSummary(true);
       setSummaryError("");
       try {
-        const response = await apiGetDashboardSummary();
+        const response = await apiGetDashboardSummary({ page: 1, page_size: DASHBOARD_DEADLINES_PAGE_SIZE });
         if (cancelled) return;
 
         const nextStats = {
           unreadAlerts: response.cards.unread_alerts,
-          unreadAlertsTwoDay: response.cards.unread_alerts_two_day,
+          unreadAlertsThreeDay: response.cards.unread_alerts_three_day,
           publicationsToday: response.cards.publications_today,
           publicationsWeek: response.cards.publications_week,
           deadlinesActive: response.cards.deadlines_active,
@@ -166,10 +223,14 @@ export const Dashboard = () => {
         setStats(nextStats);
         setLastUpdated(response.last_updated);
         setDeadlines(nextDeadlines);
+        setDeadlinesPage(response.upcoming_deadlines_page ?? 1);
+        setDeadlinesHasMore(Boolean(response.upcoming_deadlines_has_more));
         setDashboardCache({
           stats: nextStats,
           lastUpdated: response.last_updated,
           deadlines: nextDeadlines,
+          deadlinesPage: response.upcoming_deadlines_page ?? 1,
+          deadlinesHasMore: Boolean(response.upcoming_deadlines_has_more),
           cachedAt: Date.now(),
         });
       } catch {
@@ -185,6 +246,159 @@ export const Dashboard = () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isLoadingSummary || isLoadingMoreDeadlines || !deadlinesHasMore) return;
+
+      const threshold = 240;
+      const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold;
+      if (!atBottom) return;
+
+      void (async () => {
+        setIsLoadingMoreDeadlines(true);
+        try {
+          const nextPage = deadlinesPage + 1;
+          const response = await apiGetDashboardSummary({ page: nextPage, page_size: DASHBOARD_DEADLINES_PAGE_SIZE });
+
+          const nextDeadlines = response.upcoming_deadlines.map((item) => ({
+            title: item.title,
+            date: item.due_date,
+            urgent: item.urgent,
+            url: item.url,
+          }));
+
+          setDeadlines((prev) => {
+            const merged = [...prev, ...nextDeadlines];
+            setDashboardCache({
+              stats,
+              lastUpdated,
+              deadlines: merged,
+              deadlinesPage: response.upcoming_deadlines_page ?? nextPage,
+              deadlinesHasMore: Boolean(response.upcoming_deadlines_has_more),
+              cachedAt: Date.now(),
+            });
+            return merged;
+          });
+
+          setDeadlinesPage(response.upcoming_deadlines_page ?? nextPage);
+          setDeadlinesHasMore(Boolean(response.upcoming_deadlines_has_more));
+        } catch {
+          setSummaryError("Unable to load more deadlines right now.");
+        } finally {
+          setIsLoadingMoreDeadlines(false);
+        }
+      })();
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [deadlinesHasMore, deadlinesPage, isLoadingMoreDeadlines, isLoadingSummary, lastUpdated, stats]);
+
+  useEffect(() => {
+    if (showInfoModal || showBackWarningModal) return;
+
+    const hasSeenTour = localStorage.getItem(dashboardTourSeenKey) === "1";
+    if (hasSeenTour) return;
+
+    setTourStepIndex(0);
+    setShowDashboardTour(true);
+  }, [dashboardTourSeenKey, showInfoModal, showBackWarningModal]);
+
+  const getTourTargetElement = (target: TourTarget): HTMLElement | null => {
+    if (target === "timestamp") {
+      return timestampRef.current ?? headerRef.current;
+    }
+    if (target === "stats") {
+      return statsRef.current;
+    }
+    return deadlinesRef.current;
+  };
+
+  useEffect(() => {
+    if (!showDashboardTour) return;
+
+    const updateTourPosition = () => {
+      const step = TOUR_STEPS[tourStepIndex];
+      const targetEl = getTourTargetElement(step.target);
+
+      if (!targetEl) {
+        setTourHighlightStyle(null);
+        setTourCardStyle({
+          left: 16,
+          right: 16,
+          bottom: 16,
+        });
+        return;
+      }
+
+      const rect = targetEl.getBoundingClientRect();
+      const highlightPadding = 8;
+
+      const highlightTop = Math.max(rect.top - highlightPadding, 8);
+      const highlightLeft = Math.max(rect.left - highlightPadding, 8);
+      const highlightWidth = Math.min(rect.width + highlightPadding * 2, window.innerWidth - 16);
+      const highlightHeight = Math.min(rect.height + highlightPadding * 2, window.innerHeight - 16);
+
+      setTourHighlightStyle({
+        top: highlightTop,
+        left: highlightLeft,
+        width: highlightWidth,
+        height: highlightHeight,
+      });
+
+      const mobile = window.innerWidth < 768;
+      if (mobile) {
+        setTourCardStyle({
+          left: 16,
+          right: 16,
+          bottom: 16,
+        });
+        return;
+      }
+
+      const maxCardWidth = 430;
+      const cardWidth = Math.min(maxCardWidth, window.innerWidth - 32);
+      const cardEstimatedHeight = 228;
+
+      const minLeft = 16;
+      const maxLeft = Math.max(16, window.innerWidth - cardWidth - 16);
+      const cardLeft = Math.min(Math.max(rect.left, minLeft), maxLeft);
+
+      let cardTop = rect.bottom + 14;
+      if (cardTop + cardEstimatedHeight > window.innerHeight - 16) {
+        cardTop = Math.max(16, rect.top - cardEstimatedHeight - 14);
+      }
+
+      setTourCardStyle({
+        top: cardTop,
+        left: cardLeft,
+        width: cardWidth,
+      });
+    };
+
+    updateTourPosition();
+    window.addEventListener("resize", updateTourPosition);
+    window.addEventListener("scroll", updateTourPosition, { passive: true });
+
+    return () => {
+      window.removeEventListener("resize", updateTourPosition);
+      window.removeEventListener("scroll", updateTourPosition);
+    };
+  }, [showDashboardTour, tourStepIndex]);
+
+  const handleCloseTour = () => {
+    localStorage.setItem(dashboardTourSeenKey, "1");
+    setShowDashboardTour(false);
+  };
+
+  const handleNextTourStep = () => {
+    if (tourStepIndex >= TOUR_STEPS.length - 1) {
+      handleCloseTour();
+      return;
+    }
+    setTourStepIndex((prev) => prev + 1);
+  };
 
   const filteredDeadlines = deadlines;
 
@@ -241,6 +455,57 @@ export const Dashboard = () => {
         </div>
       )}
 
+      {/* First-login Dashboard Tour */}
+      {showDashboardTour && (
+        <div className="fixed inset-0 z-[115] pointer-events-auto">
+          <div className="absolute inset-0 bg-black/60" />
+
+          {tourHighlightStyle && (
+            <div
+              className="absolute rounded-2xl border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.45)] transition-all duration-300"
+              style={tourHighlightStyle}
+            />
+          )}
+
+          <div
+            className="absolute rounded-2xl bg-white shadow-2xl border border-gray-100 p-5 sm:p-6"
+            style={tourCardStyle ?? { left: 16, right: 16, bottom: 16 }}
+          >
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-primary">
+                Step {tourStepIndex + 1} of {TOUR_STEPS.length}
+              </span>
+              <button
+                onClick={handleCloseTour}
+                className="text-xs font-semibold text-text-muted hover:text-text-main"
+              >
+                Skip Tour
+              </button>
+            </div>
+
+            <h3 className="text-lg font-bold text-text-main mb-2">{TOUR_STEPS[tourStepIndex].title}</h3>
+            <p className="text-sm text-text-muted leading-relaxed mb-5">
+              {TOUR_STEPS[tourStepIndex].description}
+            </p>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleCloseTour}
+                className="px-3 py-2 rounded-lg text-sm font-semibold text-text-muted hover:bg-gray-100"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleNextTourStep}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary/90"
+              >
+                {tourStepIndex === TOUR_STEPS.length - 1 ? "Finish" : "Next"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out`}>
         <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
@@ -256,7 +521,7 @@ export const Dashboard = () => {
 
       {/* Main Content */}
       <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div ref={headerRef} className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {/* Header */}
           <Header
             title="Dashboard"
@@ -264,7 +529,7 @@ export const Dashboard = () => {
             onMenuClick={openSidebar}
             isSidebarOpen={isSidebarOpen}
             rightContent={
-              <div className="hidden sm:flex items-center text-xs font-semibold text-text-muted bg-gray-100/80 border border-gray-200 px-3 py-1.5 rounded-full whitespace-nowrap">
+              <div ref={timestampRef} className="hidden sm:flex items-center text-xs font-semibold text-text-muted bg-gray-100/80 border border-gray-200 px-3 py-1.5 rounded-full whitespace-nowrap">
                 <Clock size={12} className="mr-1.5" />
                 Last updated: {lastUpdated
                   ? new Date(lastUpdated).toLocaleString('en-US', {
@@ -284,7 +549,7 @@ export const Dashboard = () => {
           )}
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div ref={statsRef} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <FadeIn delay={0.1}>
             <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-green-500 rounded-xl overflow-hidden bg-white/70 backdrop-blur h-full">
               <CardContent className="p-6">
@@ -292,7 +557,7 @@ export const Dashboard = () => {
                   <div className="w-11 h-11 bg-orange-50 rounded-xl flex items-center justify-center shadow-sm">
                     <Bell className="w-5 h-5 text-orange-600" />
                   </div>
-                  <span className="bg-orange-100/80 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">+{stats.unreadAlertsTwoDay} in 2 days</span>
+                  <span className="bg-orange-100/80 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">+{stats.unreadAlertsThreeDay} in 3 days</span>
                 </div>
                 <div className="text-4xl font-black text-text-main tracking-tight">{isLoadingSummary ? '...' : stats.unreadAlerts}</div>
                 <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Unread Alerts</div>
@@ -333,7 +598,7 @@ export const Dashboard = () => {
 
           {/* Upcoming Deadlines */}
           <FadeIn delay={0.4} direction="up">
-          <Card>
+          <Card ref={deadlinesRef}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-bold">Upcoming Deadlines</CardTitle>
               <Button variant="ghost" size="sm" className="text-primary hover:text-primary-hover h-auto py-1 px-2" onClick={() => navigate('/deadlines')}>
@@ -374,6 +639,10 @@ export const Dashboard = () => {
                   <div className="py-8 text-center text-text-muted text-sm">
                     No deadlines found matching your criteria.
                   </div>
+                )}
+
+                {isLoadingMoreDeadlines && (
+                  <div className="py-3 text-center text-xs text-text-muted">Loading more deadlines...</div>
                 )}
               </div>
             </CardContent>

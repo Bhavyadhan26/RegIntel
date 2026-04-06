@@ -1,67 +1,61 @@
 import Sidebar from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
-import { Calendar, AlertCircle, Clock, CheckCircle2, Search, ExternalLink } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Calendar, AlertCircle, Clock, CheckCircle2, Search, ExternalLink, Filter } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Footer } from '../components/Footer';
 import { apiGetDeadlines } from '@/lib/api';
 import { FadeIn } from "@/components/ui/FadeIn";
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
-
-const DEADLINES_CACHE_TTL_MS = 5 * 60 * 1000;
+import { useAuth } from '@/context/AuthContext';
 
 interface DeadlineRow {
   id: string;
   title: string;
   category: string;
-  bodyDate: string;
   dueDate: string;
   daysLeft: number;
   status: 'Urgent' | 'Upcoming' | 'Normal';
   url: string;
 }
 
-type DeadlinesCache = {
-  rows: DeadlineRow[];
-  counts: { urgent: number; thisWeek: number; total: number };
-  cachedAt: number;
-};
-
-let deadlinesPageCache: DeadlinesCache | null = null;
-
 const Deadlines = () => {
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [deadlinesData, setDeadlinesData] = useState<DeadlineRow[]>(deadlinesPageCache?.rows ?? []);
-  const [counts, setCounts] = useState(deadlinesPageCache?.counts ?? { urgent: 0, thisWeek: 0, total: 0 });
+  const [deadlinesData, setDeadlinesData] = useState<DeadlineRow[]>([]);
+  const [counts, setCounts] = useState({ urgent: 0, thisWeek: 0, total: 0 });
+  const [websiteFilter, setWebsiteFilter] = useState('all');
+  const [professionFilter, setProfessionFilter] = useState('all');
+  const [websiteOptions, setWebsiteOptions] = useState<Array<{ code: string; name: string }>>([]);
+  const [professionOptions, setProfessionOptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const professionInitRef = useRef(false);
+
+  useEffect(() => {
+    if (professionInitRef.current) return;
+    if (!user?.profession) return;
+    setProfessionFilter(user.profession);
+    professionInitRef.current = true;
+  }, [user?.profession]);
 
   useEffect(() => {
     let cancelled = false;
-
-    const cached = deadlinesPageCache;
-    const cacheIsFresh = cached && Date.now() - cached.cachedAt < DEADLINES_CACHE_TTL_MS;
-    if (cacheIsFresh && cached) {
-      setDeadlinesData(cached.rows);
-      setCounts(cached.counts);
-      setIsLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
 
     const loadDeadlines = async () => {
       setIsLoading(true);
       setLoadError('');
       try {
-        const response = await apiGetDeadlines();
+        const response = await apiGetDeadlines({
+          website: websiteFilter,
+          profession: professionFilter,
+        });
         if (cancelled) return;
 
         const mapped: DeadlineRow[] = response.results.map((item) => ({
           id: item.id,
           title: item.title,
           category: item.category,
-          bodyDate: item.body_date,
           dueDate: item.due_date,
           daysLeft: item.days_left,
           status: item.status,
@@ -76,16 +70,14 @@ const Deadlines = () => {
 
         setDeadlinesData(mapped);
         setCounts(nextCounts);
-
-        deadlinesPageCache = {
-          rows: mapped,
-          counts: nextCounts,
-          cachedAt: Date.now(),
-        };
+        setWebsiteOptions(response.filters.websites ?? []);
+        setProfessionOptions(response.filters.professions ?? []);
       } catch {
         if (cancelled) return;
         setDeadlinesData([]);
         setCounts({ urgent: 0, thisWeek: 0, total: 0 });
+        setWebsiteOptions([]);
+        setProfessionOptions([]);
         setLoadError('Unable to load deadlines right now.');
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -96,7 +88,7 @@ const Deadlines = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [websiteFilter, professionFilter]);
 
   const filteredData = deadlinesData.filter(item => {
     const normalizedQuery = searchQuery.toLowerCase();
@@ -161,16 +153,44 @@ const Deadlines = () => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           </div>
 
+          <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <select
+                value={websiteFilter}
+                onChange={(e) => setWebsiteFilter(e.target.value)}
+                className="w-full appearance-none rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-text-main shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+              >
+                <option value="all">All Websites</option>
+                {websiteOptions.map((site) => (
+                  <option key={site.code} value={site.code}>{site.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <select
+                value={professionFilter}
+                onChange={(e) => setProfessionFilter(e.target.value)}
+                className="w-full appearance-none rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-text-main shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+              >
+                <option value="all">All Professions</option>
+                {professionOptions.map((profession) => (
+                  <option key={profession} value={profession}>{profession}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <div className="min-w-[800px]">
+              <div className="min-w-[760px]">
                 <div className="grid grid-cols-12 gap-4 bg-gray-50/50 px-6 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider border-b border-gray-200">
-                  <div className="col-span-4">Title</div>
+                  <div className="col-span-5">Title</div>
                   <div className="col-span-2">Category</div>
-                  <div className="col-span-2">Body Date</div>
                   <div className="col-span-2">Due Date</div>
                   <div className="col-span-1 text-center">Status</div>
-                  <div className="col-span-1 text-center">Action</div>
+                  <div className="col-span-2 text-center">Action</div>
                 </div>
                 <div className="divide-y divide-gray-100">
                   {isLoading ? (
@@ -187,14 +207,13 @@ const Deadlines = () => {
                     filteredData.map((item, index) => (
                     <FadeIn key={item.id} delay={index * 0.05} direction="up" fullWidth>
                     <div className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors">
-                      <div className="col-span-4 flex items-center gap-3">
+                      <div className="col-span-5 flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
                           <Calendar size={16} className="text-amber-600" />
                         </div>
                         <span className="text-sm font-medium text-text-main pr-2">{item.title}</span>
                       </div>
                       <div className="col-span-2 text-sm text-text-muted">{item.category}</div>
-                      <div className="col-span-2 text-sm text-text-muted">{item.bodyDate}</div>
                       <div className="col-span-2">
                         {!item.dueDate || item.dueDate === 'N/A' || item.dueDate.toLowerCase() === 'not applicable' ? (
                           <div className="text-sm font-medium text-text-muted">-</div>
@@ -210,7 +229,7 @@ const Deadlines = () => {
                           {statusIcon(item.status)} {item.status}
                         </span>
                       </div>
-                      <div className="col-span-1 flex justify-center">
+                      <div className="col-span-2 flex justify-center">
                             <a
                               href={item.url}
                               target="_blank"
@@ -262,11 +281,7 @@ const Deadlines = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-lg bg-gray-50 px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Body Date</p>
-                    <p className="mt-1 text-text-main">{item.bodyDate}</p>
-                  </div>
-                  <div className="rounded-lg bg-gray-50 px-3 py-2">
+                  <div className="col-span-2 rounded-lg bg-gray-50 px-3 py-2">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Due Date</p>
                     {!item.dueDate || item.dueDate === 'N/A' || item.dueDate.toLowerCase() === 'not applicable' ? (
                       <p className="mt-1 text-text-muted">-</p>

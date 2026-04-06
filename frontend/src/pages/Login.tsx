@@ -84,6 +84,10 @@ export const Login = () => {
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     onChange={(e) => setPassword(e.target.value)}
                     onFocus={() => setIsPasswordFocused(true)}
                     onBlur={() => setIsPasswordFocused(false)}

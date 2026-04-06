@@ -269,18 +269,20 @@ const Publications = () => {
             </div>
 
             <div className="w-full sm:w-64 lg:w-72 lg:ml-4 lg:shrink-0 relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-              <select
-                value={activeWebsite}
-                onChange={(e) => setActiveWebsite(e.target.value)}
-                className="w-full pl-10 pr-9 py-2 rounded-lg border border-dark-600/40 bg-dark-800/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-sm font-medium text-gray-400 hover:bg-dark-700/60 transition-all"
-              >
-                {WEBSITE_FILTERS.map((site) => (
-                  <option key={site.label} value={site.label}>
-                    {site.label}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                <select
+                  value={activeWebsite}
+                  onChange={(e) => setActiveWebsite(e.target.value)}
+                  className="w-full pl-10 pr-9 py-2 rounded-lg border border-dark-600/40 bg-dark-800/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-sm font-medium text-gray-400 hover:bg-dark-700/60 transition-all"
+                >
+                  {WEBSITE_FILTERS.map((site) => (
+                    <option key={site.label} value={site.label}>
+                      {site.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 

@@ -215,6 +215,13 @@ export interface PublicationListResponse {
   page_size: number;
   total: number;
   has_more: boolean;
+  filters: {
+    professions: string[];
+    selected: {
+      profession: string;
+      website: string;
+    };
+  };
 }
 
 export async function apiGetPublications(params: {
@@ -222,18 +229,17 @@ export async function apiGetPublications(params: {
   page_size?: number;
   category?: 'All' | 'Notifications' | 'Updates' | 'Tenders';
   website?: string;
+  profession?: string;
   search?: string;
 }) {
   const query = new URLSearchParams();
   query.set('page', String(params.page));
   query.set('page_size', String(params.page_size ?? 10));
+  query.set('website', params.website?.trim() || 'all');
+  query.set('profession', params.profession?.trim() || 'all');
 
   if (params.category && params.category !== 'All') {
     query.set('category', params.category.toLowerCase());
-  }
-
-  if (params.website && params.website.toLowerCase() !== 'all') {
-    query.set('website', params.website);
   }
 
   if (params.search && params.search.trim()) {
@@ -262,12 +268,17 @@ export interface AlertListResponse {
   results: AlertApiItem[];
   tab: 'new' | 'old' | string;
   total: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
   profession: string;
 }
 
-export async function apiGetAlerts(params: { tab: 'new' | 'old' }) {
+export async function apiGetAlerts(params: { tab: 'new' | 'old'; page?: number; page_size?: number }) {
   const query = new URLSearchParams();
   query.set('tab', params.tab);
+  query.set('page', String(params.page ?? 1));
+  query.set('page_size', String(params.page_size ?? 20));
 
   const res = await apiFetch(`/alerts/?${query.toString()}`, {}, SCRAPER_BASE_URL);
   const data = await res.json();
@@ -280,7 +291,6 @@ export interface DeadlineApiItem {
   title: string;
   category: string;
   website_name: string;
-  body_date: string;
   due_date: string;
   days_left: number;
   status: 'Urgent' | 'Upcoming' | 'Normal';
@@ -290,6 +300,14 @@ export interface DeadlineApiItem {
 export interface DeadlineListResponse {
   results: DeadlineApiItem[];
   profession: string;
+  filters: {
+    websites: Array<{ code: string; name: string }>;
+    professions: string[];
+    selected: {
+      website: string;
+      profession: string;
+    };
+  };
   counts: {
     urgent: number;
     this_week: number;
@@ -297,8 +315,13 @@ export interface DeadlineListResponse {
   };
 }
 
-export async function apiGetDeadlines() {
-  const res = await apiFetch('/deadlines/', {}, SCRAPER_BASE_URL);
+export async function apiGetDeadlines(params?: { website?: string; profession?: string }) {
+  const query = new URLSearchParams();
+  query.set('website', params?.website?.trim() || 'all');
+  query.set('profession', params?.profession?.trim() || 'all');
+
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  const res = await apiFetch(`/deadlines/${suffix}`, {}, SCRAPER_BASE_URL);
   const data = await res.json();
   if (!res.ok) throw data;
   return data as DeadlineListResponse;
@@ -316,7 +339,7 @@ export interface DashboardUpcomingDeadlineItem {
 export interface DashboardSummaryResponse {
   cards: {
     unread_alerts: number;
-    unread_alerts_two_day: number;
+    unread_alerts_three_day: number;
     publications_today: number;
     publications_week: number;
     deadlines_active: number;
@@ -324,11 +347,19 @@ export interface DashboardSummaryResponse {
   };
   last_updated: string | null;
   upcoming_deadlines: DashboardUpcomingDeadlineItem[];
+  upcoming_deadlines_total: number;
+  upcoming_deadlines_page: number;
+  upcoming_deadlines_page_size: number;
+  upcoming_deadlines_has_more: boolean;
   profession: string;
 }
 
-export async function apiGetDashboardSummary() {
-  const res = await apiFetch('/dashboard-summary/', {}, SCRAPER_BASE_URL);
+export async function apiGetDashboardSummary(params?: { page?: number; page_size?: number }) {
+  const query = new URLSearchParams();
+  query.set('page', String(params?.page ?? 1));
+  query.set('page_size', String(params?.page_size ?? 10));
+
+  const res = await apiFetch(`/dashboard-summary/?${query.toString()}`, {}, SCRAPER_BASE_URL);
   const data = await res.json();
   if (!res.ok) throw data;
   return data as DashboardSummaryResponse;

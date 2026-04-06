@@ -77,6 +77,9 @@ class PublicationListView(APIView):
 	def get(self, request):
 		category = _normalize_category_filter(request.query_params.get("category", "all"))
 		website = _normalize_website_filter(request.query_params.get("website", "all"))
+		profile = getattr(request.user, "profile", None)
+		default_profession = getattr(getattr(profile, "profession_category", None), "name", "")
+		selected_profession = (request.query_params.get("profession", "") or "").strip() or default_profession or "all"
 		search = (request.query_params.get("search", "") or "").strip()
 
 		try:
@@ -90,6 +93,25 @@ class PublicationListView(APIView):
 			page_size = 10
 
 		queryset = WebsiteScrapingData.objects.all()
+		all_active_sources = WebsiteScrapingSource.objects.filter(active=True)
+		source_queryset = all_active_sources
+
+		if selected_profession.lower() != "all":
+			profession = ProfessionalCategory.objects.filter(category_name__iexact=selected_profession).first()
+			if profession:
+				source_queryset = source_queryset.filter(professional_category_id=profession.id)
+			else:
+				source_queryset = source_queryset.none()
+
+		if website != "ALL":
+			source_queryset = source_queryset.filter(website_name__iexact=website)
+
+		source_names = list(source_queryset.values_list("website_name", flat=True))
+		if selected_profession.lower() != "all" or website != "ALL":
+			if source_names:
+				queryset = queryset.filter(website_name__in=source_names)
+			else:
+				queryset = queryset.none()
 
 		if category == "notifications":
 			queryset = queryset.filter(
@@ -111,9 +133,6 @@ class PublicationListView(APIView):
 		elif category == "tenders":
 			queryset = queryset.filter(Q(category__iexact="Tender") | Q(category__icontains="tender"))
 
-		if website != "ALL":
-			queryset = queryset.filter(website_name__iexact=website)
-
 		if search:
 			queryset = queryset.filter(
 				Q(title__icontains=search)
@@ -133,6 +152,13 @@ class PublicationListView(APIView):
 			source.website_name.upper(): source.start_url
 			for source in WebsiteScrapingSource.objects.filter(active=True)
 		}
+
+		profession_ids = list(
+			all_active_sources.values_list("professional_category_id", flat=True).distinct()
+		)
+		available_professions = sorted(
+			ProfessionalCategory.objects.filter(id__in=profession_ids).values_list("category_name", flat=True)
+		)
 
 		def normalize_type(raw_category: str) -> str:
 			normalized = (raw_category or "").strip().lower()
@@ -175,6 +201,13 @@ class PublicationListView(APIView):
 				"page_size": page_size,
 				"total": total,
 				"has_more": has_more,
+				"filters": {
+					"professions": available_professions,
+					"selected": {
+						"profession": selected_profession,
+						"website": "all" if website == "ALL" else website,
+					},
+				},
 			}
 		)
 
@@ -187,25 +220,43 @@ class AlertListView(APIView):
 		if tab not in {"new", "old"}:
 			tab = "new"
 
+		try:
+			page = max(int(request.query_params.get("page", 1)), 1)
+		except (TypeError, ValueError):
+			page = 1
+
+		try:
+			page_size = max(min(int(request.query_params.get("page_size", 20)), 50), 1)
+		except (TypeError, ValueError):
+			page_size = 20
+
 		user_category, source_names, source_urls = _resolve_user_sources(request)
 
 		if not user_category:
-			return Response({"results": [], "tab": tab, "total": 0, "profession": ""})
+			return Response({"results": [], "tab": tab, "total": 0, "page": page, "page_size": page_size, "has_more": False, "profession": ""})
 
 		if not source_names:
-			return Response({"results": [], "tab": tab, "total": 0, "profession": user_category})
+			return Response({"results": [], "tab": tab, "total": 0, "page": page, "page_size": page_size, "has_more": False, "profession": user_category})
 
+		tz = timezone.get_current_timezone()
 		today = timezone.localdate()
-		yesterday = today - timedelta(days=1)
-		two_days_ago = today - timedelta(days=2)
+		today_start_dt = timezone.make_aware(datetime.combine(today, datetime.min.time()), tz)
+		tomorrow_start_dt = today_start_dt + timedelta(days=1)
+		three_days_start_dt = today_start_dt - timedelta(days=3)
 
 		queryset = WebsiteScrapingData.objects.filter(website_name__in=source_names)
 		if tab == "new":
-			queryset = queryset.filter(created_at__date=today)
+			queryset = queryset.filter(created_at__gte=today_start_dt, created_at__lt=tomorrow_start_dt)
 		else:
-			queryset = queryset.filter(created_at__date__in=[yesterday, two_days_ago])
+			# Old tab: last 3 days excluding today.
+			queryset = queryset.filter(created_at__gte=three_days_start_dt, created_at__lt=today_start_dt)
 
 		queryset = queryset.order_by("-id")
+		total = queryset.count()
+		offset = (page - 1) * page_size
+		rows = list(queryset[offset: offset + page_size + 1])
+		has_more = len(rows) > page_size
+		rows = rows[:page_size]
 
 		def detect_tag(raw_category: str) -> str:
 			normalized = (raw_category or "").strip().lower()
@@ -239,7 +290,10 @@ class AlertListView(APIView):
 			{
 				"results": payload,
 				"tab": tab,
-				"total": len(payload),
+				"total": total,
+				"page": page,
+				"page_size": page_size,
+				"has_more": has_more,
 				"profession": user_category,
 			}
 		)
@@ -249,15 +303,57 @@ class DeadlineListView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request):
-		source_queryset = WebsiteScrapingSource.objects.filter(active=True)
+		selected_website = _normalize_website_filter(request.query_params.get("website", "all"))
+		profile = getattr(request.user, "profile", None)
+		default_profession = getattr(getattr(profile, "profession_category", None), "name", "")
+		selected_profession = (request.query_params.get("profession", "") or "").strip() or default_profession or "all"
+
+		all_active_sources = WebsiteScrapingSource.objects.filter(active=True)
+		source_queryset = all_active_sources
+
+		if selected_profession.lower() != "all":
+			profession = ProfessionalCategory.objects.filter(category_name__iexact=selected_profession).first()
+			if profession:
+				source_queryset = source_queryset.filter(professional_category_id=profession.id)
+			else:
+				source_queryset = source_queryset.none()
+
+		if selected_website != "ALL":
+			source_queryset = source_queryset.filter(website_name__iexact=selected_website)
+
 		source_names = list(source_queryset.values_list("website_name", flat=True))
 		source_urls = {s.website_name.upper(): s.start_url for s in source_queryset}
+
+		website_rows = all_active_sources.values_list("website_name", "website_full_name")
+		website_map = {}
+		for website_name, website_full_name in website_rows:
+			website_map[website_name] = website_full_name or website_name
+		available_websites = [
+			{"code": code, "name": website_map[code]}
+			for code in sorted(website_map.keys())
+		]
+		profession_ids = list(
+			all_active_sources.values_list("professional_category_id", flat=True).distinct()
+		)
+		available_professions = sorted(
+			ProfessionalCategory.objects.filter(id__in=profession_ids).values_list("category_name", flat=True)
+		)
+
+		filter_payload = {
+			"websites": available_websites,
+			"professions": available_professions,
+			"selected": {
+				"website": "all" if selected_website == "ALL" else selected_website,
+				"profession": selected_profession if selected_profession else "all",
+			},
+		}
 
 		if not source_names:
 			return Response(
 				{
 					"results": [],
 					"profession": "all",
+					"filters": filter_payload,
 					"counts": {
 						"urgent": 0,
 						"this_week": 0,
@@ -324,6 +420,7 @@ class DeadlineListView(APIView):
 			{
 				"results": results,
 				"profession": "all",
+				"filters": filter_payload,
 				"counts": {
 					"urgent": urgent_count,
 					"this_week": this_week_count,
@@ -337,12 +434,22 @@ class DashboardSummaryView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request):
+		try:
+			page = max(int(request.query_params.get("page", 1)), 1)
+		except (TypeError, ValueError):
+			page = 1
+
+		try:
+			page_size = max(min(int(request.query_params.get("page_size", 10)), 50), 1)
+		except (TypeError, ValueError):
+			page_size = 10
+
 		tz = timezone.get_current_timezone()
 		today = timezone.localdate()
 		week_start = today - timedelta(days=6)
 		today_start_dt = timezone.make_aware(datetime.combine(today, datetime.min.time()), tz)
 		tomorrow_start_dt = today_start_dt + timedelta(days=1)
-		two_day_start_dt = today_start_dt - timedelta(days=1)
+		three_day_start_dt = today_start_dt - timedelta(days=2)
 		week_start_dt = today_start_dt - timedelta(days=6)
 
 		user_category, profession_source_names, profession_source_urls = _resolve_user_sources(request)
@@ -361,13 +468,13 @@ class DashboardSummaryView(APIView):
 		else:
 			profession_rows = WebsiteScrapingData.objects.none()
 
-		# Card 1: unread alerts + two-day new count from profession-specific websites
+		# Card 1: unread alerts + three-day new count from profession-specific websites
 		unread_alerts_count = profession_rows.filter(
 			created_at__gte=today_start_dt,
 			created_at__lt=tomorrow_start_dt,
 		).count()
-		unread_alerts_two_day_count = profession_rows.filter(
-			created_at__gte=two_day_start_dt,
+		unread_alerts_three_day_count = profession_rows.filter(
+			created_at__gte=three_day_start_dt,
 			created_at__lt=tomorrow_start_dt,
 		).count()
 
@@ -419,7 +526,10 @@ class DashboardSummaryView(APIView):
 			)
 
 		upcoming_items.sort(key=lambda item: (item["days_left"], -int(item["id"])))
-		upcoming_items = upcoming_items[:5]
+		total_upcoming = len(upcoming_items)
+		offset = (page - 1) * page_size
+		paginated_upcoming_items = upcoming_items[offset: offset + page_size]
+		has_more_upcoming = offset + page_size < total_upcoming
 
 		last_run = (
 			WebsiteScrapingRun.objects.filter(finished_at__isnull=False)
@@ -432,14 +542,18 @@ class DashboardSummaryView(APIView):
 			{
 				"cards": {
 					"unread_alerts": unread_alerts_count,
-					"unread_alerts_two_day": unread_alerts_two_day_count,
+					"unread_alerts_three_day": unread_alerts_three_day_count,
 					"publications_today": publications_today_count,
 					"publications_week": publications_week_count,
 					"deadlines_active": deadlines_active_count,
 					"deadlines_week_with_due": deadlines_week_with_due_count,
 				},
 				"last_updated": last_run.isoformat() if last_run else None,
-				"upcoming_deadlines": upcoming_items,
+				"upcoming_deadlines": paginated_upcoming_items,
+				"upcoming_deadlines_total": total_upcoming,
+				"upcoming_deadlines_page": page,
+				"upcoming_deadlines_page_size": page_size,
+				"upcoming_deadlines_has_more": has_more_upcoming,
 				"profession": user_category or "",
 			}
 		)

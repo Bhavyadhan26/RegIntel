@@ -118,6 +118,10 @@ export const Signup = () => {
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a strong password"
                     value={password}
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     onFocus={() => setIsPasswordFieldFocused(true)}
                     onBlur={() => setIsPasswordFieldFocused(false)}
                     onChange={(e) => {
@@ -161,6 +165,10 @@ export const Signup = () => {
                     placeholder={isPasswordValid ? "Confirm your password" : "Complete password rules first"}
                     value={confirmPassword}
                     disabled={!isPasswordValid}
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     onFocus={() => setIsPasswordFieldFocused(true)}
                     onBlur={() => setIsPasswordFieldFocused(false)}
                     onChange={(e) => {

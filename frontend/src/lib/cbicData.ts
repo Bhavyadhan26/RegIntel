@@ -268,7 +268,7 @@ export const professionOptions: ProfessionOption[] = [
   },
   {
     id: 'legal',
-    title: 'Legal Professional',
+    title: 'Lawyer',
     desc: 'Focus on tax litigation, customs advisory, and regulatory interpretation.',
     iconBg: 'bg-primary/20 text-primary',
     taxonomy: cbicProfessionTaxonomy,

@@ -9,14 +9,21 @@ import { Smiley } from "@/components/Smiley";
 import { useResponsiveSidebar } from "@/hooks/useResponsiveSidebar";
 import { FadeIn } from "@/components/ui/FadeIn";
 import { useAuth } from "@/context/AuthContext";
-import { apiUpdateProfile, apiChangePassword } from "@/lib/api";
+import { apiUpdateProfile, apiChangePassword, clearProfessionSensitiveCaches } from "@/lib/api";
 
 export const UserProfile = () => {
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const { user, refreshUser } = useAuth();
+  const professionOptions = [
+    { id: "ca", label: "Chartered Accountant" },
+    { id: "legal", label: "Lawyer" },
+    { id: "cost-accountant", label: "Cost Accountant" },
+    { id: "banking-finance", label: "Banking or Finance" },
+    { id: "indirect-taxes", label: "Indirect Taxes" },
+  ] as const;
   const professionLabelMap: Record<string, string> = {
     ca: "Chartered Accountant",
-    legal: "Legal Professional",
+    legal: "Lawyer",
     "cost-accountant": "Cost Accountant",
     "banking-finance": "Banking or Finance",
     "indirect-taxes": "Indirect Taxes",
@@ -27,6 +34,7 @@ export const UserProfile = () => {
     roles: user?.profession ? [professionLabelMap[user.profession] ?? user.profession] : [],
     notifications: user?.email_notifications ?? false,
   });
+  const [selectedProfessionId, setSelectedProfessionId] = useState(user?.profession ?? "");
 
   useEffect(() => {
     if (user) {
@@ -36,6 +44,7 @@ export const UserProfile = () => {
         roles: user.profession ? [professionLabelMap[user.profession] ?? user.profession] : [],
         notifications: user.email_notifications,
       });
+      setSelectedProfessionId(user.profession ?? "");
     }
   }, [user]);
 
@@ -48,10 +57,11 @@ export const UserProfile = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [pwError, setPwError] = useState("");
   const [pwSuccess, setPwSuccess] = useState(false);
+  const selectedProfessionLabel = professionOptions.find((option) => option.id === selectedProfessionId)?.label ?? profile.roles[0] ?? "";
 
   const professionIdMap: Record<string, string> = {
     "Chartered Accountant": "ca",
-    "Legal Professional": "legal",
+    Lawyer: "legal",
     "Cost Accountant": "cost-accountant",
     "Banking or Finance": "banking-finance",
     "Indirect Taxes": "indirect-taxes",
@@ -85,12 +95,13 @@ export const UserProfile = () => {
         }
       }
 
-      const professionId = professionIdMap[profile.roles[0]] ?? profile.roles[0] ?? "";
+      const professionId = selectedProfessionId || (professionIdMap[profile.roles[0]] ?? profile.roles[0] ?? "");
       await apiUpdateProfile({
         profession: professionId,
         email_notifications: profile.notifications,
       });
       await refreshUser();
+      clearProfessionSensitiveCaches();
       setSaveSuccess(true);
       if (wantsPasswordChange) {
         setIsChangingPassword(false);
@@ -123,6 +134,7 @@ export const UserProfile = () => {
   };
 
   const selectRole = (role: string) => {
+    setSelectedProfessionId(professionIdMap[role] ?? role);
     setProfile({ ...profile, roles: [role] });
   };
 
@@ -166,7 +178,7 @@ export const UserProfile = () => {
                   </div>
                   <h2 className="text-4xl font-black text-text-main mt-4 z-10 text-center tracking-tight">{profile.name}</h2>
                   <p className="text-primary font-bold mt-4 bg-primary/10 px-6 py-2 rounded-full text-sm z-10 text-center">
-                    {profile.roles.join(", ") || "No Focus Selected"}
+                    {selectedProfessionLabel || "No Focus Selected"}
                   </p>
                 </Card>
                 </FadeIn>
@@ -312,17 +324,17 @@ export const UserProfile = () => {
                     Select one role to receive tailored regulatory updates and specific compliance alerts.
                   </p>
                   <div className="flex flex-wrap gap-4">
-                    {["Chartered Accountant", "Legal Professional", "Cost Accountant", "Banking or Finance", "Indirect Taxes"].map((role) => (
+                    {professionOptions.map((role) => (
                       <button
-                        key={role}
-                        onClick={() => selectRole(role)}
+                        key={role.id}
+                        onClick={() => selectRole(role.label)}
                         className={`px-6 py-4 rounded-2xl text-sm font-bold border-2 transition-all ${
-                          profile.roles.includes(role)
+                          selectedProfessionId === role.id
                           ? "bg-primary text-white border-primary shadow-xl shadow-primary/20 scale-105" 
                           : "bg-white text-slate-600 border-slate-200 hover:border-primary/50 hover:bg-slate-50 hover:-translate-y-1"
                         }`}
                       >
-                        {role}
+                        {role.label}
                       </button>
                     ))}
                   </div>

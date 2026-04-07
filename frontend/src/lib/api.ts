@@ -26,6 +26,11 @@ function clearTokens() {
   localStorage.removeItem('refresh_token');
 }
 
+export function clearProfessionSensitiveCaches() {
+  sessionStorage.removeItem('dashboard_cache_v2');
+  sessionStorage.removeItem('publications_cache');
+}
+
 async function refreshAccessToken(): Promise<string | null> {
   const refresh = getRefreshToken();
   if (!refresh) return null;

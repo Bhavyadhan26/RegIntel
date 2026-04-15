@@ -130,6 +130,12 @@ class PublicationListView(APIView):
 				| Q(category__icontains="circular")
 				| Q(category__icontains="amend")
 			)
+		elif category == "events":
+			queryset = queryset.filter(
+				Q(category__iexact="Event")
+				| Q(category__iexact="Events")
+				| Q(category__icontains="event")
+			)
 		elif category == "tenders":
 			queryset = queryset.filter(Q(category__iexact="Tender") | Q(category__icontains="tender"))
 
@@ -164,6 +170,8 @@ class PublicationListView(APIView):
 			normalized = (raw_category or "").strip().lower()
 			if "tender" in normalized:
 				return "Tenders"
+			if "event" in normalized:
+				return "Events"
 			if "amend" in normalized:
 				return "Updates"
 			if "update" in normalized or "circular" in normalized:
@@ -262,6 +270,8 @@ class AlertListView(APIView):
 			normalized = (raw_category or "").strip().lower()
 			if "tender" in normalized:
 				return "Tenders"
+			if "event" in normalized:
+				return "Events"
 			if "amend" in normalized or "update" in normalized or "circular" in normalized:
 				return "Updates"
 			if "notification" in normalized or "notice" in normalized:

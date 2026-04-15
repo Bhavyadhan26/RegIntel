@@ -10,7 +10,7 @@ import { apiGetPublications } from '../lib/api';
 import { useResponsiveSidebar } from '@/hooks/useResponsiveSidebar';
 import { FadeIn } from "@/components/ui/FadeIn";
 
-const CATEGORIES = ['All', 'Notifications', 'Updates', 'Tenders'] as const;
+const CATEGORIES = ['All', 'Notifications', 'Updates', 'Events', 'Tenders'] as const;
 type Category = (typeof CATEGORIES)[number];
 
 const WEBSITE_FILTERS = [
@@ -24,7 +24,7 @@ const WEBSITE_FILTERS = [
 
 const PAGE_SIZE = 10;
 const PUBLICATIONS_CACHE_TTL_MS = 5 * 60 * 1000;
-const PUBLICATIONS_CACHE_KEY = "publications_cache";
+const PUBLICATIONS_CACHE_KEY = "publications_cache_v2";
 
 const WEBSITE_LABEL_BY_CODE: Record<string, string> = {
   ICAI: 'ICAI',
@@ -65,6 +65,7 @@ const EMPTY_MESSAGE_BY_CATEGORY: Record<Category, string> = {
   All: 'No publications found',
   Notifications: 'No Notifications found',
   Updates: 'No Updates found',
+  Events: 'No Events found',
   Tenders: 'No tenders found',
 };
 
@@ -72,6 +73,7 @@ const LOADING_MESSAGE_BY_CATEGORY: Record<Category, string> = {
   All: 'Loading publications...',
   Notifications: 'Loading notifications...',
   Updates: 'Loading updates...',
+  Events: 'Loading events...',
   Tenders: 'Loading tenders...',
 };
 
@@ -79,7 +81,20 @@ const LOADING_MORE_MESSAGE_BY_CATEGORY: Record<Category, string> = {
   All: 'Loading more publications...',
   Notifications: 'Loading more notifications...',
   Updates: 'Loading more updates...',
+  Events: 'Loading more events...',
   Tenders: 'Loading more tenders...',
+};
+
+const matchesCategory = (rawCategory: string, category: Category): boolean => {
+  const normalized = (rawCategory || '').trim().toLowerCase();
+  if (category === 'All') return true;
+  if (category === 'Notifications') return normalized.includes('notification') || normalized.includes('notice');
+  if (category === 'Updates') {
+    return normalized.includes('update') || normalized.includes('circular') || normalized.includes('amend');
+  }
+  if (category === 'Events') return normalized.includes('event');
+  if (category === 'Tenders') return normalized.includes('tender');
+  return true;
 };
 
 const Publications = () => {
@@ -140,7 +155,7 @@ const Publications = () => {
         const cached = publicationsPageCache.get(cacheKey);
         const cacheIsFresh = cached && Date.now() - cached.cachedAt < PUBLICATIONS_CACHE_TTL_MS;
         if (cacheIsFresh && cached) {
-          setPublications(cached.rows);
+          setPublications(cached.rows.filter((item) => matchesCategory(item.type || '', activeCategory)));
           setPage(cached.page);
           setHasMore(cached.hasMore);
           setIsInitialLoading(false);
@@ -169,15 +184,17 @@ const Publications = () => {
 
         if (requestIdRef.current !== requestId) return;
 
-        const mappedRows: Publication[] = response.results.map((item) => ({
-          id: item.id,
-          title: item.title,
-          authority: mapAuthority(item.website_name || item.authority),
-          description: item.summary || '',
-          date: resolveCardDate(item.notice_date, item.created_at),
-          type: item.type,
-          url: item.url,
-        }));
+        const mappedRows: Publication[] = response.results
+          .filter((item) => matchesCategory(item.category || item.type || '', activeCategory))
+          .map((item) => ({
+            id: item.id,
+            title: item.title,
+            authority: mapAuthority(item.website_name || item.authority),
+            description: item.summary || '',
+            date: resolveCardDate(item.notice_date, item.created_at),
+            type: item.type,
+            url: item.url,
+          }));
 
         setPublications((prev) => {
           const nextRows = replace ? mappedRows : [...prev, ...mappedRows];

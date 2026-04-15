@@ -7,7 +7,7 @@ export interface Publication {
   authority: string;
   description: string;
   date: string;
-  type: 'Notice' | 'Circular' | 'Amendment' | 'Tender' | 'Notifications' | 'Updates' | 'Tenders';
+  type: 'Notice' | 'Circular' | 'Amendment' | 'Event' | 'Tender' | 'Notifications' | 'Updates' | 'Events' | 'Tenders';
   url: string;
 }
 
@@ -22,6 +22,8 @@ export const PublicationCard: React.FC<CardProps> = ({ data }) => {
     switch (type) {
       case 'Circular': return 'bg-accent-purple/15 text-accent-purple';
       case 'Updates': return 'bg-accent-purple/15 text-accent-purple';
+      case 'Event': return 'bg-accent-amber/15 text-accent-amber';
+      case 'Events': return 'bg-accent-amber/15 text-accent-amber';
       case 'Amendment': return 'bg-accent-amber/15 text-accent-amber';
       case 'Notifications': return 'bg-accent-sky/15 text-accent-sky';
       case 'Notice': return 'bg-accent-sky/15 text-accent-sky';

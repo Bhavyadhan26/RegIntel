@@ -206,7 +206,7 @@ export interface PublicationApiItem {
   notice_date: string;
   created_at: string;
   category: string;
-  type: 'Notice' | 'Circular' | 'Amendment' | 'Tender' | 'Notifications' | 'Updates' | 'Tenders';
+  type: 'Notice' | 'Circular' | 'Amendment' | 'Event' | 'Tender' | 'Notifications' | 'Updates' | 'Events' | 'Tenders';
   website_name: string;
   pdf_url: string;
   detail_url: string;
@@ -232,7 +232,7 @@ export interface PublicationListResponse {
 export async function apiGetPublications(params: {
   page: number;
   page_size?: number;
-  category?: 'All' | 'Notifications' | 'Updates' | 'Tenders';
+  category?: 'All' | 'Notifications' | 'Updates' | 'Events' | 'Tenders';
   website?: string;
   profession?: string;
   search?: string;
@@ -264,7 +264,7 @@ export interface AlertApiItem {
   summary: string;
   notice_date: string;
   category: string;
-  tag: 'Notifications' | 'Updates' | 'Tenders' | string;
+  tag: 'Notifications' | 'Updates' | 'Events' | 'Tenders' | string;
   url: string;
   created_at: string;
 }

@@ -272,6 +272,12 @@ def seed_sources_and_selectors():
             "Cost Accountant",
         ),
         (
+            "RBI",
+            "Reserve Bank of India",
+            "https://www.rbi.org.in/Scripts/NotificationUser.aspx",
+            "Banking / Financial Regulation",
+        ),
+        (
             "CBIC",
             "Central Board of Indirect Taxes and Customs",
             "https://www.cbic.gov.in/entities/view-sticker",
@@ -361,6 +367,11 @@ def seed_sources_and_selectors():
         ("ICMAI", "tender_next", "ul#tenderPagination li:not(.disabled) a:has(i.feather-chevron-right)"),
         ("ICMAI", "base_url", "https://icmai.in"),
         ("ICMAI", "title_clean_remove_word", "New"),
+        ("RBI", "base_url", "https://www.rbi.org.in"),
+        ("RBI", "list_table", "table.tablebg"),
+        ("RBI", "list_rows", "table.tablebg tbody tr"),
+        ("RBI", "date_header", "h2.dop_header"),
+        ("RBI", "title_link", "a.link2, td a[href*='NotificationUser.aspx?Id=']"),
         ("CBIC", "list_wait", ".all-new-list"),
         ("CBIC", "item_links", ".all-new-list li a"),
         ("CBIC", "next_button", "li.pagination-next:not(.disabled) a, a:has-text('Next')"),
@@ -1063,8 +1074,117 @@ async def scrape_icai(page):
         new_count += 1
 
 
+def _clean_rbi_text(value):
+    return re.sub(r"\s+", " ", html.unescape((value or "")).strip())
+
+
+async def _rbi_first_notice_title(page, sel):
+    title = await page.evaluate(
+        """
+        (tableSelector) => {
+            const table = document.querySelector(tableSelector);
+            if (!table) {
+                return "";
+            }
+
+            let seenHeader = false;
+            for (const tr of table.querySelectorAll("tr")) {
+                if (tr.querySelector("h2.dop_header")) {
+                    seenHeader = true;
+                    continue;
+                }
+
+                if (!seenHeader) {
+                    continue;
+                }
+
+                const anchor = tr.querySelector("a.link2, td a[href*='NotificationUser.aspx?Id=']");
+                if (anchor) {
+                    return (anchor.textContent || "").replace(/\s+/g, ' ').trim();
+                }
+            }
+
+            return "";
+        }
+        """,
+        sel["list_table"],
+    )
+    return _clean_rbi_text(title)
+
+
+async def _scrape_rbi_current_table(page, sel):
+    rows = await page.locator(sel["list_rows"]).all()
+    if not rows:
+        return 0
+
+    new_count = 0
+    current_notice_date = "N/A"
+
+    for row in rows:
+        header = row.locator(sel["date_header"]).first
+        if await header.count() > 0:
+            current_notice_date = _clean_rbi_text(await header.inner_text()) or "N/A"
+            continue
+
+        cells = row.locator("td")
+        if await cells.count() < 1:
+            continue
+
+        title_loc = cells.nth(0).locator(sel["title_link"]).first
+        if await title_loc.count() == 0:
+            continue
+
+        title = _clean_rbi_text(await title_loc.inner_text())
+        if not title:
+            continue
+
+        detail_href = _clean_rbi_text(await title_loc.get_attribute("href"))
+        detail_url = urljoin(sel["base_url"], detail_href) if detail_href else sel["base_url"] + "/Scripts/NotificationUser.aspx"
+
+        pdf_url = ""
+        link_candidates = await row.locator("a[href]").all()
+        for link in link_candidates:
+            href = _clean_rbi_text(await link.get_attribute("href"))
+            if not href:
+                continue
+            absolute_href = urljoin(sel["base_url"], href)
+            if ".pdf" in absolute_href.lower():
+                pdf_url = absolute_href
+                break
+
+        if not pdf_url and ".pdf" in detail_url.lower():
+            pdf_url = detail_url
+
+        notice_date = current_notice_date if current_notice_date != "N/A" else "N/A"
+        category = "Notification"
+
+        if row_exists("RBI", title, category):
+            update_row_by_key("RBI", title, category, detail_url, notice_date, pdf_url, "")
+            continue
+
+        insert_row("RBI", title, category, detail_url, notice_date, pdf_url, "")
+        new_count += 1
+
+    return new_count
+
+
 async def scrape_rbi(page):
-    print("RBI scraping is disabled. Add new RBI logic from scratch when ready.")
+    src = get_source("RBI")
+    sel = get_selectors("RBI")
+    if not src or not sel:
+        print("RBI source/selectors missing")
+        return
+
+    await page.goto(src["start_url"], wait_until="domcontentloaded", timeout=90000)
+    await page.wait_for_selector(sel["list_table"], timeout=30000)
+
+    first_title = await _rbi_first_notice_title(page, sel)
+    if first_title and row_exists("RBI", first_title, "Notification"):
+        print(f"RBI up to date (first item exists): {first_title}")
+        return
+
+    new_count = await _scrape_rbi_current_table(page, sel)
+    print(f"RBI landing page scraped: 2026, new rows: {new_count}")
 
 
 async def scrape_icmai(page):
@@ -1587,6 +1707,9 @@ async def scrape_all_sites():
             print("\n=== SCRAPING ICMAI ===")
             await scrape_icmai(page)
 
+            print("\n=== SCRAPING RBI ===")
+            await scrape_rbi(page)
+
             print("\n=== SCRAPING BCI ===")
             await scrape_bci(page, context)
 
@@ -1721,10 +1844,16 @@ class Command(BaseCommand):
             action="store_true",
             help="Run one full top-to-bottom scan without early stop on first existing item.",
         )
+        parser.add_argument(
+            "--skip-summary",
+            action="store_true",
+            help="Skip PDF/detail summary processing after scraping completes.",
+        )
 
     def handle(self, *args, **kwargs):
         global FORCE_FULL_SCAN
         FORCE_FULL_SCAN = bool(kwargs.get("full_scan"))
+        skip_summary = bool(kwargs.get("skip_summary"))
 
         print("Initializing unified tables and selector configuration...")
         init_tables()
@@ -1742,8 +1871,11 @@ class Command(BaseCommand):
             print("Starting sequential scraping for all websites...")
             asyncio.run(scrape_all_sites())
 
-            print("\nStarting PDF summary processing...")
-            process_all_pdfs()
+            if skip_summary:
+                print("\nSkipping PDF/detail summary processing as requested.")
+            else:
+                print("\nStarting PDF summary processing...")
+                process_all_pdfs()
 
             after_total = get_total_data_count()
             after_site_counts = get_site_data_counts()

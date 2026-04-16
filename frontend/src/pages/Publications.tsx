@@ -85,6 +85,49 @@ const LOADING_MORE_MESSAGE_BY_CATEGORY: Record<Category, string> = {
   Tenders: 'Loading more tenders...',
 };
 
+const INVALID_NOTICE_DATE_VALUES = new Set(['', 'N/A', 'NA', '-', 'NOT APPLICABLE']);
+
+const parsePublicationDate = (value: string): number | null => {
+  const raw = (value || '').trim();
+  if (!raw || INVALID_NOTICE_DATE_VALUES.has(raw.toUpperCase())) return null;
+
+  const normalized = raw.replace(/\s+/g, ' ');
+  const slashMatch = normalized.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+  if (slashMatch) {
+    const day = Number(slashMatch[1]);
+    const month = Number(slashMatch[2]);
+    const year = Number(slashMatch[3]);
+    const fullYear = year < 100 ? 2000 + year : year;
+    const parsed = new Date(fullYear, month - 1, day);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+  }
+
+  const nativeParsed = Date.parse(normalized);
+  if (!Number.isNaN(nativeParsed)) return nativeParsed;
+
+  return null;
+};
+
+const resolvePublicationSortDate = (noticeDate: string, createdAt: string): number => {
+  return parsePublicationDate(noticeDate) ?? parsePublicationDate(createdAt) ?? 0;
+};
+
+const sortPublicationsDescending = (rows: Publication[]): Publication[] => {
+  return [...rows].sort((left, right) => {
+    if (right.sortDate !== left.sortDate) {
+      return right.sortDate - left.sortDate;
+    }
+
+    const leftId = Number(left.id);
+    const rightId = Number(right.id);
+    if (!Number.isNaN(leftId) && !Number.isNaN(rightId) && leftId !== rightId) {
+      return rightId - leftId;
+    }
+
+    return right.id.localeCompare(left.id);
+  });
+};
+
 const matchesCategory = (rawCategory: string, category: Category): boolean => {
   const normalized = (rawCategory || '').trim().toLowerCase();
   if (category === 'All') return true;
@@ -138,8 +181,7 @@ const Publications = () => {
 
   const resolveCardDate = (noticeDate: string, createdAt: string) => {
     const normalizedNotice = (noticeDate || '').trim();
-    const missingNoticeValues = new Set(['', 'N/A', 'NA', '-', 'NOT APPLICABLE']);
-    if (!missingNoticeValues.has(normalizedNotice.toUpperCase())) {
+    if (!INVALID_NOTICE_DATE_VALUES.has(normalizedNotice.toUpperCase())) {
       return normalizedNotice;
     }
     return formatCreatedAtDate(createdAt) || normalizedNotice;
@@ -155,7 +197,7 @@ const Publications = () => {
         const cached = publicationsPageCache.get(cacheKey);
         const cacheIsFresh = cached && Date.now() - cached.cachedAt < PUBLICATIONS_CACHE_TTL_MS;
         if (cacheIsFresh && cached) {
-          setPublications(cached.rows.filter((item) => matchesCategory(item.type || '', activeCategory)));
+          setPublications(sortPublicationsDescending(cached.rows.filter((item) => matchesCategory(item.type || '', activeCategory))));
           setPage(cached.page);
           setHasMore(cached.hasMore);
           setIsInitialLoading(false);
@@ -192,21 +234,23 @@ const Publications = () => {
             authority: mapAuthority(item.website_name || item.authority),
             description: item.summary || '',
             date: resolveCardDate(item.notice_date, item.created_at),
+            sortDate: resolvePublicationSortDate(item.notice_date, item.created_at),
             type: item.type,
             url: item.url,
           }));
 
         setPublications((prev) => {
           const nextRows = replace ? mappedRows : [...prev, ...mappedRows];
+          const sortedRows = sortPublicationsDescending(nextRows);
           const publicationsPageCache = getPublicationsCache();
           publicationsPageCache.set(cacheKey, {
-            rows: nextRows,
+            rows: sortedRows,
             page: targetPage,
             hasMore: response.has_more,
             cachedAt: Date.now(),
           });
           setPublicationsCache(publicationsPageCache);
-          return nextRows;
+          return sortedRows;
         });
         setPage(targetPage);
         setHasMore(response.has_more);
@@ -246,7 +290,7 @@ const Publications = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [hasMore, isInitialLoading, isLoadingMore, loadPublications, page]);
 
-  const visiblePublications = publications;
+  const visiblePublications = useMemo(() => sortPublicationsDescending(publications), [publications]);
 
   return (
     <div className="flex min-h-screen bg-background font-sans relative overflow-x-hidden">

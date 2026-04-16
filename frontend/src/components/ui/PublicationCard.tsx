@@ -7,6 +7,7 @@ export interface Publication {
   authority: string;
   description: string;
   date: string;
+  sortDate: number;
   type: 'Notice' | 'Circular' | 'Amendment' | 'Event' | 'Tender' | 'Notifications' | 'Updates' | 'Events' | 'Tenders';
   url: string;
 }

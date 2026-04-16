@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 
-from django.db.models import Q
+from django.db.models import Case, DateTimeField, F, Func, Q, Value, When
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -69,6 +70,23 @@ def _parse_due_date(raw_value: str) -> date | None:
 			continue
 
 	return None
+
+
+def _publication_sort_date_expression():
+	parsed_notice_date_variants = [
+		Func(F("notice_date"), Value("%Y-%m-%d"), function="STR_TO_DATE", output_field=DateTimeField()),
+		Func(F("notice_date"), Value("%d-%m-%Y"), function="STR_TO_DATE", output_field=DateTimeField()),
+		Func(F("notice_date"), Value("%d/%m/%Y"), function="STR_TO_DATE", output_field=DateTimeField()),
+		Func(F("notice_date"), Value("%d.%m.%Y"), function="STR_TO_DATE", output_field=DateTimeField()),
+		Func(F("notice_date"), Value("%b %d, %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
+		Func(F("notice_date"), Value("%B %d, %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
+		Func(F("notice_date"), Value("%d %b, %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
+		Func(F("notice_date"), Value("%d %B, %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
+		Func(F("notice_date"), Value("%d %b %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
+		Func(F("notice_date"), Value("%d %B %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
+	]
+
+	return Coalesce(*parsed_notice_date_variants, F("created_at"), output_field=DateTimeField())
 
 
 class PublicationListView(APIView):
@@ -147,7 +165,9 @@ class PublicationListView(APIView):
 				| Q(website_name__icontains=search)
 			)
 
-		queryset = queryset.order_by("-id")
+		queryset = queryset.annotate(
+			sort_date=_publication_sort_date_expression(),
+		).order_by("-sort_date", "-id")
 		total = queryset.count()
 		offset = (page - 1) * page_size
 		rows = list(queryset[offset: offset + page_size + 1])

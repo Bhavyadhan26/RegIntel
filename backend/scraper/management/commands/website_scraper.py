@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import time
+from datetime import date, datetime
 from urllib.parse import urljoin
 import pymysql
 import requests
@@ -432,6 +433,7 @@ def insert_row(website_name, title, category, detail_url, notice_date, pdf_url, 
     conn = get_conn()
     cur = conn.cursor()
     try:
+        notice_date = normalize_notice_date(notice_date)
         cur.execute(
             """
             INSERT INTO Website_Scraping_data
@@ -458,6 +460,7 @@ def update_row_by_key(website_name, title, category, detail_url, notice_date, pd
     """Update existing row by natural key when source link/date changes."""
     conn = get_conn()
     cur = conn.cursor()
+    notice_date = normalize_notice_date(notice_date)
     cur.execute(
         """
         UPDATE Website_Scraping_data
@@ -495,7 +498,7 @@ def get_pending_pdf_rows():
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT id, website_name, title, category, pdf_url, detail_url
+                SELECT id, website_name, title, category, pdf_url, detail_url, start_url
         FROM Website_Scraping_data
         WHERE (pdf_url IS NOT NULL OR detail_url IS NOT NULL)
           AND (processed = 0 OR summary IS NULL)
@@ -626,6 +629,12 @@ def extract_json_payload(response_text):
             return None
 
 
+def _strip_ordinal_suffix(text):
+    """Remove ordinal suffixes (st, nd, rd, th) from text."""
+    import re
+    return re.sub(r'(\d+)(st|nd|rd|th)\b', r'\1', text, flags=re.IGNORECASE)
+
+
 def normalize_due_date(value):
     if not value:
         return ""
@@ -637,7 +646,118 @@ def normalize_due_date(value):
     if due_date.lower() in {"n/a", "na", "none", "null", "not applicable", "no due date", "-"}:
         return ""
 
-    return due_date[:64]
+    due_date = _strip_ordinal_suffix(due_date)
+    due_date = due_date.replace(" . ", " ").replace("/.", "/").replace(".", "/")
+    due_date = due_date.replace("Sept ", "Sep ").replace("Sept,", "Sep,")
+
+    patterns = [
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+        "%m/%d/%Y",
+        "%d.%m.%Y",
+        "%d.%m.%y",
+        "%Y-%m-%d",
+        "%d %b %Y",
+        "%d %B %Y",
+        "%d %b, %Y",
+        "%d %B, %Y",
+        "%b %d, %Y",
+        "%B %d, %Y",
+        "%b %d %Y",
+        "%B %d %Y",
+        "%B %d,%Y",
+    ]
+
+    parsed_date = None
+    for pattern in patterns:
+        try:
+            parsed_date = datetime.strptime(due_date, pattern).date()
+            break
+        except ValueError:
+            continue
+
+    if parsed_date is None:
+        return ""
+
+    return parsed_date.strftime("%d %b %Y")
+
+
+def normalize_notice_date(value):
+    if not value:
+        return "N/A"
+
+    notice_date = str(value).strip()
+    if not notice_date:
+        return "N/A"
+
+    if notice_date.lower() in {"n/a", "na", "none", "null", "not applicable", "-"}:
+        return "N/A"
+
+    notice_date = _strip_ordinal_suffix(notice_date)
+    notice_date = notice_date.replace(" . ", " ").replace("/.", "/").replace(".", "/")
+    notice_date = notice_date.replace("Sept ", "Sep ").replace("Sept,", "Sep,")
+
+    patterns = [
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+        "%m/%d/%Y",
+        "%d.%m.%Y",
+        "%d.%m.%y",
+        "%Y-%m-%d",
+        "%d %b %Y",
+        "%d %B %Y",
+        "%d %b, %Y",
+        "%d %B, %Y",
+        "%b %d, %Y",
+        "%B %d, %Y",
+        "%b %d %Y",
+        "%B %d %Y",
+        "%B %d,%Y",
+    ]
+
+    parsed_date = None
+    for pattern in patterns:
+        try:
+            parsed_date = datetime.strptime(notice_date, pattern).date()
+            break
+        except ValueError:
+            continue
+
+    if parsed_date is None:
+        return "N/A"
+
+    if parsed_date > date.today():
+        return "N/A"
+
+    return parsed_date.strftime("%d %b %Y")
+
+
+def _gemini_url_no_summary_reason(response_text):
+    if not response_text:
+        return "empty_response"
+
+    lowered = response_text.lower()
+    no_summary_markers = [
+        "no summary",
+        "cannot",
+        "can't",
+        "unable",
+        "not enough information",
+        "insufficient",
+        "url",
+        "link",
+        "no content",
+        "empty",
+        "does not provide",
+        "not possible",
+    ]
+    if any(marker in lowered for marker in no_summary_markers):
+        return "url_no_content"
+    return None
+
+
+def _gemini_url_no_summary_result():
+    return {"summary": "Summary not available.", "due_date": "", "no_summary": True, "reason": "url_no_content"}
 
 
 def extract_text_from_pdf(pdf_path):
@@ -858,59 +978,36 @@ def generate_summary_from_python_extraction(text, title, category, website_name)
         return None
 
 
-def generate_summary_from_gemini_fallback(pdf_path, title, category, website_name, api_key):
-    """Fallback method: Use Gemini API to generate summary when Python extraction fails."""
+def generate_summary_from_gemini_url_fallback(source_url, title, category, website_name, api_key):
+    """Fallback method: Use Gemini API with only the source URL when Python extraction fails."""
     try:
         import google.genai as genai
 
-        prompt = f"""You are analyzing an official notification document.
-
-Website: {website_name}
-Category: {category}
-Title: {title}
-
-Return valid JSON only with this exact shape:
-{{
-  "summary": "concise 3-4 sentence summary",
-    "due_date": "exact due/compliance/last submission date if explicitly present, otherwise empty string"
-}}
-
-Rules:
-1. Keep summary actionable and concise.
-2. For due_date, return the exact date wording from the document when explicitly stated.
-3. If the document has no explicit due/compliance deadline, set due_date to "".
-4. Do not include markdown fences or extra commentary."""
+        prompt = f"""Return JSON only (no markdown) using ONLY accessible content from this URL: {source_url}
+    JSON shape: {{"summary": "2-3 sentences", "due_date": "exact due/compliance/last submission date if explicitly present, otherwise empty string"}}
+    Rules:
+    STRICTLY "Attempt direct request to the URL. DO NOT use search engine snippets, cached versions, or historical data from your training set. If the live page is not reachable now or if it returns any error or content is unreadable, return empty strings for all fields. Any summary generated without a successful 200 OK live fetch is a violation of this prompt."
+    Ground summary only in document text; do not infer from URL/metadata.
+    If no explicit due date is found, due_date must be ""."""
 
         client = genai.Client(api_key=api_key)
-        with open(pdf_path, "rb") as f:
-            uploaded = client.files.upload(
-                file=f,
-                config={"mime_type": "application/pdf", "display_name": title[:120]},
-            )
-
-        while uploaded.state.name == "PROCESSING":
-            time.sleep(2)
-            uploaded = client.files.get(name=uploaded.name)
-
-        if uploaded.state.name == "FAILED":
-            print(f"Gemini file upload failed for row (title={title})")
-            return None
-
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[uploaded, prompt],
+            model="gemini-2.5-flash-lite",
+            contents=prompt,
         )
 
-        client.files.delete(name=uploaded.name)
         payload = extract_json_payload(response.text)
         if not payload:
-            return None
+            print(f"Gemini URL fallback returned no usable summary for row (title={title}); marking processed")
+            return _gemini_url_no_summary_result()
 
         summary = str(payload.get("summary", "")).strip()
         if not summary:
-            return None
+            print(f"Gemini URL fallback returned empty summary for row (title={title}); marking processed")
+            return _gemini_url_no_summary_result()
         if not is_meaningful_summary(summary):
-            return None
+            print(f"Gemini URL fallback returned non-summary content for row (title={title}); marking processed")
+            return _gemini_url_no_summary_result()
 
         due_date = normalize_due_date(payload.get("due_date"))
         return {"summary": summary, "due_date": due_date}
@@ -948,7 +1045,7 @@ Rules:
 
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash-lite",
             contents=prompt,
         )
 
@@ -969,7 +1066,7 @@ Rules:
         return None
 
 
-def generate_summary_from_pdf(pdf_path, title, category, website_name, api_key):
+def generate_summary_from_pdf(pdf_path, source_url, title, category, website_name, api_key):
     """
     Generate summary from PDF using Python extraction first, fallback to Gemini.
     Returns {"summary": str, "due_date": str} on success, None on failure.
@@ -991,8 +1088,8 @@ def generate_summary_from_pdf(pdf_path, title, category, website_name, api_key):
     
     # Step 2: Fallback to Gemini API
     if api_key:
-        print(f"  Attempting Gemini API fallback for row (title={title})")
-        result = generate_summary_from_gemini_fallback(pdf_path, title, category, website_name, api_key)
+        print(f"  Attempting Gemini URL-only fallback for row (title={title})")
+        result = generate_summary_from_gemini_url_fallback(source_url, title, category, website_name, api_key)
         if result:
             print(f"  ✓ Summary generated via Gemini API")
             return result
@@ -1019,20 +1116,30 @@ def generate_summary_from_detail_page(detail_url, title, category, website_name,
     else:
         print("  ✗ HTML text extraction failed/minimal, trying Gemini fallback")
 
-    if api_key and extracted_text:
-        result = generate_summary_from_gemini_text_fallback(
-            extracted_text,
-            title,
-            category,
-            website_name,
-            detail_url,
-            api_key,
-        )
+    # The extracted-text Gemini fallback is intentionally kept here for reference,
+    # but disabled so Gemini only receives the URL and not extracted page text.
+    # if api_key and extracted_text:
+    #     result = generate_summary_from_gemini_text_fallback(
+    #         extracted_text,
+    #         title,
+    #         category,
+    #         website_name,
+    #         detail_url,
+    #         api_key,
+    #     )
+    #     if result:
+    #         print("  ✓ Summary generated via Gemini text fallback")
+    #         return result
+    #     print("  ✗ Gemini text fallback also failed")
+    # elif not api_key:
+    if api_key:
+        print("  Attempting Gemini URL-only fallback for row (detail page)")
+        result = generate_summary_from_gemini_url_fallback(detail_url, title, category, website_name, api_key)
         if result:
-            print("  ✓ Summary generated via Gemini text fallback")
+            print("  ✓ Summary generated via Gemini API")
             return result
-        print("  ✗ Gemini text fallback also failed")
-    elif not api_key:
+        print("  ✗ Gemini API fallback also failed")
+    else:
         print("  ✗ GEMINI_API_KEY not set, skipping Gemini fallback")
 
     return None
@@ -1740,6 +1847,14 @@ def process_all_pdfs():
         row_id = row["id"]
         website_name = row["website_name"]
         title = row["title"]
+        start_url = (row.get("start_url") or "").strip()
+        normalized_source_url = (source_url or "").strip()
+
+        if start_url and normalized_source_url == start_url:
+            print(f"\nSkipping Gemini for row {row_id}: source URL matches start_url")
+            update_pdf_processed(row_id, "Summary not available.", "")
+            processed_count += 1
+            continue
         
         print(f"\nProcessing row {row_id}: {title[:60]}...")
 
@@ -1756,6 +1871,7 @@ def process_all_pdfs():
             pdf_folder = os.path.dirname(local_pdf)
             result = generate_summary_from_pdf(
                 local_pdf,
+                source_url,
                 title,
                 row["category"],
                 website_name,
@@ -1771,6 +1887,12 @@ def process_all_pdfs():
             )
         
         if result:
+            if result.get("no_summary"):
+                update_pdf_processed(row_id, "Summary not available.", "")
+                print(f"  ✓ Marked row {row_id} as processed with summary unavailable")
+                processed_count += 1
+                continue
+
             if not is_meaningful_summary(result.get("summary")):
                 print(f"  ✗ Generated summary quality check failed for row {row_id} (will retry next run)")
                 failed_count += 1

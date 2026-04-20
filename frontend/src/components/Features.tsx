@@ -81,19 +81,19 @@ export const Features = () => {
             <div className="grid gap-8 lg:grid-cols-3">
             {/* Card 1: Streamline Compliance */}
             <FadeIn delay={0.1}>
-            <div className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md hover:-translate-y-1 duration-300 h-full">
-              <div className="relative mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-[0_18px_40px_-24px_rgba(15,23,42,0.28)] ring-1 ring-primary/15">
+            <div className="mx-auto flex h-full w-full max-w-[28rem] flex-col items-center rounded-2xl border border-border/40 bg-white p-6 shadow-sm transition-shadow duration-300 hover:-translate-y-1 hover:shadow-md sm:p-8 lg:items-start lg:p-10 lg:text-left">
+              <div className="relative mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-[0_18px_40px_-24px_rgba(15,23,42,0.28)] ring-1 ring-primary/15 sm:mb-8">
                 <ShieldCheck className="h-8 w-8" />
                 <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white shadow-sm ring-4 ring-white">
                   <Check className="h-3.5 w-3.5" />
                 </div>
               </div>
-              <h4 className="text-2xl font-bold text-text-main mb-4">Streamline Compliance</h4>
-              <p className="text-text-muted leading-relaxed text-lg mb-8">
+              <h4 className="mb-4 text-center text-2xl font-bold text-text-main lg:text-left">Streamline Compliance</h4>
+              <p className="mb-8 text-center text-lg leading-relaxed text-text-muted lg:text-left">
                 Simplify complex regulatory workflows with automated tracking and unified dashboards designed for efficiency.
               </p>
               {/* Visual Placeholder for Dashboard UI */}
-              <div className="mt-auto flex h-44 w-full flex-col gap-4 rounded-xl border border-slate-100 bg-[linear-gradient(180deg,_rgba(248,250,252,1)_0%,_rgba(241,245,249,0.72)_100%)] p-6">
+              <div className="mt-auto flex h-40 w-full max-w-[24rem] flex-col gap-4 rounded-xl border border-slate-100 bg-[linear-gradient(180deg,_rgba(248,250,252,1)_0%,_rgba(241,245,249,0.72)_100%)] p-4 sm:h-44 sm:p-6">
                 <div className="h-3 w-2/3 rounded-full bg-slate-200" />
                 <div className="h-3 w-full rounded-full bg-slate-100" />
                 <div className="flex flex-1 items-center justify-center gap-3">
@@ -120,16 +120,16 @@ export const Features = () => {
 
             {/* Card 2: Actionable Insights */}
             <FadeIn delay={0.2}>
-            <div className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md hover:-translate-y-1 duration-300 h-full">
-              <div className="w-14 h-14 bg-green-50 text-green-600 rounded-xl flex items-center justify-center mb-8">
+            <div className="mx-auto flex h-full w-full max-w-[28rem] flex-col items-center rounded-2xl border border-border/40 bg-white p-6 shadow-sm transition-shadow duration-300 hover:-translate-y-1 hover:shadow-md sm:p-8 lg:items-start lg:p-10 lg:text-left">
+              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-green-50 text-green-600 sm:mb-8">
                 <BarChart3 className="w-7 h-7" />
               </div>
-              <h4 className="text-2xl font-bold text-text-main mb-4">Actionable Insights</h4>
-              <p className="text-text-muted leading-relaxed text-lg mb-8">
+              <h4 className="mb-4 text-center text-2xl font-bold text-text-main lg:text-left">Actionable Insights</h4>
+              <p className="mb-8 text-center text-lg leading-relaxed text-text-muted lg:text-left">
                 Transforms dense regulatory documents into AI-generated summaries and prioritized compliance deadlines.
               </p>
               {/* Visual Placeholder for Bar Chart */}
-              <div className="mt-auto w-full h-44 bg-slate-50 rounded-xl border border-slate-100 p-8 flex items-end gap-3">
+              <div className="mt-auto flex h-40 w-full max-w-[24rem] items-end gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4 sm:h-44 sm:p-8">
                 <div className="flex-1 bg-primary/20 h-[40%] rounded-t-md transition-all hover:h-[50%]" />
                 <div className="flex-1 bg-primary/50 h-[65%] rounded-t-md transition-all hover:h-[75%]" />
                 <div className="flex-1 bg-primary/100 h-[90%] rounded-t-md transition-all hover:h-[100%]" />
@@ -140,16 +140,16 @@ export const Features = () => {
 
             {/* Card 3: Global Coverage */}
             <FadeIn delay={0.3}>
-            <div className="bg-white p-10 rounded-2xl shadow-sm border border-border/40 flex flex-col items-start transition-shadow hover:shadow-md hover:-translate-y-1 duration-300 h-full">
-              <div className="w-14 h-14 bg-sky-50 text-green-600 rounded-xl flex items-center justify-center mb-8">
+            <div className="mx-auto flex h-full w-full max-w-[28rem] flex-col items-center rounded-2xl border border-border/40 bg-white p-6 shadow-sm transition-shadow duration-300 hover:-translate-y-1 hover:shadow-md sm:p-8 lg:items-start lg:p-10 lg:text-left">
+              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-sky-50 text-green-600 sm:mb-8">
                 <Globe className="w-7 h-7" />
               </div>
-              <h4 className="text-2xl font-bold text-text-main mb-4">Global Coverage</h4>
-              <p className="text-text-muted leading-relaxed text-lg mb-8">
+              <h4 className="mb-4 text-center text-2xl font-bold text-text-main lg:text-left">Global Coverage</h4>
+              <p className="mb-8 text-center text-lg leading-relaxed text-text-muted lg:text-left">
                 Monitor compliance requirements across jurisdictions with our interconnected global network.
               </p>
               {/* Visual Placeholder for Global Network */}
-              <div className="mt-auto w-full h-44 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center relative overflow-hidden">
+              <div className="relative mt-auto flex h-40 w-full max-w-[24rem] items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50 sm:h-44">
                 <div className="relative w-24 h-24">
                   <Globe className="w-full h-full text-primary/50" />
                   <motion.div

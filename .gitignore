@@ -24,6 +24,15 @@ backend/reports/captures/
 # Docker artifacts (project no longer uses local Dockerfile)
 backend/Dockerfile
 
+# Removed backend local-only scripts/artifacts
+backend/scripts/run_website_scraper.sh
+backend/tmp_cbic_audit.py
+backend/tmp_cbic_check.py
+backend/output.log
+backend/tmp_bci_extract_python_apply_output.log
+backend/deploy/
+backend/logs/
+
 # Logs and OS files
 *.log
 .DS_Store

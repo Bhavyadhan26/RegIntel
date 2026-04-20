@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -12,7 +12,7 @@ export const Login = () => {
   const DASHBOARD_INFO_MODAL_KEY = "dashboard_info_modal_pending";
   const navigate = useNavigate();
   const location = useLocation();
-  const { setUser } = useAuth();
+  const { setUser, isAuthenticated, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -21,6 +21,10 @@ export const Login = () => {
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
+
+  if (!isLoading && isAuthenticated) {
+    return <Navigate to="/profile" replace />;
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

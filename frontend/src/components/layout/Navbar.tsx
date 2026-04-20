@@ -3,16 +3,22 @@ import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { LogIn } from "lucide-react";
+import { User } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const { isAuthenticated, isLoading } = useAuth();
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 20);
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
+
+    const ctaPath = isAuthenticated ? "/profile" : "/login";
+    const ctaLabel = isAuthenticated ? "My Account" : "Login";
 
     return (
         <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? "bg-white/80 backdrop-blur-md border-b border-border shadow-sm" : "bg-transparent"
@@ -33,12 +39,14 @@ export const Navbar = () => {
 
                 {/* Desktop CTA */}
                 <div className="hidden md:flex items-center gap-4">
-                    <Link to="/login">
-                        <Button size="lg" className="gap-2">
-                            <LogIn size={18} />
-                            Login
-                        </Button>
-                    </Link>
+                    {!isLoading && (
+                        <Link to={ctaPath}>
+                            <Button size="lg" className="gap-2">
+                                {isAuthenticated ? <User size={18} /> : <LogIn size={18} />}
+                                {ctaLabel}
+                            </Button>
+                        </Link>
+                    )}
                 </div>
 
                 {/* Mobile Menu Toggle */}
@@ -54,12 +62,14 @@ export const Navbar = () => {
                     <a href="#impact" className="block text-base font-medium text-text-main py-2 uppercase" onClick={() => setIsOpen(false)}>IMPACT</a>
                     <a href="#about" className="block text-base font-medium text-text-main py-2 uppercase" onClick={() => setIsOpen(false)}>ABOUT</a>
                     <div className="pt-4 border-t border-border space-y-3">
-                        <Link to="/login" className="block w-full" onClick={() => setIsOpen(false)}>
-                            <Button size="lg" className="w-full gap-2">
-                                <LogIn size={18} />
-                                Login
-                            </Button>
-                        </Link>
+                        {!isLoading && (
+                            <Link to={ctaPath} className="block w-full" onClick={() => setIsOpen(false)}>
+                                <Button size="lg" className="w-full gap-2">
+                                    {isAuthenticated ? <User size={18} /> : <LogIn size={18} />}
+                                    {ctaLabel}
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
             )}

@@ -1,4 +1,5 @@
 import asyncio
+from collections import deque
 import html
 import json
 import os
@@ -27,6 +28,160 @@ def _required_env(name):
 
 _conn: pymysql.connections.Connection | None = None
 FORCE_FULL_SCAN = False
+
+
+def _as_int_env(name, default):
+    raw = (os.getenv(name, str(default)) or "").strip()
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+class GeminiKeyPool:
+    def __init__(self, keys, rpm_limit, rpd_limit):
+        self.rpm_limit = max(rpm_limit, 1)
+        self.rpd_limit = max(rpd_limit, 1)
+        self._rr_index = 0
+        self._states = [
+            {
+                "key": key,
+                "minute_calls": deque(),
+                "daily_calls": 0,
+                "quota_blocked": False,
+            }
+            for key in keys
+        ]
+
+    def _evict_old_calls(self, state, now_ts):
+        minute_calls = state["minute_calls"]
+        while minute_calls and now_ts - minute_calls[0] >= 60:
+            minute_calls.popleft()
+
+    def acquire_key(self):
+        if not self._states:
+            return None, None
+
+        now_ts = time.time()
+        total = len(self._states)
+        for offset in range(total):
+            idx = (self._rr_index + offset) % total
+            state = self._states[idx]
+
+            if state["quota_blocked"]:
+                continue
+            if state["daily_calls"] >= self.rpd_limit:
+                state["quota_blocked"] = True
+                continue
+
+            self._evict_old_calls(state, now_ts)
+            if len(state["minute_calls"]) >= self.rpm_limit:
+                continue
+
+            state["minute_calls"].append(now_ts)
+            state["daily_calls"] += 1
+            self._rr_index = (idx + 1) % total
+            return idx, state["key"]
+
+        return None, None
+
+    def block_key_for_quota(self, idx):
+        if idx is None:
+            return
+        self._states[idx]["quota_blocked"] = True
+
+    def has_available_keys(self):
+        now_ts = time.time()
+        for state in self._states:
+            if state["quota_blocked"]:
+                continue
+            if state["daily_calls"] >= self.rpd_limit:
+                continue
+            self._evict_old_calls(state, now_ts)
+            if len(state["minute_calls"]) < self.rpm_limit:
+                return True
+        return False
+
+    def stats(self):
+        return [
+            {
+                "key_index": idx + 1,
+                "daily_calls": state["daily_calls"],
+                "minute_calls_window": len(state["minute_calls"]),
+                "quota_blocked": state["quota_blocked"],
+            }
+            for idx, state in enumerate(self._states)
+        ]
+
+
+def _build_gemini_key_pool():
+    raw_multi = (os.getenv("GEMINI_API_KEYS", "") or "").strip()
+    keys = [k.strip() for k in raw_multi.split(",") if k.strip()]
+
+    single_key = (os.getenv("GEMINI_API_KEY", "") or "").strip()
+    if single_key and single_key not in keys:
+        keys.insert(0, single_key)
+
+    unique_keys = []
+    seen = set()
+    for key in keys:
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_keys.append(key)
+
+    if not unique_keys:
+        return None
+
+    rpm_limit = _as_int_env("GEMINI_KEY_RPM_LIMIT", 15)
+    rpd_limit = _as_int_env("GEMINI_KEY_RPD_LIMIT", 1000)
+    print(f"Gemini key pool: {len(unique_keys)} key(s), per-key limits {rpm_limit} RPM / {rpd_limit} RPD")
+    return GeminiKeyPool(unique_keys, rpm_limit=rpm_limit, rpd_limit=rpd_limit)
+
+
+def _is_gemini_quota_or_rate_error(exc):
+    message = str(exc).lower()
+    markers = [
+        "resource_exhausted",
+        "quota exceeded",
+        "rate limit",
+        "too many requests",
+        "429",
+    ]
+    return any(marker in message for marker in markers)
+
+
+def _gemini_generate_with_key_pool(prompt, model, key_pool, row_title):
+    if key_pool is None:
+        return None
+
+    try:
+        import google.genai as genai
+    except Exception as exc:
+        print(f"Gemini SDK import failed: {exc}")
+        return None
+
+    attempts = 0
+    max_attempts = len(key_pool.stats())
+    while attempts < max_attempts:
+        idx, key = key_pool.acquire_key()
+        if key is None:
+            break
+
+        attempts += 1
+        try:
+            client = genai.Client(api_key=key)
+            return client.models.generate_content(model=model, contents=prompt)
+        except Exception as exc:
+            if _is_gemini_quota_or_rate_error(exc):
+                key_pool.block_key_for_quota(idx)
+                print(f"Gemini key #{idx + 1} quota/rate limited for row (title={row_title}); trying next key")
+                continue
+
+            print(f"Gemini call failed on key #{idx + 1} for row (title={row_title}): {exc}; trying next key")
+            continue
+
+    return None
 
 
 def get_conn() -> pymysql.connections.Connection:
@@ -392,6 +547,25 @@ def seed_sources_and_selectors():
     conn.commit()
 
 
+def should_seed_sources_and_selectors(force_seed=False):
+    """Seed config only when explicitly requested or when config tables are empty."""
+    if force_seed:
+        return True
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) AS total FROM Website_Scraping_Sources")
+    src_row = cur.fetchone() or {}
+    sources_total = int(src_row.get("total") or 0)
+
+    cur.execute("SELECT COUNT(*) AS total FROM Website_Scraping_Selectors")
+    sel_row = cur.fetchone() or {}
+    selectors_total = int(sel_row.get("total") or 0)
+
+    return sources_total == 0 or selectors_total == 0
+
+
 def get_source(website_name):
     conn = get_conn()
     cur = conn.cursor()
@@ -498,10 +672,19 @@ def get_pending_pdf_rows():
     cur = conn.cursor()
     cur.execute(
         """
-                SELECT id, website_name, title, category, pdf_url, detail_url, start_url
-        FROM Website_Scraping_data
-        WHERE (pdf_url IS NOT NULL OR detail_url IS NOT NULL)
-          AND (processed = 0 OR summary IS NULL)
+                SELECT
+                        d.id,
+                        d.website_name,
+                        d.title,
+                        d.category,
+                        d.pdf_url,
+                        d.detail_url,
+                        COALESCE(s.start_url, '') AS start_url
+                FROM Website_Scraping_data d
+                LEFT JOIN Website_Scraping_Sources s
+                    ON UPPER(d.website_name) = UPPER(s.website_name)
+                WHERE (d.pdf_url IS NOT NULL OR d.detail_url IS NOT NULL)
+                    AND (d.processed = 0 OR d.summary IS NULL)
         """
     )
     rows = cur.fetchall()
@@ -978,11 +1161,9 @@ def generate_summary_from_python_extraction(text, title, category, website_name)
         return None
 
 
-def generate_summary_from_gemini_url_fallback(source_url, title, category, website_name, api_key):
+def generate_summary_from_gemini_url_fallback(source_url, title, category, website_name, key_pool):
     """Fallback method: Use Gemini API with only the source URL when Python extraction fails."""
     try:
-        import google.genai as genai
-
         prompt = f"""Return JSON only (no markdown) using ONLY accessible content from this URL: {source_url}
     JSON shape: {{"summary": "2-3 sentences", "due_date": "exact due/compliance/last submission date if explicitly present, otherwise empty string"}}
     Rules:
@@ -990,11 +1171,14 @@ def generate_summary_from_gemini_url_fallback(source_url, title, category, websi
     Ground summary only in document text; do not infer from URL/metadata.
     If no explicit due date is found, due_date must be ""."""
 
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
+        response = _gemini_generate_with_key_pool(
+            prompt=prompt,
             model="gemini-2.5-flash-lite",
-            contents=prompt,
+            key_pool=key_pool,
+            row_title=title,
         )
+        if response is None:
+            return None
 
         payload = extract_json_payload(response.text)
         if not payload:
@@ -1016,11 +1200,9 @@ def generate_summary_from_gemini_url_fallback(source_url, title, category, websi
         return None
 
 
-def generate_summary_from_gemini_text_fallback(source_text, title, category, website_name, source_url, api_key):
+def generate_summary_from_gemini_text_fallback(source_text, title, category, website_name, source_url, key_pool):
     """Fallback method: Use Gemini API on extracted text when local extraction fails to summarize well."""
     try:
-        import google.genai as genai
-
         prompt = f"""You are analyzing an official notification document.
 
 Website: {website_name}
@@ -1043,11 +1225,14 @@ Rules:
 3. If the document has no explicit due/compliance deadline, set due_date to "".
 4. Do not include markdown fences or extra commentary."""
 
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
+        response = _gemini_generate_with_key_pool(
+            prompt=prompt,
             model="gemini-2.5-flash-lite",
-            contents=prompt,
+            key_pool=key_pool,
+            row_title=title,
         )
+        if response is None:
+            return None
 
         payload = extract_json_payload(response.text)
         if not payload:
@@ -1066,7 +1251,7 @@ Rules:
         return None
 
 
-def generate_summary_from_pdf(pdf_path, source_url, title, category, website_name, api_key):
+def generate_summary_from_pdf(pdf_path, source_url, title, category, website_name, key_pool):
     """
     Generate summary from PDF using Python extraction first, fallback to Gemini.
     Returns {"summary": str, "due_date": str} on success, None on failure.
@@ -1087,22 +1272,22 @@ def generate_summary_from_pdf(pdf_path, source_url, title, category, website_nam
         print(f"  ✗ Python text extraction failed or returned minimal text, trying Gemini fallback")
     
     # Step 2: Fallback to Gemini API
-    if api_key:
+    if key_pool and key_pool.has_available_keys():
         print(f"  Attempting Gemini URL-only fallback for row (title={title})")
-        result = generate_summary_from_gemini_url_fallback(source_url, title, category, website_name, api_key)
+        result = generate_summary_from_gemini_url_fallback(source_url, title, category, website_name, key_pool)
         if result:
             print(f"  ✓ Summary generated via Gemini API")
             return result
         else:
             print(f"  ✗ Gemini API fallback also failed")
     else:
-        print(f"  ✗ GEMINI_API_KEY not set, skipping Gemini fallback")
+        print(f"  ✗ No Gemini key currently available, skipping Gemini fallback")
     
     # Both methods failed
     return None
 
 
-def generate_summary_from_detail_page(detail_url, title, category, website_name, api_key):
+def generate_summary_from_detail_page(detail_url, title, category, website_name, key_pool):
     """Generate summary from HTML detail page when no real PDF is available."""
     print(f"  Attempting HTML extraction for row (title={title})")
     extracted_text = extract_text_from_html_page(detail_url)
@@ -1132,15 +1317,15 @@ def generate_summary_from_detail_page(detail_url, title, category, website_name,
     #         return result
     #     print("  ✗ Gemini text fallback also failed")
     # elif not api_key:
-    if api_key:
+    if key_pool and key_pool.has_available_keys():
         print("  Attempting Gemini URL-only fallback for row (detail page)")
-        result = generate_summary_from_gemini_url_fallback(detail_url, title, category, website_name, api_key)
+        result = generate_summary_from_gemini_url_fallback(detail_url, title, category, website_name, key_pool)
         if result:
             print("  ✓ Summary generated via Gemini API")
             return result
         print("  ✗ Gemini API fallback also failed")
     else:
-        print("  ✗ GEMINI_API_KEY not set, skipping Gemini fallback")
+        print("  ✗ No Gemini key currently available, skipping Gemini fallback")
 
     return None
 
@@ -1828,7 +2013,12 @@ async def scrape_all_sites():
 
 def process_all_pdfs():
     """Process pending records from PDF URLs or detail URLs, save summaries, and cleanup temp files."""
-    api_key = os.getenv("GEMINI_API_KEY")
+    key_pool = _build_gemini_key_pool()
+    icmai_skip_urls = (
+        "https://icmai.in/ClntAbout/Notifications",
+        "https://icmai.in/ClntAbout/Tender",
+        "https://icmai.in/ClntAbout/Events",
+    )
     
     rows = get_pending_pdf_rows()
     if not rows:
@@ -1840,7 +2030,9 @@ def process_all_pdfs():
     failed_count = 0
     
     for row in rows:
-        source_url = row.get("pdf_url") or row.get("detail_url")
+        pdf_url = (row.get("pdf_url") or "").strip()
+        detail_url = (row.get("detail_url") or "").strip()
+        source_url = pdf_url or detail_url
         if not source_url:
             continue
 
@@ -1848,11 +2040,23 @@ def process_all_pdfs():
         website_name = row["website_name"]
         title = row["title"]
         start_url = (row.get("start_url") or "").strip()
-        normalized_source_url = (source_url or "").strip()
+        normalized_start_url = start_url.rstrip("/")
+        normalized_detail_url = detail_url.rstrip("/")
+        normalized_pdf_url = pdf_url.rstrip("/")
 
-        if start_url and normalized_source_url == start_url:
-            print(f"\nSkipping Gemini for row {row_id}: source URL matches start_url")
-            update_pdf_processed(row_id, "Summary not available.", "")
+        if not pdf_url and normalized_start_url and normalized_detail_url == normalized_start_url:
+            print(f"\nSkipping Gemini for row {row_id}: detail URL matches start_url")
+            update_pdf_processed(row_id, "No summary available", "")
+            processed_count += 1
+            continue
+
+        if (
+            website_name.strip().upper() == "ICMAI"
+            and not pdf_url
+            and any(skip_url.rstrip("/") in normalized_detail_url for skip_url in icmai_skip_urls)
+        ):
+            print(f"\nSkipping Gemini for row {row_id}: ICMAI detail URL is a category page")
+            update_pdf_processed(row_id, "No summary available", "")
             processed_count += 1
             continue
         
@@ -1871,11 +2075,11 @@ def process_all_pdfs():
             pdf_folder = os.path.dirname(local_pdf)
             result = generate_summary_from_pdf(
                 local_pdf,
-                source_url,
+                pdf_url,
                 title,
                 row["category"],
                 website_name,
-                api_key,
+                key_pool,
             )
         else:
             result = generate_summary_from_detail_page(
@@ -1883,12 +2087,12 @@ def process_all_pdfs():
                 title,
                 row["category"],
                 website_name,
-                api_key,
+                key_pool,
             )
         
         if result:
             if result.get("no_summary"):
-                update_pdf_processed(row_id, "Summary not available.", "")
+                update_pdf_processed(row_id, "No summary available", "")
                 print(f"  ✓ Marked row {row_id} as processed with summary unavailable")
                 processed_count += 1
                 continue
@@ -1954,6 +2158,8 @@ def process_all_pdfs():
     print(f"Total processed: {processed_count}")
     print(f"Total failed (will retry): {failed_count}")
     print(f"Total rows: {len(rows)}")
+    if key_pool:
+        print(f"Gemini key usage stats: {key_pool.stats()}")
 
 
 
@@ -1971,15 +2177,30 @@ class Command(BaseCommand):
             action="store_true",
             help="Skip PDF/detail summary processing after scraping completes.",
         )
+        parser.add_argument(
+            "--seed",
+            action="store_true",
+            help="Force reseeding Website_Scraping_Sources and Website_Scraping_Selectors from code defaults.",
+        )
 
     def handle(self, *args, **kwargs):
         global FORCE_FULL_SCAN
         FORCE_FULL_SCAN = bool(kwargs.get("full_scan"))
         skip_summary = bool(kwargs.get("skip_summary"))
+        force_seed = bool(kwargs.get("seed"))
 
-        print("Initializing unified tables and selector configuration...")
+        print("Initializing unified tables...")
         init_tables()
-        seed_sources_and_selectors()
+
+        if should_seed_sources_and_selectors(force_seed=force_seed):
+            if force_seed:
+                print("Forced selector/source reseed requested via --seed")
+            else:
+                print("Sources/selectors missing or empty; seeding defaults")
+            seed_sources_and_selectors()
+        else:
+            print("Using existing sources/selectors from database (no reseed)")
+
         print("DB setup complete\n")
 
         if FORCE_FULL_SCAN:

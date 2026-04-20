@@ -115,9 +115,19 @@ export const Dashboard = () => {
   const [deadlines, setDeadlines] = useState<Array<{ title: string; date: string; urgent: boolean; url: string }>>([]);
   const backWarnedRef = useRef(false);
   const headerRef = useRef<HTMLDivElement | null>(null);
-  const timestampRef = useRef<HTMLDivElement | null>(null);
+  const timestampDesktopRef = useRef<HTMLDivElement | null>(null);
+  const timestampMobileRef = useRef<HTMLDivElement | null>(null);
   const statsRef = useRef<HTMLDivElement | null>(null);
   const deadlinesRef = useRef<HTMLDivElement | null>(null);
+  const formattedLastUpdated = lastUpdated
+    ? new Date(lastUpdated).toLocaleString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+    : 'N/A';
   const userDisplayName =
     user?.full_name?.trim() ||
     user?.email?.split("@")[0] ||
@@ -297,6 +307,7 @@ export const Dashboard = () => {
 
   useEffect(() => {
     if (showInfoModal || showBackWarningModal) return;
+    if (window.innerWidth < 768) return;
 
     const hasSeenTour = localStorage.getItem(dashboardTourSeenKey) === "1";
     if (hasSeenTour) return;
@@ -305,9 +316,30 @@ export const Dashboard = () => {
     setShowDashboardTour(true);
   }, [dashboardTourSeenKey, showInfoModal, showBackWarningModal]);
 
+  useEffect(() => {
+    const syncTourWithViewport = () => {
+      if (window.innerWidth < 768) {
+        setShowDashboardTour(false);
+      }
+    };
+
+    syncTourWithViewport();
+    window.addEventListener("resize", syncTourWithViewport);
+    return () => window.removeEventListener("resize", syncTourWithViewport);
+  }, []);
+
+  const getVisibleElement = (elements: Array<HTMLElement | null>): HTMLElement | null => {
+    for (const el of elements) {
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) return el;
+    }
+    return null;
+  };
+
   const getTourTargetElement = (target: TourTarget): HTMLElement | null => {
     if (target === "timestamp") {
-      return timestampRef.current ?? headerRef.current;
+      return getVisibleElement([timestampMobileRef.current, timestampDesktopRef.current, headerRef.current]);
     }
     if (target === "stats") {
       return statsRef.current;
@@ -325,9 +357,10 @@ export const Dashboard = () => {
       if (!targetEl) {
         setTourHighlightStyle(null);
         setTourCardStyle({
-          left: 16,
-          right: 16,
+          left: '50%',
           bottom: 16,
+          width: 'min(calc(100vw - 32px), 420px)',
+          transform: 'translateX(-50%)',
         });
         return;
       }
@@ -349,10 +382,12 @@ export const Dashboard = () => {
 
       const mobile = window.innerWidth < 768;
       if (mobile) {
+        setTourHighlightStyle(null);
         setTourCardStyle({
-          left: 16,
-          right: 16,
+          left: '50%',
           bottom: 16,
+          width: 'min(calc(100vw - 32px), 420px)',
+          transform: 'translateX(-50%)',
         });
         return;
       }
@@ -469,7 +504,7 @@ export const Dashboard = () => {
 
           <div
             className="absolute rounded-2xl bg-white shadow-2xl border border-gray-100 p-5 sm:p-6"
-            style={tourCardStyle ?? { left: 16, right: 16, bottom: 16 }}
+            style={tourCardStyle ?? { left: '50%', bottom: 16, width: 'min(calc(100vw - 32px), 420px)', transform: 'translateX(-50%)' }}
           >
             <div className="flex items-center justify-between gap-3 mb-2">
               <span className="text-xs font-bold uppercase tracking-wide text-primary">
@@ -529,20 +564,19 @@ export const Dashboard = () => {
             onMenuClick={openSidebar}
             isSidebarOpen={isSidebarOpen}
             rightContent={
-              <div ref={timestampRef} className="hidden sm:flex items-center text-xs font-semibold text-text-muted bg-gray-100/80 border border-gray-200 px-3 py-1.5 rounded-full whitespace-nowrap">
+              <div ref={timestampDesktopRef} className="hidden sm:flex items-center text-xs font-semibold text-text-muted bg-gray-100/80 border border-gray-200 px-3 py-1.5 rounded-full whitespace-nowrap">
                 <Clock size={12} className="mr-1.5" />
-                Last updated: {lastUpdated
-                  ? new Date(lastUpdated).toLocaleString('en-US', {
-                    month: 'short',
-                    day: '2-digit',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  })
-                  : 'N/A'}
+                Last updated: {formattedLastUpdated}
               </div>
             }
           />
+
+          <div className="mb-5 sm:hidden">
+            <div ref={timestampMobileRef} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100/80 px-3 py-1.5 text-xs font-semibold text-text-muted shadow-sm">
+              <Clock size={12} />
+              Last updated: {formattedLastUpdated}
+            </div>
+          </div>
 
           {summaryError && (
             <div className="mb-5 text-sm text-red-600">{summaryError}</div>

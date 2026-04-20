@@ -1,4 +1,4 @@
-import csvRawData from '../../Data.csv?raw';
+const csvRawData = '';
 
 export type PublicationType = 'Notice' | 'Circular' | 'Amendment' | 'Tender';
 

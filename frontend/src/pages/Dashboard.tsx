@@ -100,6 +100,7 @@ export const Dashboard = () => {
   const [deadlinesPage, setDeadlinesPage] = useState(1);
   const [deadlinesHasMore, setDeadlinesHasMore] = useState(false);
   const [showDashboardTour, setShowDashboardTour] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(() => window.innerWidth < 768);
   const [tourStepIndex, setTourStepIndex] = useState(0);
   const [tourHighlightStyle, setTourHighlightStyle] = useState<CSSProperties | null>(null);
   const [tourCardStyle, setTourCardStyle] = useState<CSSProperties | null>(null);
@@ -307,7 +308,6 @@ export const Dashboard = () => {
 
   useEffect(() => {
     if (showInfoModal || showBackWarningModal) return;
-    if (window.innerWidth < 768) return;
 
     const hasSeenTour = localStorage.getItem(dashboardTourSeenKey) === "1";
     if (hasSeenTour) return;
@@ -317,15 +317,13 @@ export const Dashboard = () => {
   }, [dashboardTourSeenKey, showInfoModal, showBackWarningModal]);
 
   useEffect(() => {
-    const syncTourWithViewport = () => {
-      if (window.innerWidth < 768) {
-        setShowDashboardTour(false);
-      }
+    const syncViewport = () => {
+      setIsMobileViewport(window.innerWidth < 768);
     };
 
-    syncTourWithViewport();
-    window.addEventListener("resize", syncTourWithViewport);
-    return () => window.removeEventListener("resize", syncTourWithViewport);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
   const getVisibleElement = (elements: Array<HTMLElement | null>): HTMLElement | null => {
@@ -348,6 +346,12 @@ export const Dashboard = () => {
   };
 
   useEffect(() => {
+    if (isMobileViewport) {
+      setTourHighlightStyle(null);
+      setTourCardStyle(null);
+      return;
+    }
+
     if (!showDashboardTour) return;
 
     const updateTourPosition = () => {
@@ -420,7 +424,7 @@ export const Dashboard = () => {
       window.removeEventListener("resize", updateTourPosition);
       window.removeEventListener("scroll", updateTourPosition);
     };
-  }, [showDashboardTour, tourStepIndex]);
+  }, [showDashboardTour, tourStepIndex, isMobileViewport]);
 
   const handleCloseTour = () => {
     localStorage.setItem(dashboardTourSeenKey, "1");
@@ -495,49 +499,81 @@ export const Dashboard = () => {
         <div className="fixed inset-0 z-[115] pointer-events-auto">
           <div className="absolute inset-0 bg-black/60" />
 
-          {tourHighlightStyle && (
-            <div
-              className="absolute rounded-2xl border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.45)] transition-all duration-300"
-              style={tourHighlightStyle}
-            />
+          {isMobileViewport ? (
+            <div className="absolute inset-0 z-[116] overflow-y-auto px-4 py-6">
+              <div className="mx-auto w-full max-w-xl rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl">
+                <div className="mb-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-primary">Website Tour</p>
+                  <h3 className="mt-1 text-xl font-bold text-text-main">Quick Dashboard Walkthrough</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {TOUR_STEPS.map((step, index) => (
+                    <div key={step.target} className="rounded-2xl border border-gray-100 bg-slate-50/70 p-4">
+                      <p className="mb-1 text-xs font-bold uppercase tracking-wide text-primary">Step {index + 1}</p>
+                      <h4 className="mb-1 text-base font-bold text-text-main">{step.title}</h4>
+                      <p className="text-sm leading-relaxed text-text-muted">{step.description}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={handleCloseTour}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+                  >
+                    Got it
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {tourHighlightStyle && (
+                <div
+                  className="absolute rounded-2xl border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.45)] transition-all duration-300"
+                  style={tourHighlightStyle}
+                />
+              )}
+
+              <div
+                className="absolute rounded-2xl bg-white shadow-2xl border border-gray-100 p-5 sm:p-6"
+                style={tourCardStyle ?? { left: '50%', bottom: 16, width: 'min(calc(100vw - 32px), 420px)', transform: 'translateX(-50%)' }}
+              >
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <span className="text-xs font-bold uppercase tracking-wide text-primary">
+                    Step {tourStepIndex + 1} of {TOUR_STEPS.length}
+                  </span>
+                  <button
+                    onClick={handleCloseTour}
+                    className="text-xs font-semibold text-text-muted hover:text-text-main"
+                  >
+                    Skip Tour
+                  </button>
+                </div>
+
+                <h3 className="text-lg font-bold text-text-main mb-2">{TOUR_STEPS[tourStepIndex].title}</h3>
+                <p className="text-sm text-text-muted leading-relaxed mb-5">
+                  {TOUR_STEPS[tourStepIndex].description}
+                </p>
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={handleCloseTour}
+                    className="px-3 py-2 rounded-lg text-sm font-semibold text-text-muted hover:bg-gray-100"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={handleNextTourStep}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary/90"
+                  >
+                    {tourStepIndex === TOUR_STEPS.length - 1 ? "Finish" : "Next"}
+                  </button>
+                </div>
+              </div>
+            </>
           )}
-
-          <div
-            className="absolute rounded-2xl bg-white shadow-2xl border border-gray-100 p-5 sm:p-6"
-            style={tourCardStyle ?? { left: '50%', bottom: 16, width: 'min(calc(100vw - 32px), 420px)', transform: 'translateX(-50%)' }}
-          >
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wide text-primary">
-                Step {tourStepIndex + 1} of {TOUR_STEPS.length}
-              </span>
-              <button
-                onClick={handleCloseTour}
-                className="text-xs font-semibold text-text-muted hover:text-text-main"
-              >
-                Skip Tour
-              </button>
-            </div>
-
-            <h3 className="text-lg font-bold text-text-main mb-2">{TOUR_STEPS[tourStepIndex].title}</h3>
-            <p className="text-sm text-text-muted leading-relaxed mb-5">
-              {TOUR_STEPS[tourStepIndex].description}
-            </p>
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                onClick={handleCloseTour}
-                className="px-3 py-2 rounded-lg text-sm font-semibold text-text-muted hover:bg-gray-100"
-              >
-                Close
-              </button>
-              <button
-                onClick={handleNextTourStep}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary/90"
-              >
-                {tourStepIndex === TOUR_STEPS.length - 1 ? "Finish" : "Next"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

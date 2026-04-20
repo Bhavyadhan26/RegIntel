@@ -19,6 +19,10 @@ frontend/dist/
 # Scraper generated artifacts
 backend/*_pdfs/
 backend/reports/
+backend/reports/captures/
+
+# Docker artifacts (project no longer uses local Dockerfile)
+backend/Dockerfile
 
 # Logs and OS files
 *.log

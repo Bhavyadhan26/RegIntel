@@ -2,8 +2,12 @@ import { Button } from "@/components/ui/Button";
 import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
 import { FadeIn } from "@/components/ui/FadeIn";
+import { useAuth } from "@/context/AuthContext";
 
 export const Hero = () => {
+  const { isAuthenticated } = useAuth();
+  const getStartedPath = isAuthenticated ? "/dashboard" : "/signup";
+
   return (
     // Changed: Used standard padding options to avoid too much spacing
     <section className="relative flex items-center overflow-hidden bg-background px-4 py-14 sm:px-6 md:py-20 lg:px-12 lg:py-24">
@@ -29,7 +33,7 @@ export const Hero = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8 mt-4">
-            <Link to="/signup" className="w-full sm:w-auto">
+            <Link to={getStartedPath} className="w-full sm:w-auto">
               <Button size="lg" className="h-14 px-10 text-lg shadow-xl shadow-primary/20 shrink-0">
                 Get Started
               </Button>

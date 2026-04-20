@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, ChevronDown } from 'lucide-react';
 import { FilterButton } from '../components/ui/FilterButton';
 import { PublicationCard } from '../components/ui/PublicationCard';
 import type { Publication } from '../components/ui/PublicationCard';
@@ -16,11 +16,20 @@ type Category = (typeof CATEGORIES)[number];
 const WEBSITE_FILTERS = [
   { label: 'All Websites', domains: [], code: 'all' },
   { label: 'ICAI', domains: ['icai.org'], code: 'ICAI' },
-  { label: 'Bar Council of India', domains: ['barcouncilofindia.org'], code: 'BCI' },
+  { label: 'BCI', domains: ['barcouncilofindia.org'], code: 'BCI' },
   { label: 'ICMAI', domains: ['icmai.in'], code: 'ICMAI' },
   { label: 'RBI', domains: ['rbi.org.in'], code: 'RBI' },
   { label: 'CBIC', domains: ['cbic.gov.in'], code: 'CBIC' },
 ];
+
+const WEBSITE_FULL_NAME_BY_CODE: Record<string, string> = {
+  all: 'All regulatory sources',
+  ICAI: 'Institute of Chartered Accountants of India',
+  BCI: 'Bar Council of India',
+  ICMAI: 'Institute of Cost Accountants of India',
+  RBI: 'Reserve Bank of India',
+  CBIC: 'Central Board of Indirect Taxes and Customs',
+};
 
 const PAGE_SIZE = 10;
 const PUBLICATIONS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -92,7 +101,7 @@ const parsePublicationDate = (value: string): number | null => {
   if (!raw || INVALID_NOTICE_DATE_VALUES.has(raw.toUpperCase())) return null;
 
   const normalized = raw.replace(/\s+/g, ' ');
-  const slashMatch = normalized.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+  const slashMatch = normalized.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
   if (slashMatch) {
     const day = Number(slashMatch[1]);
     const month = Number(slashMatch[2]);
@@ -110,6 +119,30 @@ const parsePublicationDate = (value: string): number | null => {
 
 const resolvePublicationSortDate = (noticeDate: string, createdAt: string): number => {
   return parsePublicationDate(noticeDate) ?? parsePublicationDate(createdAt) ?? 0;
+};
+
+const mapAuthority = (websiteName: string) => {
+  const code = (websiteName || '').toUpperCase();
+  return WEBSITE_LABEL_BY_CODE[code] ?? websiteName;
+};
+
+const formatCreatedAtDate = (createdAt: string) => {
+  if (!createdAt) return '';
+  const parsed = new Date(createdAt);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const resolveCardDate = (noticeDate: string, createdAt: string) => {
+  const normalizedNotice = (noticeDate || '').trim();
+  if (!INVALID_NOTICE_DATE_VALUES.has(normalizedNotice.toUpperCase())) {
+    return normalizedNotice;
+  }
+  return formatCreatedAtDate(createdAt) || normalizedNotice;
 };
 
 const sortPublicationsDescending = (rows: Publication[]): Publication[] => {
@@ -144,6 +177,7 @@ const Publications = () => {
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeWebsite, setActiveWebsite] = useState('All Websites');
+  const [isWebsiteDropdownOpen, setIsWebsiteDropdownOpen] = useState(false);
   const [publications, setPublications] = useState<Publication[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -153,6 +187,7 @@ const Publications = () => {
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
 
   const requestIdRef = useRef(0);
+  const websiteDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const selectedWebsiteCode = useMemo(() => {
     const selectedWebsite = WEBSITE_FILTERS.find((site) => site.label === activeWebsite);
@@ -163,29 +198,28 @@ const Publications = () => {
     return [activeCategory, selectedWebsiteCode, searchQuery.trim().toLowerCase()].join('::');
   }, [activeCategory, searchQuery, selectedWebsiteCode]);
 
-  const mapAuthority = (websiteName: string) => {
-    const code = (websiteName || '').toUpperCase();
-    return WEBSITE_LABEL_BY_CODE[code] ?? websiteName;
-  };
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!websiteDropdownRef.current) return;
+      if (!websiteDropdownRef.current.contains(event.target as Node)) {
+        setIsWebsiteDropdownOpen(false);
+      }
+    };
 
-  const formatCreatedAtDate = (createdAt: string) => {
-    if (!createdAt) return '';
-    const parsed = new Date(createdAt);
-    if (Number.isNaN(parsed.getTime())) return '';
-    return parsed.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsWebsiteDropdownOpen(false);
+      }
+    };
 
-  const resolveCardDate = (noticeDate: string, createdAt: string) => {
-    const normalizedNotice = (noticeDate || '').trim();
-    if (!INVALID_NOTICE_DATE_VALUES.has(normalizedNotice.toUpperCase())) {
-      return normalizedNotice;
-    }
-    return formatCreatedAtDate(createdAt) || normalizedNotice;
-  };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   const loadPublications = useCallback(
     async (targetPage: number, replace: boolean) => {
@@ -254,7 +288,7 @@ const Publications = () => {
         });
         setPage(targetPage);
         setHasMore(response.has_more);
-      } catch (error) {
+      } catch {
         if (requestIdRef.current !== requestId) return;
         setLoadError('Unable to load publications right now. Please try again.');
       } finally {
@@ -329,21 +363,59 @@ const Publications = () => {
               ))}
             </div>
 
-            <div className="w-full sm:w-64 lg:w-72 lg:ml-4 lg:shrink-0 relative">
+            <div className="w-full sm:w-64 lg:w-72 lg:ml-4 lg:shrink-0 relative" ref={websiteDropdownRef}>
               <div className="relative">
-                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                <select
-                  value={activeWebsite}
-                  onChange={(e) => setActiveWebsite(e.target.value)}
-                  className="w-full pl-10 pr-9 py-2 rounded-lg border border-dark-600/40 bg-dark-800/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-sm font-medium text-gray-400 hover:bg-dark-700/60 transition-all"
+                <button
+                  type="button"
+                  aria-label="Filter publications by website"
+                  aria-haspopup="listbox"
+                  aria-expanded={isWebsiteDropdownOpen}
+                  onClick={() => setIsWebsiteDropdownOpen((prev) => !prev)}
+                  className="w-full h-11 text-left pl-10 pr-10 rounded-lg border border-dark-600/40 bg-dark-800/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-[15px] sm:text-sm font-medium text-gray-400 hover:bg-dark-700/60 transition-all"
                 >
-                  {WEBSITE_FILTERS.map((site) => (
-                    <option key={site.label} value={site.label}>
-                      {site.label}
-                    </option>
-                  ))}
-                </select>
+                  {activeWebsite}
+                </button>
+                <Filter className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-600 pointer-events-none" size={16} />
+                <ChevronDown
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none transition-transform ${isWebsiteDropdownOpen ? 'rotate-180' : ''}`}
+                  size={16}
+                />
               </div>
+
+              {isWebsiteDropdownOpen && (
+                <div
+                  role="listbox"
+                  aria-label="Website filter options"
+                  className="absolute left-0 right-0 z-30 mt-2 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl"
+                >
+                  {WEBSITE_FILTERS.map((site) => {
+                    const isSelected = site.label === activeWebsite;
+                    return (
+                      <button
+                        key={site.label}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          setActiveWebsite(site.label);
+                          setIsWebsiteDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2.5 text-left text-sm transition-colors ${isSelected
+                          ? 'bg-primary text-white font-semibold'
+                          : 'text-text-main hover:bg-gray-100'
+                          }`}
+                      >
+                        <span className="block break-words leading-tight">{site.label}</span>
+                        {site.code !== 'all' && (
+                          <span className={`mt-0.5 block text-[11px] font-normal leading-tight break-words ${isSelected ? 'text-white/90' : 'text-text-muted'}`}>
+                            {WEBSITE_FULL_NAME_BY_CODE[site.code]}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 

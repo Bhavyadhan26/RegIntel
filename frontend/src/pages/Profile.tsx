@@ -11,27 +11,37 @@ import { FadeIn } from "@/components/ui/FadeIn";
 import { useAuth } from "@/context/AuthContext";
 import { apiUpdateProfile, apiChangePassword, clearProfessionSensitiveCaches } from "@/lib/api";
 
+const PROFESSION_OPTIONS = [
+  { id: "ca", label: "Chartered Accountant" },
+  { id: "legal", label: "Lawyer" },
+  { id: "cost-accountant", label: "Cost Accountant" },
+  { id: "banking-finance", label: "Banking or Finance" },
+  { id: "indirect-taxes", label: "Indirect Taxes" },
+] as const;
+
+const PROFESSION_LABEL_MAP: Record<string, string> = {
+  ca: "Chartered Accountant",
+  legal: "Lawyer",
+  "cost-accountant": "Cost Accountant",
+  "banking-finance": "Banking or Finance",
+  "indirect-taxes": "Indirect Taxes",
+};
+
+const PROFESSION_ID_MAP: Record<string, string> = {
+  "Chartered Accountant": "ca",
+  Lawyer: "legal",
+  "Cost Accountant": "cost-accountant",
+  "Banking or Finance": "banking-finance",
+  "Indirect Taxes": "indirect-taxes",
+};
+
 export const UserProfile = () => {
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const { user, refreshUser } = useAuth();
-  const professionOptions = [
-    { id: "ca", label: "Chartered Accountant" },
-    { id: "legal", label: "Lawyer" },
-    { id: "cost-accountant", label: "Cost Accountant" },
-    { id: "banking-finance", label: "Banking or Finance" },
-    { id: "indirect-taxes", label: "Indirect Taxes" },
-  ] as const;
-  const professionLabelMap: Record<string, string> = {
-    ca: "Chartered Accountant",
-    legal: "Lawyer",
-    "cost-accountant": "Cost Accountant",
-    "banking-finance": "Banking or Finance",
-    "indirect-taxes": "Indirect Taxes",
-  };
   const [profile, setProfile] = useState({
     name: user?.full_name ?? "",
     email: user?.email ?? "",
-    roles: user?.profession ? [professionLabelMap[user.profession] ?? user.profession] : [],
+    roles: user?.profession ? [PROFESSION_LABEL_MAP[user.profession] ?? user.profession] : [],
     notifications: user?.email_notifications ?? false,
   });
   const [selectedProfessionId, setSelectedProfessionId] = useState(user?.profession ?? "");
@@ -41,7 +51,7 @@ export const UserProfile = () => {
       setProfile({
         name: user.full_name,
         email: user.email,
-        roles: user.profession ? [professionLabelMap[user.profession] ?? user.profession] : [],
+        roles: user.profession ? [PROFESSION_LABEL_MAP[user.profession] ?? user.profession] : [],
         notifications: user.email_notifications,
       });
       setSelectedProfessionId(user.profession ?? "");
@@ -57,15 +67,7 @@ export const UserProfile = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [pwError, setPwError] = useState("");
   const [pwSuccess, setPwSuccess] = useState(false);
-  const selectedProfessionLabel = professionOptions.find((option) => option.id === selectedProfessionId)?.label ?? profile.roles[0] ?? "";
-
-  const professionIdMap: Record<string, string> = {
-    "Chartered Accountant": "ca",
-    Lawyer: "legal",
-    "Cost Accountant": "cost-accountant",
-    "Banking or Finance": "banking-finance",
-    "Indirect Taxes": "indirect-taxes",
-  };
+  const selectedProfessionLabel = PROFESSION_OPTIONS.find((option) => option.id === selectedProfessionId)?.label ?? profile.roles[0] ?? "";
 
   const handleSave = async () => {
     setSaveError("");
@@ -95,7 +97,7 @@ export const UserProfile = () => {
         }
       }
 
-      const professionId = selectedProfessionId || (professionIdMap[profile.roles[0]] ?? profile.roles[0] ?? "");
+      const professionId = selectedProfessionId || (PROFESSION_ID_MAP[profile.roles[0]] ?? profile.roles[0] ?? "");
       await apiUpdateProfile({
         profession: professionId,
         email_notifications: profile.notifications,
@@ -134,7 +136,7 @@ export const UserProfile = () => {
   };
 
   const selectRole = (role: string) => {
-    setSelectedProfessionId(professionIdMap[role] ?? role);
+    setSelectedProfessionId(PROFESSION_ID_MAP[role] ?? role);
     setProfile({ ...profile, roles: [role] });
   };
 
@@ -154,7 +156,7 @@ export const UserProfile = () => {
 
       {/* Main Content */}
       <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="flex-1 w-full max-w-full overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Header 
             title="Profile" 
             subtitle="Manage your personal information, roles, and preferences." 
@@ -169,14 +171,14 @@ export const UserProfile = () => {
               {/* TOP LEFT: Avatar Section */}
               <section className="h-full w-full">
                 <FadeIn delay={0.1}>
-                <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl h-full flex flex-col items-center justify-center py-16 px-8 relative overflow-hidden">
+                <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl h-full flex flex-col items-center justify-center px-6 py-10 sm:px-8 sm:py-16 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-slate-50 to-transparent"></div>
                   <div className="relative mb-6 z-10 block">
-                    <div className="w-48 h-48 rounded-full border-[6px] border-white bg-slate-100 flex items-center justify-center text-primary text-5xl font-black shadow-xl overflow-hidden relative">
+                    <div className="w-32 h-32 rounded-full border-[6px] border-white bg-slate-100 flex items-center justify-center text-3xl text-primary font-black shadow-xl overflow-hidden relative sm:w-40 sm:h-40 sm:text-4xl lg:w-48 lg:h-48 lg:text-5xl">
                       {profile.name.split(' ').map(n => n[0]).join('')}
                     </div>
                   </div>
-                  <h2 className="text-4xl font-black text-text-main mt-4 z-10 text-center tracking-tight">{profile.name}</h2>
+                  <h2 className="text-3xl font-black text-text-main mt-4 z-10 text-center tracking-tight sm:text-4xl">{profile.name}</h2>
                   <p className="text-primary font-bold mt-4 bg-primary/10 px-6 py-2 rounded-full text-sm z-10 text-center">
                     {selectedProfessionLabel || "No Focus Selected"}
                   </p>
@@ -226,17 +228,17 @@ export const UserProfile = () => {
                 </h3>
                 <FadeIn delay={0.3}>
                 <Card className="border-0 shadow-lg shadow-black/5 bg-white rounded-3xl overflow-hidden">
-                  <div className="flex flex-col gap-5 border-b border-border/50 p-6 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:p-8">
-                    <div className="flex items-center gap-4 sm:gap-6">
-                      <div className="bg-orange-50 p-4 rounded-2xl">
-                        <Bell size={28} className="text-orange-500" />
+                  <div className="flex items-center justify-between gap-3 border-b border-border/50 p-4 transition-colors hover:bg-slate-50 sm:gap-5 sm:p-8">
+                    <div className="min-w-0 flex items-center gap-3 sm:gap-6">
+                      <div className="bg-orange-50 p-3 rounded-2xl sm:p-4">
+                        <Bell size={24} className="text-orange-500 sm:w-7 sm:h-7" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <h4 className="font-bold text-lg text-text-main">Email Notifications</h4>
                         <p className="text-sm text-text-muted mt-1">Receive alerts for new regulations.</p>
                       </div>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer scale-125 origin-right">
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
                       <input 
                         type="checkbox" 
                         className="sr-only peer"
@@ -248,19 +250,19 @@ export const UserProfile = () => {
                   </div>
                   
                   <div 
-                    className={`group flex flex-col gap-5 p-6 transition-colors cursor-pointer hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:p-8 ${isChangingPassword ? 'bg-slate-50 border-b border-border/50' : ''}`}
+                    className={`group flex items-center justify-between gap-3 p-4 transition-colors cursor-pointer hover:bg-slate-50 sm:gap-5 sm:p-8 ${isChangingPassword ? 'bg-slate-50 border-b border-border/50' : ''}`}
                     onClick={() => setIsChangingPassword(!isChangingPassword)}
                   >
-                    <div className="flex items-center gap-4 sm:gap-6">
-                      <div className="bg-blue-50 p-4 rounded-2xl">
-                        <Settings size={28} className="text-blue-500" />
+                    <div className="min-w-0 flex items-center gap-3 sm:gap-6">
+                      <div className="bg-blue-50 p-3 rounded-2xl sm:p-4">
+                        <Settings size={24} className="text-blue-500 sm:w-7 sm:h-7" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <h4 className="font-bold text-lg text-text-main group-hover:text-primary transition-colors">Change Password</h4>
                         <p className="text-sm text-text-muted mt-1">Update your account credentials.</p>
                       </div>
                     </div>
-                    <Settings size={28} className={`text-slate-300 group-hover:text-primary transition-transform duration-300 ${isChangingPassword ? 'rotate-90 text-primary' : ''}`} />
+                    <Settings size={24} className={`shrink-0 text-slate-300 group-hover:text-primary transition-transform duration-300 sm:w-7 sm:h-7 ${isChangingPassword ? 'rotate-90 text-primary' : ''}`} />
                   </div>
 
                   {/* Password Fields */}
@@ -324,7 +326,7 @@ export const UserProfile = () => {
                     Select one role to receive tailored regulatory updates and specific compliance alerts.
                   </p>
                   <div className="flex flex-wrap gap-4">
-                    {professionOptions.map((role) => (
+                    {PROFESSION_OPTIONS.map((role) => (
                       <button
                         key={role.id}
                         onClick={() => selectRole(role.label)}

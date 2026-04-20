@@ -1,6 +1,6 @@
 import Sidebar from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
-import { Calendar, AlertCircle, Clock, CheckCircle2, Search, ExternalLink, Filter } from 'lucide-react';
+import { Calendar, AlertCircle, Clock, CheckCircle2, Search, ExternalLink, Filter, ChevronDown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Footer } from '../components/Footer';
 import { apiGetDeadlines } from '@/lib/api';
@@ -18,6 +18,15 @@ interface DeadlineRow {
   url: string;
 }
 
+const WEBSITE_FULL_NAME_BY_CODE: Record<string, string> = {
+  all: 'All regulatory sources',
+  ICAI: 'Institute of Chartered Accountants of India',
+  BCI: 'Bar Council of India',
+  ICMAI: 'Institute of Cost Accountants of India',
+  RBI: 'Reserve Bank of India',
+  CBIC: 'Central Board of Indirect Taxes and Customs',
+};
+
 const Deadlines = () => {
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
   const { user } = useAuth();
@@ -26,11 +35,12 @@ const Deadlines = () => {
   const [counts, setCounts] = useState({ urgent: 0, thisWeek: 0, total: 0 });
   const [websiteFilter, setWebsiteFilter] = useState('all');
   const [professionFilter, setProfessionFilter] = useState('all');
+  const [isWebsiteDropdownOpen, setIsWebsiteDropdownOpen] = useState(false);
   const [websiteOptions, setWebsiteOptions] = useState<Array<{ code: string; name: string }>>([]);
-  const [professionOptions, setProfessionOptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const professionInitRef = useRef(false);
+  const websiteDropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (professionInitRef.current) return;
@@ -71,13 +81,11 @@ const Deadlines = () => {
         setDeadlinesData(mapped);
         setCounts(nextCounts);
         setWebsiteOptions(response.filters.websites ?? []);
-        setProfessionOptions(response.filters.professions ?? []);
       } catch {
         if (cancelled) return;
         setDeadlinesData([]);
         setCounts({ urgent: 0, thisWeek: 0, total: 0 });
         setWebsiteOptions([]);
-        setProfessionOptions([]);
         setLoadError('Unable to load deadlines right now.');
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -89,6 +97,29 @@ const Deadlines = () => {
       cancelled = true;
     };
   }, [websiteFilter, professionFilter]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (websiteDropdownRef.current && !websiteDropdownRef.current.contains(target)) {
+        setIsWebsiteDropdownOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsWebsiteDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   const filteredData = deadlinesData.filter(item => {
     const normalizedQuery = searchQuery.toLowerCase();
@@ -103,6 +134,11 @@ const Deadlines = () => {
   const statusIcon = (s: string) =>
     s === 'Urgent' ? <AlertCircle size={12} /> :
       s === 'Upcoming' ? <Clock size={12} /> : <CheckCircle2 size={12} />;
+
+  const selectedWebsiteLabel =
+    websiteFilter === 'all'
+      ? 'All Websites'
+      : websiteOptions.find((site) => site.code === websiteFilter)?.code ?? websiteFilter;
 
   return (
     <div className="flex min-h-screen bg-background font-sans relative overflow-x-hidden">
@@ -120,7 +156,7 @@ const Deadlines = () => {
 
       {/* Main Content */}
       <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="flex-1 w-full max-w-full overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Header title="Upcoming Deadlines" onMenuClick={openSidebar} isSidebarOpen={isSidebarOpen} />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
@@ -154,37 +190,79 @@ const Deadlines = () => {
           </div>
 
           <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <select
-                value={websiteFilter}
-                onChange={(e) => setWebsiteFilter(e.target.value)}
-                className="w-full appearance-none rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-text-main shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+            <div className="relative" ref={websiteDropdownRef}>
+              <Filter className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-600 pointer-events-none" size={16} />
+              <button
+                type="button"
+                aria-label="Filter deadlines by website"
+                aria-haspopup="listbox"
+                aria-expanded={isWebsiteDropdownOpen}
+                onClick={() => setIsWebsiteDropdownOpen((prev) => !prev)}
+                className="w-full h-10 rounded-lg border border-gray-200 bg-white pl-10 pr-10 text-left text-sm text-text-main shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
               >
-                <option value="all">All Websites</option>
-                {websiteOptions.map((site) => (
-                  <option key={site.code} value={site.code}>{site.name}</option>
-                ))}
-              </select>
+                {selectedWebsiteLabel}
+              </button>
+              <ChevronDown
+                className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none transition-transform ${isWebsiteDropdownOpen ? 'rotate-180' : ''}`}
+                size={16}
+              />
+
+              {isWebsiteDropdownOpen && (
+                <div
+                  role="listbox"
+                  aria-label="Website filter options"
+                  className="absolute left-0 right-0 z-30 mt-2 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl"
+                >
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={websiteFilter === 'all'}
+                    onClick={() => {
+                      setWebsiteFilter('all');
+                      setIsWebsiteDropdownOpen(false);
+                    }}
+                    className={`w-full px-3 py-2.5 text-left text-sm transition-colors ${websiteFilter === 'all'
+                      ? 'bg-primary text-white font-semibold'
+                      : 'text-text-main hover:bg-gray-100'
+                      }`}
+                  >
+                    All Websites
+                  </button>
+                  {websiteOptions.map((site) => {
+                    const isSelected = websiteFilter === site.code;
+                    const fullWebsiteName = WEBSITE_FULL_NAME_BY_CODE[site.code] ?? site.name;
+                    return (
+                      <button
+                        key={site.code}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          setWebsiteFilter(site.code);
+                          setIsWebsiteDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2.5 text-left text-sm transition-colors ${isSelected
+                          ? 'bg-primary text-white font-semibold'
+                          : 'text-text-main hover:bg-gray-100'
+                          }`}
+                      >
+                        <span className="block break-words leading-tight">{site.code}</span>
+                        <span className={`mt-0.5 block text-[11px] font-normal leading-tight break-words ${isSelected ? 'text-white/90' : 'text-text-muted'}`}>
+                          {fullWebsiteName}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <select
-                value={professionFilter}
-                onChange={(e) => setProfessionFilter(e.target.value)}
-                className="w-full appearance-none rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-text-main shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
-              >
-                <option value="all">All Professions</option>
-                {professionOptions.map((profession) => (
-                  <option key={profession} value={profession}>{profession}</option>
-                ))}
-              </select>
-            </div>
+
+            {/* Profession filter temporarily hidden */}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <div className="min-w-[760px]">
+              <div className="min-w-[680px] md:min-w-[760px]">
                 <div className="grid grid-cols-12 gap-4 bg-gray-50/50 px-6 py-3.5 text-xs font-semibold text-text-muted uppercase tracking-wider border-b border-gray-200">
                   <div className="col-span-5">Title</div>
                   <div className="col-span-2">Category</div>

@@ -23,11 +23,11 @@ export const Navbar = () => {
     return (
         <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? "bg-white/80 backdrop-blur-md border-b border-border shadow-sm" : "bg-transparent"
             } py-4`}>
-            <div className="mx-auto flex h-12 max-w-7xl items-center justify-between px-4 sm:px-6">
+            <div className="mx-auto flex h-11 max-w-7xl items-center justify-between px-4 sm:h-12 sm:px-6">
                 {/* Logo */}
                 <Link to="/" className="flex items-center gap-2.5">
-                    <img src="/assets/logo1.png" alt="RegIntel Logo" className="h-[3.25rem] w-auto" />
-                    <span className="text-lg font-bold text-text-main tracking-tight sm:text-xl">RegIntel</span>
+                    <img src="/assets/logo1.png" alt="RegIntel Logo" className="h-10 w-auto sm:h-[3.25rem]" />
+                    <span className="text-base font-bold text-text-main tracking-tight sm:text-xl">RegIntel</span>
                 </Link>
 
                 {/* Desktop Links */}

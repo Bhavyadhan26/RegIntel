@@ -35,16 +35,16 @@ export const PublicationCard: React.FC<CardProps> = ({ data }) => {
   };
 
   return (
-    <div className="bg-dark-800/60 backdrop-blur-sm border border-dark-600/40 rounded-xl p-6 hover:border-dark-400/40 hover:-translate-y-0.5 transition-all duration-300 group">
-      <div className="flex justify-between items-start mb-3">
+    <div className="bg-dark-800/60 backdrop-blur-sm border border-dark-600/40 rounded-xl p-6 hover:border-dark-400/40 hover:-translate-y-0.5 transition-all duration-300 group min-w-0 overflow-hidden">
+      <div className="flex justify-between items-start gap-2 mb-3 min-w-0">
         <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${tagColor(data.type)}`}>
           {data.type}
         </span>
-        <span className="text-xs text-black-600">{data.date}</span>
+        <span className="text-xs text-black-600 shrink-0">{data.date}</span>
       </div>
 
-      <div className="flex items-start justify-between gap-1 mb-2">
-        <h3 className="text-base font-medium text-black-200 leading-snug flex-1">{data.title}</h3>
+      <div className="flex items-start justify-between gap-1 mb-2 min-w-0">
+        <h3 className="text-base font-medium text-black-200 leading-snug flex-1 min-w-0 break-words [overflow-wrap:anywhere]">{data.title}</h3>
         <div className="relative shrink-0 group/summary">
           <button
             type="button"
@@ -66,17 +66,17 @@ export const PublicationCard: React.FC<CardProps> = ({ data }) => {
       {isSummaryOpen && (
         <div className="mb-3 p-3 rounded-lg border border-dark-600/40 bg-dark-700/40">
           <p className="text-xs uppercase tracking-wider text-accent-purple font-semibold mb-1">Summary</p>
-          <p className="text-sm text-gray-400 leading-relaxed">{data.description}</p>
+          <p className="text-sm text-gray-400 leading-relaxed break-words [overflow-wrap:anywhere]">{data.description}</p>
         </div>
       )}
 
-      <p className="text-sm text-primary/100 font-medium mb-4">{data.authority}</p>
+      <p className="text-sm text-primary/100 font-medium mb-4 break-words [overflow-wrap:anywhere]">{data.authority}</p>
 
       <a
         href={data.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm text-gray-400 font-medium flex items-center gap-1 group-hover:text-accent-purple transition-colors"
+        className="text-sm text-gray-400 font-medium flex items-center gap-1 group-hover:text-accent-purple transition-colors min-w-0 break-all"
       >
         View Details
         <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />

@@ -39,15 +39,20 @@ export const Smiley = ({ isEyesClosed = false }: SmileyProps) => {
 
       {/* Eyes */}
       <div className="flex gap-3.5 relative z-10 -mt-1">
-        {[leftPupilRef, rightPupilRef].map((ref, i) => (
-          <div key={i} className="w-4 h-5 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden">
-            {isEyesClosed ? (
-              <div className="w-3.5 h-px bg-primary/60 rounded-full" />
-            ) : (
-              <div ref={ref} className="w-2 h-2 bg-primary rounded-full transition-transform duration-75" />
-            )}
-          </div>
-        ))}
+        <div className="w-4 h-5 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden">
+          {isEyesClosed ? (
+            <div className="w-3.5 h-px bg-primary/60 rounded-full" />
+          ) : (
+            <div ref={leftPupilRef} className="w-2 h-2 bg-primary rounded-full transition-transform duration-75" />
+          )}
+        </div>
+        <div className="w-4 h-5 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden">
+          {isEyesClosed ? (
+            <div className="w-3.5 h-px bg-primary/60 rounded-full" />
+          ) : (
+            <div ref={rightPupilRef} className="w-2 h-2 bg-primary rounded-full transition-transform duration-75" />
+          )}
+        </div>
       </div>
 
       {/* Smile */}

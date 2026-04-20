@@ -91,14 +91,14 @@ const Feedback = () => {
 
       {/* Main Content */}
       <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div className="relative flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+        <div className="relative flex-1 w-full max-w-full overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
           <Header title="Feedback" onMenuClick={openSidebar} isSidebarOpen={isSidebarOpen} />
 
           <div className="w-full max-w-[1400px] mx-auto">
             {/* Header */}
             <FadeIn>
             <div className="mb-10 text-center sm:mb-12">
-              <h1 className="text-4xl md:text-5xl font-black text-text-main tracking-tight">We'd love your Feedback</h1>
+              <h1 className="text-3xl font-black text-text-main tracking-tight sm:text-4xl md:text-5xl">We'd love your Feedback</h1>
               <p className="text-text-muted mt-4 text-lg max-w-2xl mx-auto">
                 We're constantly looking for ways to improve RegIntel. Whether you have a question, spotted a bug, or just want to share your experience, we want to hear from you!
               </p>
@@ -169,7 +169,7 @@ const Feedback = () => {
               {/* Middle Column: Feedback Form */}
               <div className="lg:col-span-6">
               <FadeIn delay={0.2}>
-                <div className="bg-white rounded-3xl border border-gray-200 p-8 sm:p-10 shadow-xl shadow-black/5 min-h-[550px] relative overflow-hidden flex flex-col justify-center">
+                <div className="bg-white rounded-3xl border border-gray-200 p-6 sm:p-10 shadow-xl shadow-black/5 min-h-[550px] relative overflow-hidden flex flex-col justify-center">
                   <AnimatePresence mode="wait">
                     {!isSubmitted ? (
                       <motion.form 

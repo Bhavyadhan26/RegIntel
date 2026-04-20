@@ -26,8 +26,6 @@ export const useResponsiveSidebar = () => {
       setIsSidebarOpen(event.matches);
     };
 
-    setIsDesktop(mediaQuery.matches);
-    setIsSidebarOpen(mediaQuery.matches);
     mediaQuery.addEventListener('change', handleChange);
 
     return () => {

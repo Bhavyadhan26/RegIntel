@@ -521,7 +521,7 @@ export const Dashboard = () => {
 
       {/* Main Content */}
       <main className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[260px]' : ''}`}>
-        <div ref={headerRef} className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div ref={headerRef} className="flex-1 w-full max-w-full overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {/* Header */}
           <Header
             title="Dashboard"
@@ -553,11 +553,11 @@ export const Dashboard = () => {
             <FadeIn delay={0.1}>
             <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-green-500 rounded-xl overflow-hidden bg-white/70 backdrop-blur h-full">
               <CardContent className="p-6">
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="w-11 h-11 bg-orange-50 rounded-xl flex items-center justify-center shadow-sm">
                     <Bell className="w-5 h-5 text-orange-600" />
                   </div>
-                  <span className="bg-orange-100/80 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">+{stats.unreadAlertsThreeDay} in 3 days</span>
+                  <span className="bg-orange-100/80 text-orange-700 text-[11px] font-bold px-2.5 py-1 rounded-full text-right leading-tight">+{stats.unreadAlertsThreeDay} in 3 days</span>
                 </div>
                 <div className="text-4xl font-black text-text-main tracking-tight">{isLoadingSummary ? '...' : stats.unreadAlerts}</div>
                 <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Unread Alerts</div>
@@ -568,11 +568,11 @@ export const Dashboard = () => {
             <FadeIn delay={0.2}>
             <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-blue-500 rounded-xl overflow-hidden bg-white/70 backdrop-blur">
               <CardContent className="p-6">
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center shadow-sm">
                     <Briefcase className="w-5 h-5 text-blue-600" />
                   </div>
-                  <span className="bg-blue-100/80 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">+{stats.publicationsWeek} this week</span>
+                  <span className="bg-blue-100/80 text-blue-700 text-[11px] font-bold px-2.5 py-1 rounded-full text-right leading-tight">+{stats.publicationsWeek} this week</span>
                 </div>
                 <div className="text-4xl font-black text-text-main tracking-tight">{isLoadingSummary ? '...' : stats.publicationsToday}</div>
                 <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Number of Publications</div>
@@ -583,11 +583,11 @@ export const Dashboard = () => {
             <FadeIn delay={0.3}>
             <Card className="hover:-translate-y-1 transition-all duration-300 hover:shadow-lg border-t-0 border-r-0 border-b-0 border-l-[6px] border-l-purple-500 rounded-xl overflow-hidden md:col-span-1 bg-white/70 backdrop-blur h-full">
               <CardContent className="p-6">
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="w-11 h-11 bg-purple-50 rounded-xl flex items-center justify-center shadow-sm">
                     <FileText className="w-5 h-5 text-purple-600" />
                   </div>
-                  <span className="bg-purple-100/80 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">+{stats.deadlinesWeekWithDue} this week</span>
+                  <span className="bg-purple-100/80 text-purple-700 text-[11px] font-bold px-2.5 py-1 rounded-full text-right leading-tight">+{stats.deadlinesWeekWithDue} this week</span>
                 </div>
                 <div className="text-4xl font-black text-text-main tracking-tight">{isLoadingSummary ? '...' : stats.deadlinesActive}</div>
                 <div className="text-sm font-medium text-text-muted mt-1 uppercase tracking-wide">Deadlines</div>

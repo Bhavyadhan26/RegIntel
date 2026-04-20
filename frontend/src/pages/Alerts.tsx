@@ -21,6 +21,33 @@ interface AlertRow {
 
 const PAGE_SIZE = 20;
 
+const severityFromTitle = (title: string): "critical" | "high" | "medium" => {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("final result") || normalized.includes("not be available")) return "critical";
+  if (normalized.includes("budget") || normalized.includes("exam") || normalized.includes("seeking")) return "high";
+  return "medium";
+};
+
+const tagColorByTag = (tag: string): string => {
+  const normalized = (tag || "").toLowerCase();
+  if (normalized.includes("update")) return "bg-purple-100 text-purple-700";
+  if (normalized.includes("tender")) return "bg-emerald-100 text-emerald-700";
+  return "bg-amber-100 text-amber-700";
+};
+
+const mapAlerts = (results: Awaited<ReturnType<typeof apiGetAlerts>>["results"]): AlertRow[] =>
+  results.map((item) => ({
+    id: item.id,
+    title: item.title,
+    authority: item.authority,
+    desc: item.summary || "No summary available.",
+    date: item.notice_date || "",
+    tag: item.tag,
+    type: severityFromTitle(item.title),
+    tagColor: tagColorByTag(item.tag),
+    url: item.url,
+  }));
+
 export const Alerts = () => {
   const [activeTab, setActiveTab] = useState<"new" | "old">("new");
   const { isSidebarOpen, openSidebar, closeSidebar } = useResponsiveSidebar();
@@ -36,33 +63,6 @@ export const Alerts = () => {
   const [loadError, setLoadError] = useState("");
 
   const requestIdRef = useRef(0);
-
-  const severityFromTitle = (title: string): "critical" | "high" | "medium" => {
-    const normalized = title.toLowerCase();
-    if (normalized.includes("final result") || normalized.includes("not be available")) return "critical";
-    if (normalized.includes("budget") || normalized.includes("exam") || normalized.includes("seeking")) return "high";
-    return "medium";
-  };
-
-  const tagColorByTag = (tag: string): string => {
-    const normalized = (tag || "").toLowerCase();
-    if (normalized.includes("update")) return "bg-purple-100 text-purple-700";
-    if (normalized.includes("tender")) return "bg-emerald-100 text-emerald-700";
-    return "bg-amber-100 text-amber-700";
-  };
-
-  const mapAlerts = (results: Awaited<ReturnType<typeof apiGetAlerts>>["results"]): AlertRow[] =>
-    results.map((item) => ({
-      id: item.id,
-      title: item.title,
-      authority: item.authority,
-      desc: item.summary || "No summary available.",
-      date: item.notice_date || "",
-      tag: item.tag,
-      type: severityFromTitle(item.title),
-      tagColor: tagColorByTag(item.tag),
-      url: item.url,
-    }));
 
   const loadAlerts = useCallback(async (tab: "new" | "old", targetPage: number, replace: boolean) => {
     const requestId = requestIdRef.current + 1;
@@ -165,8 +165,8 @@ export const Alerts = () => {
         <div className="flex-1 w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Header title="Alerts" onMenuClick={openSidebar} isSidebarOpen={isSidebarOpen} />
 
-          <div className="mb-7">
-            <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
+          <div className="mb-7 overflow-x-auto">
+            <div className="flex min-w-max bg-gray-100 rounded-lg p-1 border border-gray-200">
               {(["new", "old"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -208,15 +208,15 @@ export const Alerts = () => {
                 <FadeIn key={`${activeTab}-${alert.id}-${idx}`} delay={idx * 0.03} direction="up" fullWidth>
                   <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-md transition-all relative">
                     <div className={`absolute left-0 top-5 bottom-5 w-[3px] rounded-full ${severityColor(alert.type)}`} />
-                    <div className="pl-5">
+                    <div className="pl-5 min-w-0">
                       <div className="mb-1.5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <h3 className="text-base font-bold text-text-main">{alert.title}</h3>
+                        <h3 className="text-base font-bold text-text-main break-words [overflow-wrap:anywhere]">{alert.title}</h3>
                         <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full shrink-0 sm:ml-3 ${alert.tagColor}`}>
                           {alert.tag}
                         </span>
                       </div>
                       <p className="text-sm text-text-muted mb-2 font-medium">{alert.authority}</p>
-                      <p className="text-sm text-text-muted leading-relaxed mb-3">{alert.desc}</p>
+                      <p className="text-sm text-text-muted leading-relaxed mb-3 break-words [overflow-wrap:anywhere]">{alert.desc}</p>
                       <div className="flex justify-end">
                         <a
                           href={alert.url}

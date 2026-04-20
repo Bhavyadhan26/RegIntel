@@ -38,32 +38,34 @@ export const Header = ({
   })();
 
   return (
-    <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-      <div className="flex flex-col">
-        <div className="flex items-center gap-4">
-          {!isSidebarOpen && (
-            <button 
-              onClick={onMenuClick}
-              className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm shrink-0"
-              aria-label="Toggle sidebar"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
+    <header className="mb-8">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-4">
+            {!isSidebarOpen && (
+              <button 
+                onClick={onMenuClick}
+                className="p-2 bg-white border border-gray-200 rounded-lg text-text-muted hover:text-text-main shadow-sm shrink-0"
+                aria-label="Toggle sidebar"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+            )}
+            <h1 className="text-xl sm:text-2xl font-bold text-text-main leading-tight break-words">{title}</h1>
+          </div>
+          {subtitle && (
+            <p className={`text-sm text-text-muted mt-1 ${!isSidebarOpen ? 'ml-[56px]' : ''}`}>
+              {subtitle}
+            </p>
           )}
-          <h1 className="text-2xl font-bold text-text-main">{title}</h1>
         </div>
-        {subtitle && (
-          <p className={`text-sm text-text-muted mt-1 ${!isSidebarOpen ? 'ml-[56px]' : ''}`}>
-            {subtitle}
-          </p>
-        )}
-      </div>
 
-      <div className="flex items-center gap-3 self-start sm:gap-4 md:self-auto">
-        {rightContent}
-        <Link to="/profile" className="shrink-0 w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm border border-primary/20 hover:bg-primary/20 transition-colors shadow-sm">
-          {initials}
-        </Link>
+        <div className="flex items-center gap-3 shrink-0 sm:gap-4">
+          {rightContent}
+          <Link to="/profile" className="shrink-0 w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm border border-primary/20 hover:bg-primary/20 transition-colors shadow-sm">
+            {initials}
+          </Link>
+        </div>
       </div>
     </header>
   );

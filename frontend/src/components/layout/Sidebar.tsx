@@ -31,10 +31,16 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         <div className="w-[260px] bg-light-100 border-r border-border h-full flex flex-col relative" aria-hidden={!isOpen}>
             {/* Logo and Menu Toggle */}
             <div className="px-5 h-[72px] flex items-center justify-between mt-2">
-                <div className="flex items-center gap-2">
+                <Link
+                    to="/"
+                    className="flex items-center gap-2"
+                    onClick={() => {
+                        if (window.innerWidth < 1024) onClose();
+                    }}
+                >
                     <img src="/assets/logo1.png" alt="RegIntel Logo" className="h-[2.75rem] w-auto" />
                     <span className="text-xl font-bold text-text-main tracking-tight">RegIntel</span>
-                </div>
+                </Link>
                 
                 <button
                     onClick={onClose}

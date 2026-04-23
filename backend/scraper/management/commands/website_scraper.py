@@ -1451,8 +1451,12 @@ async def _scrape_rbi_current_table(page, sel):
         category = "Notification"
 
         if row_exists("RBI", title, category):
-            update_row_by_key("RBI", title, category, detail_url, notice_date, pdf_url, "")
-            continue
+            if FORCE_FULL_SCAN:
+                update_row_by_key("RBI", title, category, detail_url, notice_date, pdf_url, "")
+                continue
+            print(f"RBI exists: {title}")
+            print("RBI up to date (encountered existing item), stopping.")
+            break
 
         insert_row("RBI", title, category, detail_url, notice_date, pdf_url, "")
         new_count += 1

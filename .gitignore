@@ -6,7 +6,7 @@ backend/**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
-
+render.yaml
 # Python
 .venv/
 venv/

@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+from contextvars import ContextVar
 from collections import deque
 import html
 import json
@@ -10,10 +12,14 @@ from datetime import date, datetime
 from urllib.parse import urljoin
 import pymysql
 import requests
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 from pymysql.cursors import DictCursor
+
+from scraper.database import open_scraper_connection, scraper_connection_kwargs
+from scraper.document_processing import process_pdf_url
+from scraper.run_lock import acquire_run_lock, clear_cancel, is_cancel_requested, release_run_lock
 
 load_dotenv()
 requests.packages.urllib3.disable_warnings()  # type: ignore[attr-defined]
@@ -27,7 +33,12 @@ def _required_env(name):
 
 
 _conn: pymysql.connections.Connection | None = None
+_worker_conn: ContextVar[pymysql.connections.Connection | None] = ContextVar(
+    "scraper_worker_connection", default=None
+)
 FORCE_FULL_SCAN = False
+SELECTED_SITE = None
+CURRENT_RUN_ID = None
 
 
 def _as_int_env(name, default):
@@ -185,32 +196,22 @@ def _gemini_generate_with_key_pool(prompt, model, key_pool, row_title):
 
 
 def get_conn() -> pymysql.connections.Connection:
-    """Return the module-level persistent connection, creating or reconnecting as needed."""
+    """Return the current worker connection, or the command setup connection."""
+    worker_conn = _worker_conn.get()
+    if worker_conn is not None:
+        return worker_conn
+
     global _conn
     if _conn is None:
         _conn = pymysql.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", "3306")),
-            user=_required_env("DB_USER"),
-            password=_required_env("DB_PASS"),
-            database=_required_env("DB_NAME"),
-            charset="utf8mb4",
-            cursorclass=DictCursor,
-            autocommit=False,
+            **scraper_connection_kwargs(),
         )
     else:
         try:
             _conn.ping(reconnect=True)
         except Exception:
             _conn = pymysql.connect(
-                host=os.getenv("DB_HOST", "localhost"),
-                port=int(os.getenv("DB_PORT", "3306")),
-                user=_required_env("DB_USER"),
-                password=_required_env("DB_PASS"),
-                database=_required_env("DB_NAME"),
-                charset="utf8mb4",
-                cursorclass=DictCursor,
-                autocommit=False,
+                **scraper_connection_kwargs(),
             )
     return _conn
 
@@ -368,6 +369,75 @@ def init_tables():
 
     cur.execute(
         """
+        CREATE TABLE IF NOT EXISTS Website_Scraping_Run_Site_Details (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            run_id BIGINT NOT NULL,
+            website_name VARCHAR(32) NOT NULL,
+            status VARCHAR(16) NOT NULL,
+            error_message TEXT NULL,
+            started_at TIMESTAMP NULL,
+            finished_at TIMESTAMP NULL,
+            UNIQUE KEY uk_run_site_detail (run_id, website_name),
+            CONSTRAINT fk_run_site_detail_run
+                FOREIGN KEY (run_id) REFERENCES Website_Scraping_Runs(id)
+                ON DELETE CASCADE
+        ) ENGINE=InnoDB
+        """
+    )
+
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS Website_Scraping_Site_Progress (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            run_id BIGINT NOT NULL,
+            website_name VARCHAR(32) NOT NULL,
+            status VARCHAR(16) NOT NULL,
+            stage VARCHAR(32) NULL,
+            current_url VARCHAR(2048) NULL,
+            started_at TIMESTAMP NULL,
+            heartbeat_at TIMESTAMP NULL,
+            finished_at TIMESTAMP NULL,
+            discovered_rows INT NOT NULL DEFAULT 0,
+            new_rows INT NOT NULL DEFAULT 0,
+            processed_rows INT NOT NULL DEFAULT 0,
+            failed_rows INT NOT NULL DEFAULT 0,
+            error_message TEXT NULL,
+            cancel_requested TINYINT NOT NULL DEFAULT 0,
+            UNIQUE KEY uk_run_site_progress (run_id, website_name),
+            CONSTRAINT fk_site_progress_run
+                FOREIGN KEY (run_id) REFERENCES Website_Scraping_Runs(id)
+                ON DELETE CASCADE
+        ) ENGINE=InnoDB
+        """
+    )
+
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS Website_Scraping_Item_Progress (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            run_id BIGINT NOT NULL,
+            site_progress_id BIGINT NOT NULL,
+            data_id BIGINT NULL,
+            website_name VARCHAR(32) NOT NULL,
+            stage VARCHAR(32) NOT NULL,
+            status VARCHAR(16) NOT NULL,
+            started_at TIMESTAMP NULL,
+            finished_at TIMESTAMP NULL,
+            error_message TEXT NULL,
+            KEY idx_item_progress_run (run_id),
+            KEY idx_item_progress_site (site_progress_id),
+            CONSTRAINT fk_item_progress_run
+                FOREIGN KEY (run_id) REFERENCES Website_Scraping_Runs(id)
+                ON DELETE CASCADE,
+            CONSTRAINT fk_item_progress_site
+                FOREIGN KEY (site_progress_id) REFERENCES Website_Scraping_Site_Progress(id)
+                ON DELETE CASCADE
+        ) ENGINE=InnoDB
+        """
+    )
+
+    cur.execute(
+        """
         CREATE TABLE IF NOT EXISTS User_Feedback (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             full_name VARCHAR(150) NOT NULL,
@@ -379,6 +449,16 @@ def init_tables():
             KEY idx_feedback_email (user_email),
             KEY idx_feedback_type (type_of_feedback),
             KEY idx_feedback_created_at (created_at)
+        ) ENGINE=InnoDB
+        """
+    )
+
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS Website_Scraping_State (
+            state_key VARCHAR(128) PRIMARY KEY,
+            state_value VARCHAR(2048) NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB
         """
     )
@@ -511,6 +591,12 @@ def seed_sources_and_selectors():
         ("ICMAI", "notifications_url", "https://icmai.in/ClntAbout/Notifications"),
         ("ICMAI", "events_url", "https://icmai.in/ClntAbout/Events"),
         ("ICMAI", "tenders_url", "https://icmai.in/ClntAbout/Tender"),
+        ("ICMAI", "students_connect_url", "https://icmai.in/ClntAbout/StudentsConnect"),
+        ("ICMAI", "content_list_wait", "ul#elearning"),
+        ("ICMAI", "content_list_links", "ul#elearning li a"),
+        ("ICMAI", "content_pagination", "#pagination"),
+        ("ICMAI", "content_pagination_next", "#pagination a.next"),
+        ("ICMAI", "students_content_links", ".disciplinary-wrap a[href]"),
         ("ICMAI", "list_wait", "ul#disciplinarydirectorate"),
         ("ICMAI", "list_links", "ul#disciplinarydirectorate li a"),
         ("ICMAI", "archive_table_rows", "#datatable tbody tr"),
@@ -611,10 +697,19 @@ def insert_row(website_name, title, category, detail_url, notice_date, pdf_url, 
         cur.execute(
             """
             INSERT INTO Website_Scraping_data
-            (website_name, title, category, detail_url, notice_date, due_date, pdf_url)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (website_name, title, title_identity, category, detail_url, notice_date, due_date, pdf_url)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (website_name, title, category, detail_url, notice_date, due_date or "", pdf_url),
+            (
+                website_name,
+                title,
+                hashlib.sha256(f"{website_name}\0{category}\0{title}".encode("utf-8")).digest(),
+                category,
+                detail_url,
+                notice_date,
+                due_date or "",
+                pdf_url,
+            ),
         )
         row_id = cur.lastrowid
         conn.commit()
@@ -667,11 +762,10 @@ def update_pdf_processed(row_id, summary, due_date):
     conn.commit()
 
 
-def get_pending_pdf_rows():
+def get_pending_pdf_rows(website_name=None):
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute(
-        """
+    query = """
                 SELECT
                         d.id,
                         d.website_name,
@@ -686,9 +780,20 @@ def get_pending_pdf_rows():
                 WHERE (d.pdf_url IS NOT NULL OR d.detail_url IS NOT NULL)
                     AND (d.processed = 0 OR d.summary IS NULL)
         """
-    )
+    params = ()
+    if website_name:
+        query += " AND UPPER(d.website_name) = %s"
+        params = (website_name.upper(),)
+    cur.execute(query, params)
     rows = cur.fetchall()
     return rows
+
+
+def get_active_site_names():
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT website_name FROM Website_Scraping_Sources WHERE active = 1")
+    return {row["website_name"].upper() for row in cur.fetchall()}
 
 
 def is_probable_pdf_url(url):
@@ -729,19 +834,145 @@ def create_run():
     return run_id
 
 
-def complete_run(run_id, total_new_rows, per_site_new_rows):
+def report_site_progress(
+    website_name,
+    status="running",
+    stage=None,
+    current_url=None,
+    discovered_rows=None,
+    new_rows=None,
+    processed_rows=None,
+    failed_rows=None,
+    error_message=None,
+    cancel_requested=None,
+):
+    if CURRENT_RUN_ID is None:
+        return None
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT discovered_rows, new_rows, processed_rows, failed_rows, cancel_requested FROM Website_Scraping_Site_Progress WHERE run_id = %s AND website_name = %s",
+        (CURRENT_RUN_ID, website_name),
+    )
+    existing = cur.fetchone() or {}
+    discovered_rows = existing.get("discovered_rows", 0) if discovered_rows is None else discovered_rows
+    new_rows = existing.get("new_rows", 0) if new_rows is None else new_rows
+    processed_rows = existing.get("processed_rows", 0) if processed_rows is None else processed_rows
+    failed_rows = existing.get("failed_rows", 0) if failed_rows is None else failed_rows
+    cancel_requested = existing.get("cancel_requested", 0) if cancel_requested is None else cancel_requested
+    cur.execute(
+        """
+        INSERT INTO Website_Scraping_Site_Progress
+            (run_id, website_name, status, stage, current_url, started_at, heartbeat_at,
+             discovered_rows, new_rows, processed_rows, failed_rows, error_message, cancel_requested)
+        VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            status = VALUES(status),
+            stage = COALESCE(VALUES(stage), stage),
+            current_url = COALESCE(VALUES(current_url), current_url),
+            heartbeat_at = CURRENT_TIMESTAMP,
+            discovered_rows = COALESCE(VALUES(discovered_rows), discovered_rows),
+            new_rows = COALESCE(VALUES(new_rows), new_rows),
+            processed_rows = COALESCE(VALUES(processed_rows), processed_rows),
+            failed_rows = COALESCE(VALUES(failed_rows), failed_rows),
+            error_message = VALUES(error_message),
+            cancel_requested = COALESCE(VALUES(cancel_requested), cancel_requested),
+            finished_at = IF(VALUES(status) IN ('success', 'failed', 'cancelled'), CURRENT_TIMESTAMP, finished_at)
+        """,
+        (
+            CURRENT_RUN_ID,
+            website_name,
+            status,
+            stage,
+            current_url,
+            discovered_rows,
+            new_rows,
+            processed_rows,
+            failed_rows,
+            error_message,
+            int(bool(cancel_requested)) if cancel_requested is not None else 0,
+        ),
+    )
+    conn.commit()
+    cur.execute(
+        "SELECT id FROM Website_Scraping_Site_Progress WHERE run_id = %s AND website_name = %s",
+        (CURRENT_RUN_ID, website_name),
+    )
+    row = cur.fetchone()
+    return row["id"] if row else None
+
+
+def start_item_progress(website_name, data_id, stage):
+    site_progress_id = report_site_progress(website_name, stage=stage)
+    if site_progress_id is None or CURRENT_RUN_ID is None:
+        return None
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO Website_Scraping_Item_Progress
+            (run_id, site_progress_id, data_id, website_name, stage, status, started_at)
+        VALUES (%s, %s, %s, %s, %s, 'running', CURRENT_TIMESTAMP)
+        """,
+        (CURRENT_RUN_ID, site_progress_id, data_id, website_name, stage),
+    )
+    conn.commit()
+    increment_site_progress(website_name, "discovered_rows")
+    return cur.lastrowid
+
+
+def increment_site_progress(website_name, field_name):
+    allowed_fields = {"discovered_rows", "new_rows", "processed_rows", "failed_rows"}
+    if field_name not in allowed_fields or CURRENT_RUN_ID is None:
+        return
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        f"UPDATE Website_Scraping_Site_Progress SET {field_name} = {field_name} + 1, heartbeat_at = CURRENT_TIMESTAMP WHERE run_id = %s AND website_name = %s",
+        (CURRENT_RUN_ID, website_name),
+    )
+    conn.commit()
+
+
+def finish_item_progress(item_id, status, stage, error_message=None):
+    if item_id is None:
+        return
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE Website_Scraping_Item_Progress
+        SET status = %s, stage = %s, finished_at = CURRENT_TIMESTAMP, error_message = %s
+        WHERE id = %s
+        """,
+        (status, stage, error_message, item_id),
+    )
+    conn.commit()
+    cur.execute("SELECT website_name FROM Website_Scraping_Item_Progress WHERE id = %s", (item_id,))
+    row = cur.fetchone()
+    if row:
+        increment_site_progress(row["website_name"], "processed_rows" if status == "completed" else "failed_rows")
+        report_site_progress(
+            row["website_name"],
+            status="success" if status == "completed" else "failed",
+            stage=stage,
+            error_message=error_message,
+        )
+
+
+def complete_run(run_id, total_new_rows, per_site_new_rows, site_results, status="success"):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
         """
         UPDATE Website_Scraping_Runs
-        SET status = 'success',
+        SET status = %s,
             finished_at = CURRENT_TIMESTAMP,
             total_new_rows = %s,
             error_text = NULL
         WHERE id = %s
         """,
-        (total_new_rows, run_id),
+        (status, total_new_rows, run_id),
     )
 
     for website_name, new_rows in per_site_new_rows.items():
@@ -754,6 +985,17 @@ def complete_run(run_id, total_new_rows, per_site_new_rows):
             ON DUPLICATE KEY UPDATE new_rows = VALUES(new_rows)
             """,
             (run_id, website_name, new_rows),
+        )
+
+    for website_name, error in site_results:
+        cur.execute(
+            """
+            INSERT INTO Website_Scraping_Run_Site_Details
+                (run_id, website_name, status, error_message, started_at, finished_at)
+            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON DUPLICATE KEY UPDATE status = VALUES(status), error_message = VALUES(error_message), finished_at = CURRENT_TIMESTAMP
+            """,
+            (run_id, website_name, "failed" if error else "success", str(error)[:4000] if error else None),
         )
 
     conn.commit()
@@ -1990,41 +2232,203 @@ async def scrape_cbic(page):
     print(f"CBIC pages scraped: {page_num}, new rows: {new_count}")
 
 
+async def scrape_icmai(page):
+    """Scrape every ICMAI tab using the live layout for that tab."""
+    src = get_source("ICMAI")
+    sel = get_selectors("ICMAI")
+    if not src or not sel:
+        print("ICMAI source/selectors missing")
+        return
+
+    seen_items = set()
+
+    async def scrape_content_tab(category, selector_key, link_selector):
+        tab_url = sel.get(selector_key)
+        if not tab_url:
+            print(f"ICMAI {category} URL selector missing")
+            return
+
+        visited_pages = set()
+        page_number = 1
+        page_loaded = False
+        while tab_url and page_number <= 100 and (page_loaded or tab_url not in visited_pages):
+            if not page_loaded:
+                visited_pages.add(tab_url)
+                await page.goto(tab_url, wait_until="domcontentloaded", timeout=60000)
+                await page.wait_for_selector(".disciplinary-wrap", timeout=30000)
+                page_loaded = True
+
+            links = await page.locator(link_selector).all()
+            for link in links:
+                href = ((await link.get_attribute("href")) or "").strip()
+                title = re.sub(r"\s+", " ", (await link.inner_text() or "").strip())
+                if not title or not href or href == "#" or title.lower() in {"prev", "next"}:
+                    continue
+
+                full_url = urljoin(sel["base_url"], href)
+                item_key = (category, title, full_url)
+                if item_key in seen_items:
+                    continue
+                seen_items.add(item_key)
+                pdf_url = full_url if ".pdf" in full_url.lower() else None
+
+                if row_exists("ICMAI", title, category):
+                    update_row_by_key("ICMAI", title, category, full_url, "N/A", pdf_url, "")
+                    continue
+                insert_row("ICMAI", title, category, full_url, "N/A", pdf_url)
+
+            next_button = page.locator(sel["content_pagination_next"]).first
+            if await next_button.count() == 0:
+                break
+            classes = ((await next_button.get_attribute("class")) or "").lower()
+            if "disabled" in classes or await next_button.get_attribute("aria-disabled") == "true":
+                break
+            next_href = ((await next_button.get_attribute("href")) or "").strip()
+            if next_href and next_href != "#":
+                next_url = urljoin(tab_url, next_href)
+                if next_url in visited_pages:
+                    break
+                tab_url = next_url
+                page_loaded = False
+            else:
+                await next_button.click()
+                await page.wait_for_timeout(250)
+                page_loaded = True
+            page_number += 1
+
+        print(f"ICMAI {category}: scraped {page_number} page(s)")
+
+    await scrape_content_tab("Updates", "updates_url", sel["content_list_links"])
+    await scrape_content_tab("Notifications", "notifications_url", sel["content_list_links"])
+    await scrape_content_tab("Events", "events_url", sel["content_list_links"])
+
+    await scrape_icmai_update_archive(page)
+    await scrape_icmai_tender_archive(page)
+
+    await scrape_content_tab("Students Connect", "students_connect_url", sel["students_content_links"])
+
+    tender_url = sel.get("tenders_url")
+    if tender_url:
+        visited_tender_pages = set()
+        page_number = 1
+        next_url = tender_url
+        while next_url and next_url not in visited_tender_pages and page_number <= 100:
+            visited_tender_pages.add(next_url)
+            await page.goto(next_url, wait_until="domcontentloaded", timeout=60000)
+            await page.wait_for_selector(sel["tender_cards"], timeout=30000)
+            for card in await page.locator(sel["tender_cards"]).all():
+                title_locator = card.locator(sel["tender_title"]).first
+                title = re.sub(
+                    r"\s+",
+                    " ",
+                    (await title_locator.inner_text() if await title_locator.count() else "").strip(),
+                )
+                if not title:
+                    continue
+                href = ""
+                for anchor in await card.locator(sel["tender_read_more"]).all():
+                    candidate = ((await anchor.get_attribute("href")) or "").strip()
+                    if candidate:
+                        href = candidate
+                        break
+                full_url = urljoin(sel["base_url"], href) if href else next_url
+                item_key = ("Tender", title, full_url)
+                if item_key in seen_items:
+                    continue
+                seen_items.add(item_key)
+                pdf_url = full_url if ".pdf" in full_url.lower() else None
+                if row_exists("ICMAI", title, "Tender"):
+                    update_row_by_key("ICMAI", title, "Tender", full_url, "N/A", pdf_url, "")
+                else:
+                    insert_row("ICMAI", title, "Tender", full_url, "N/A", pdf_url)
+
+            next_button = page.locator(sel["tender_next"]).first
+            if await next_button.count() == 0:
+                break
+            classes = ((await next_button.get_attribute("class")) or "").lower()
+            if "disabled" in classes:
+                break
+            href = ((await next_button.get_attribute("href")) or "").strip()
+            if not href:
+                break
+            next_url = urljoin(next_url, href)
+            page_number += 1
+        print(f"ICMAI Tender: scraped {page_number} page(s)")
+
+
 async def scrape_all_sites():
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(viewport={"width": 1366, "height": 900})
-        page = await context.new_page()
+        browser = await p.chromium.launch(headless=True)
 
-        try:
-            print("\n=== SCRAPING ICAI ===")
-            await scrape_icai(page)
+        async def run_site(site_name):
+            connection = open_scraper_connection()
+            connection_token = _worker_conn.set(connection)
+            context = await browser.new_context(viewport={"width": 1366, "height": 900})
+            page = await context.new_page()
+            try:
+                if is_cancel_requested(connection):
+                    report_site_progress(site_name, status="cancelled", stage="cancelled", cancel_requested=True)
+                    return site_name, RuntimeError("Cancellation requested")
+                source = get_source(site_name)
+                report_site_progress(
+                    site_name,
+                    stage="scraping",
+                    current_url=source["start_url"] if source else None,
+                )
+                print(f"\n=== SCRAPING {site_name} ===")
+                if site_name == "ICAI":
+                    await scrape_icai(page)
+                elif site_name == "ICMAI":
+                    await scrape_icmai(page)
+                elif site_name == "RBI":
+                    await scrape_rbi(page)
+                elif site_name == "BCI":
+                    await scrape_bci(page, context)
+                else:
+                    await scrape_cbic(page)
+                report_site_progress(site_name, status="success", stage="completed")
+                return site_name, None
+            except Exception as exc:
+                print(f"{site_name} worker failed: {exc}")
+                report_site_progress(
+                    site_name,
+                    status="failed",
+                    stage="scraping",
+                    error_message=str(exc),
+                )
+                return site_name, exc
+            finally:
+                await context.close()
+                connection.close()
+                _worker_conn.reset(connection_token)
 
-            print("\n=== SCRAPING ICMAI ===")
-            await scrape_icmai(page)
+        configured_sites = ("ICAI", "BCI", "ICMAI", "RBI", "CBIC")
+        active_sites = get_active_site_names()
+        results = await asyncio.gather(
+            *(
+                run_site(site_name)
+                for site_name in configured_sites
+                if site_name in active_sites and (not SELECTED_SITE or site_name == SELECTED_SITE)
+            ),
+        )
+        await browser.close()
+        failures = [f"{site}: {error}" for site, error in results if error is not None]
+        if failures:
+            print("Site failures: " + " | ".join(failures))
+        return results
 
-            print("\n=== SCRAPING RBI ===")
-            await scrape_rbi(page)
 
-            print("\n=== SCRAPING BCI ===")
-            await scrape_bci(page, context)
-
-            print("\n=== SCRAPING CBIC ===")
-            await scrape_cbic(page)
-        finally:
-            await browser.close()
-
-
-def process_all_pdfs():
-    """Process pending records from PDF URLs or detail URLs, save summaries, and cleanup temp files."""
+def process_all_pdfs(limit=None, website_name=None):
+    """Process pending records from PDF URLs or detail URLs and save summaries."""
     key_pool = _build_gemini_key_pool()
     icmai_skip_urls = (
         "https://icmai.in/ClntAbout/Notifications",
         "https://icmai.in/ClntAbout/Tender",
         "https://icmai.in/ClntAbout/Events",
     )
-    
-    rows = get_pending_pdf_rows()
+    rows = get_pending_pdf_rows(website_name=website_name)
+    if limit is not None:
+        rows = rows[:limit]
     if not rows:
         print("No pending PDFs for summary.")
         return
@@ -2043,6 +2447,7 @@ def process_all_pdfs():
         row_id = row["id"]
         website_name = row["website_name"]
         title = row["title"]
+        item_progress_id = start_item_progress(website_name, row_id, "discovered")
         start_url = (row.get("start_url") or "").strip()
         normalized_start_url = start_url.rstrip("/")
         normalized_detail_url = detail_url.rstrip("/")
@@ -2051,6 +2456,7 @@ def process_all_pdfs():
         if not pdf_url and normalized_start_url and normalized_detail_url == normalized_start_url:
             print(f"\nSkipping Gemini for row {row_id}: detail URL matches start_url")
             update_pdf_processed(row_id, "No summary available", "")
+            finish_item_progress(item_progress_id, "completed", "database_update")
             processed_count += 1
             continue
 
@@ -2061,6 +2467,7 @@ def process_all_pdfs():
         ):
             print(f"\nSkipping Gemini for row {row_id}: ICMAI detail URL is a category page")
             update_pdf_processed(row_id, "No summary available", "")
+            finish_item_progress(item_progress_id, "completed", "database_update")
             processed_count += 1
             continue
         
@@ -2071,21 +2478,20 @@ def process_all_pdfs():
         result = None
 
         if is_probable_pdf_url(source_url):
-            local_pdf = download_pdf(source_url, website_name, row_id)
-            if not local_pdf:
-                print(f"  ✗ PDF download failed for row {row_id}, skipping (will retry next run)")
+            try:
+                report_site_progress(website_name, stage="downloading", current_url=source_url)
+                result = process_pdf_url(
+                    source_url,
+                    model=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
+                    timeout_seconds=int(os.getenv("GROQ_TIMEOUT_SECONDS", "30")),
+                )
+            except Exception as exc:
+                print(f"  ✗ MarkItDown/Groq processing failed for row {row_id}: {exc}")
+                finish_item_progress(item_progress_id, "failed", "groq_summary", str(exc))
                 failed_count += 1
                 continue
-            pdf_folder = os.path.dirname(local_pdf)
-            result = generate_summary_from_pdf(
-                local_pdf,
-                pdf_url,
-                title,
-                row["category"],
-                website_name,
-                key_pool,
-            )
         else:
+            report_site_progress(website_name, stage="detail_processing", current_url=source_url)
             result = generate_summary_from_detail_page(
                 source_url,
                 title,
@@ -2097,12 +2503,14 @@ def process_all_pdfs():
         if result:
             if result.get("no_summary"):
                 update_pdf_processed(row_id, "No summary available", "")
+                finish_item_progress(item_progress_id, "completed", "database_update")
                 print(f"  ✓ Marked row {row_id} as processed with summary unavailable")
                 processed_count += 1
                 continue
 
             if not is_meaningful_summary(result.get("summary")):
                 print(f"  ✗ Generated summary quality check failed for row {row_id} (will retry next run)")
+                finish_item_progress(item_progress_id, "failed", "validation", "Summary quality validation failed")
                 failed_count += 1
                 # Cleanup any temporary local files when quality validation fails
                 try:
@@ -2124,6 +2532,7 @@ def process_all_pdfs():
                 result["summary"],
                 result["due_date"],
             )
+            finish_item_progress(item_progress_id, "completed", "database_update")
             print(f"  ✓ Summary and due date saved for row {row_id}")
             processed_count += 1
             
@@ -2143,6 +2552,7 @@ def process_all_pdfs():
         else:
             # Failure: cleanup PDF but don't mark as processed (will retry next run)
             print(f"  ✗ Summary/due date extraction failed for row {row_id} (will retry next run)")
+            finish_item_progress(item_progress_id, "failed", "summary", "No valid summary returned")
             failed_count += 1
             
             # Still cleanup the downloaded file to save space
@@ -2172,6 +2582,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            "--website",
+            choices=("ICAI", "BCI", "ICMAI", "RBI", "CBIC"),
+            help="Run only one active website worker.",
+        )
+        parser.add_argument(
             "--full-scan",
             action="store_true",
             help="Run one full top-to-bottom scan without early stop on first existing item.",
@@ -2182,6 +2597,11 @@ class Command(BaseCommand):
             help="Skip PDF/detail summary processing after scraping completes.",
         )
         parser.add_argument(
+            "--summary-limit",
+            type=int,
+            help="Process at most this many pending PDF/detail documents.",
+        )
+        parser.add_argument(
             "--seed",
             action="store_true",
             help="Force reseeding Website_Scraping_Sources and Website_Scraping_Selectors from code defaults.",
@@ -2189,8 +2609,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         global FORCE_FULL_SCAN
+        global SELECTED_SITE
+        global CURRENT_RUN_ID
         FORCE_FULL_SCAN = bool(kwargs.get("full_scan"))
+        SELECTED_SITE = (kwargs.get("website") or "").upper() or None
         skip_summary = bool(kwargs.get("skip_summary"))
+        summary_limit = kwargs.get("summary_limit")
         force_seed = bool(kwargs.get("seed"))
 
         print("Initializing unified tables...")
@@ -2207,22 +2631,34 @@ class Command(BaseCommand):
 
         print("DB setup complete\n")
 
+        if SELECTED_SITE and SELECTED_SITE not in get_active_site_names():
+            raise CommandError(f"{SELECTED_SITE} is inactive or not configured.")
+
         if FORCE_FULL_SCAN:
             print("FULL_SCAN mode enabled: ignoring first-existing-item early stops for this run.\n")
 
         run_id = create_run()
+        CURRENT_RUN_ID = run_id
+        lock_token = acquire_run_lock(get_conn(), run_id)
+        if not lock_token:
+            fail_run(run_id, "Another scraper run is already active.")
+            close_conn()
+            raise CommandError("Another scraper run is already active.")
+        clear_cancel(get_conn())
         before_total = get_total_data_count()
         before_site_counts = get_site_data_counts()
 
         try:
-            print("Starting sequential scraping for all websites...")
-            asyncio.run(scrape_all_sites())
+            print("Starting parallel scraping for active websites...")
+            site_results = asyncio.run(scrape_all_sites())
+            get_conn().commit()
+            site_failures = [f"{site}: {error}" for site, error in site_results if error is not None]
 
             if skip_summary:
                 print("\nSkipping PDF/detail summary processing as requested.")
             else:
                 print("\nStarting PDF summary processing...")
-                process_all_pdfs()
+                process_all_pdfs(limit=summary_limit, website_name=SELECTED_SITE)
 
             after_total = get_total_data_count()
             after_site_counts = get_site_data_counts()
@@ -2233,7 +2669,14 @@ class Command(BaseCommand):
                 site: max(after_site_counts.get(site, 0) - before_site_counts.get(site, 0), 0)
                 for site in all_sites
             }
-            complete_run(run_id, total_new_rows, per_site_new_rows)
+            run_status = "cancelled" if is_cancel_requested(get_conn()) else ("partial_failure" if site_failures else "success")
+            complete_run(
+                run_id,
+                total_new_rows,
+                per_site_new_rows,
+                site_results,
+                status=run_status,
+            )
 
             print("\nDone. Unified data is in table: Website_Scraping_data")
             print(f"Run analytics saved in Website_Scraping_Runs (run_id={run_id}).")
@@ -2241,4 +2684,7 @@ class Command(BaseCommand):
             fail_run(run_id, str(exc))
             raise
         finally:
+            clear_cancel(get_conn())
+            release_run_lock(get_conn(), lock_token)
             close_conn()
+            CURRENT_RUN_ID = None

@@ -8,6 +8,9 @@ class ScraperDatabaseRouter:
         "websitescrapingdata",
         "websitescrapingrun",
         "websitescrapingrunsitestat",
+		"websitescrapingrunsitedetail",
+        "websitescrapingsiteprogress",
+        "websitescrapingitemprogress",
         "userfeedback",
     }
 

@@ -128,6 +128,83 @@ class WebsiteScrapingRunSiteStat(models.Model):
 		return f"Run {self.run_id} - {self.website_name}: {self.new_rows}"
 
 
+class WebsiteScrapingRunSiteDetail(models.Model):
+	run = models.ForeignKey(
+		WebsiteScrapingRun,
+		on_delete=models.DO_NOTHING,
+		db_column="run_id",
+		related_name="site_details",
+	)
+	website_name = models.CharField(max_length=32)
+	status = models.CharField(max_length=16)
+	error_message = models.TextField(null=True, blank=True)
+	started_at = models.DateTimeField(null=True, blank=True)
+	finished_at = models.DateTimeField(null=True, blank=True)
+
+	class Meta:
+		managed = False
+		db_table = "Website_Scraping_Run_Site_Details"
+		ordering = ["website_name"]
+
+	def __str__(self):
+		return f"Run {self.run_id} - {self.website_name}: {self.status}"
+
+
+class WebsiteScrapingSiteProgress(models.Model):
+	run = models.ForeignKey(
+		WebsiteScrapingRun,
+		on_delete=models.DO_NOTHING,
+		db_column="run_id",
+		related_name="site_progress",
+	)
+	website_name = models.CharField(max_length=32)
+	status = models.CharField(max_length=16)
+	stage = models.CharField(max_length=32, null=True, blank=True)
+	current_url = models.CharField(max_length=2048, null=True, blank=True)
+	started_at = models.DateTimeField(null=True, blank=True)
+	heartbeat_at = models.DateTimeField(null=True, blank=True)
+	finished_at = models.DateTimeField(null=True, blank=True)
+	discovered_rows = models.IntegerField(default=0)
+	new_rows = models.IntegerField(default=0)
+	processed_rows = models.IntegerField(default=0)
+	failed_rows = models.IntegerField(default=0)
+	error_message = models.TextField(null=True, blank=True)
+	cancel_requested = models.BooleanField(default=False)
+
+	class Meta:
+		managed = False
+		db_table = "Website_Scraping_Site_Progress"
+		unique_together = (("run", "website_name"),)
+		ordering = ["website_name"]
+
+
+class WebsiteScrapingItemProgress(models.Model):
+	run = models.ForeignKey(
+		WebsiteScrapingRun,
+		on_delete=models.DO_NOTHING,
+		db_column="run_id",
+		related_name="item_progress",
+	)
+	site_progress = models.ForeignKey(
+		WebsiteScrapingSiteProgress,
+		on_delete=models.DO_NOTHING,
+		db_column="site_progress_id",
+		related_name="items",
+	)
+	data_id = models.BigIntegerField(null=True, blank=True)
+	website_name = models.CharField(max_length=32)
+	stage = models.CharField(max_length=32)
+	status = models.CharField(max_length=16)
+	started_at = models.DateTimeField(null=True, blank=True)
+	finished_at = models.DateTimeField(null=True, blank=True)
+	error_message = models.TextField(null=True, blank=True)
+
+	class Meta:
+		managed = False
+		db_table = "Website_Scraping_Item_Progress"
+		ordering = ["-started_at", "-id"]
+
+
 class UserFeedback(models.Model):
 	full_name = models.CharField(max_length=150)
 	user_email = models.EmailField(max_length=254)

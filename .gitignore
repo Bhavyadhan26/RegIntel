@@ -3,10 +3,10 @@
 backend/venv/
 backend/config/__pycache__/
 backend/**/__pycache__/
+backend/staticfiles/
 *.pyc
 *.pyo
 *.pyd
-render.yaml
 # Python
 .venv/
 venv/
@@ -21,9 +21,6 @@ frontend/dist/
 backend/*_pdfs/
 backend/reports/
 backend/reports/captures/
-
-# Docker artifacts (project no longer uses local Dockerfile)
-backend/Dockerfile
 
 # Removed backend local-only scripts/artifacts
 backend/scripts/run_website_scraper.sh

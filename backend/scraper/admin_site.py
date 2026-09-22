@@ -9,8 +9,12 @@ from django.contrib.admin import AdminSite
 from django.db import DatabaseError
 from django.db.models import Count, Q
 from django.http import HttpResponseRedirect
+from django.http import JsonResponse
 from django.urls import path, reverse
 from django.utils import timezone
+
+from .database import open_scraper_connection
+from .run_lock import request_cancel
 
 from .models import (
     WebsiteScrapingData,
@@ -43,6 +47,9 @@ class RegIntelAdminSite(AdminSite):
         urls = super().get_urls()
         custom_urls = [
             path("run-scraper/", self.admin_view(self.run_scraper_view), name="run-scraper"),
+            path("run-scraper/<str:website_name>/", self.admin_view(self.run_site_view), name="run-site-scraper"),
+            path("scraper-status/", self.admin_view(self.scraper_status_view), name="scraper-status"),
+            path("stop-scraper/", self.admin_view(self.stop_scraper_view), name="stop-scraper"),
         ]
         return custom_urls + urls
 
@@ -85,6 +92,90 @@ class RegIntelAdminSite(AdminSite):
         )
         return HttpResponseRedirect(reverse("regintel_admin:index"))
 
+    def run_site_view(self, request, website_name):
+        if request.method != "POST":
+            return HttpResponseRedirect(reverse("regintel_admin:index"))
+
+        source = WebsiteScrapingSource.objects.filter(website_name__iexact=website_name).first()
+        if not source or not source.active:
+            messages.error(request, f"{website_name.upper()} is inactive or not configured.")
+            return HttpResponseRedirect(reverse("regintel_admin:index"))
+        if WebsiteScrapingRun.objects.filter(status="running").exists():
+            messages.warning(request, "A scraper run is already active.")
+            return HttpResponseRedirect(reverse("regintel_admin:index"))
+
+        backend_dir = Path(__file__).resolve().parents[1]
+        logs_dir = backend_dir / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_file = logs_dir / f"website_scraper_{source.website_name.lower()}.log"
+        with log_file.open("a", encoding="utf-8") as stream:
+            Popen(
+                [sys.executable, "manage.py", "website_scraper", "--website", source.website_name.upper()],
+                cwd=str(backend_dir),
+                stdout=stream,
+                stderr=stream,
+                close_fds=True,
+            )
+        messages.success(request, f"{source.website_name} scraper started in the background.")
+        return HttpResponseRedirect(reverse("regintel_admin:index"))
+
+    def scraper_status_view(self, request):
+        last_run = WebsiteScrapingRun.objects.order_by("-started_at", "-id").first()
+        payload = {
+            "run": None,
+            "sites": [],
+        }
+        if last_run:
+            payload["run"] = {
+                "id": last_run.id,
+                "status": last_run.status,
+                "started_at": last_run.started_at.isoformat() if last_run.started_at else None,
+                "finished_at": last_run.finished_at.isoformat() if last_run.finished_at else None,
+                "total_new_rows": last_run.total_new_rows,
+                "error": last_run.error_text or "",
+            }
+            payload["sites"] = list(
+                last_run.site_stats.order_by("website_name").values("website_name", "new_rows")
+            )
+            payload["site_details"] = list(
+                last_run.site_details.order_by("website_name").values(
+                    "website_name", "status", "error_message", "started_at", "finished_at"
+                )
+            )
+            payload["site_progress"] = list(
+                last_run.site_progress.order_by("website_name").values(
+                    "website_name",
+                    "status",
+                    "stage",
+                    "current_url",
+                    "started_at",
+                    "heartbeat_at",
+                    "finished_at",
+                    "discovered_rows",
+                    "new_rows",
+                    "processed_rows",
+                    "failed_rows",
+                    "error_message",
+                    "cancel_requested",
+                )
+            )
+            payload["item_progress"] = list(
+                last_run.item_progress.order_by("-started_at").values(
+                    "data_id", "website_name", "stage", "status", "started_at", "finished_at", "error_message"
+                )[:100]
+            )
+        return JsonResponse(payload)
+
+    def stop_scraper_view(self, request):
+        if request.method == "POST":
+            connection = open_scraper_connection()
+            try:
+                request_cancel(connection)
+            finally:
+                connection.close()
+            messages.warning(request, "Cancellation requested. The active worker will stop before its next item.")
+        return HttpResponseRedirect(reverse("regintel_admin:index"))
+
     def index(self, request, extra_context=None):
         context = extra_context or {}
         dashboard = {
@@ -110,6 +201,9 @@ class RegIntelAdminSite(AdminSite):
                 "data": "/admin/scraper/websitescrapingdata/",
                 "runs": "/admin/scraper/websitescrapingrun/",
                 "run_scraper": reverse("regintel_admin:run-scraper"),
+                "run_site_base": "/admin/run-scraper/",
+                "status": reverse("regintel_admin:scraper-status"),
+                "stop_scraper": reverse("regintel_admin:stop-scraper"),
                 "feedback": "/admin/scraper/userfeedback/",
                 "users": "/admin/auth/user/",
                 "profiles": "/admin/users/userprofile/",
@@ -122,6 +216,9 @@ class RegIntelAdminSite(AdminSite):
             last_run = WebsiteScrapingRun.objects.order_by("-started_at", "-id").first()
             dashboard["source_count"] = sources.count()
             dashboard["active_source_count"] = sources.filter(active=True).count()
+            dashboard["active_sources"] = list(
+                sources.filter(active=True).values("website_name", "website_full_name")
+            )
             dashboard["selector_count"] = selectors.count()
             dashboard["data_count"] = data_rows.count()
             dashboard["last_data_addition"] = data_rows.order_by("-created_at", "-id").first()

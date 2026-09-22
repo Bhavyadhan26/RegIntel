@@ -4,31 +4,215 @@
 {% block content %}
 <div style="margin-bottom: 20px;">
   <style>
+    :root {
+      --ri-ink: #17212b;
+      --ri-muted: #647181;
+      --ri-line: #d9e1e8;
+      --ri-surface: #ffffff;
+      --ri-canvas: #f4f7f9;
+      --ri-accent: #0f766e;
+      --ri-accent-dark: #115e59;
+      --ri-warn: #b45309;
+      --ri-danger: #b42318;
+    }
+
+    #content {
+      background: var(--ri-canvas);
+      color: var(--ri-ink);
+    }
+
+    #content > div:first-child {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 12px 20px 28px;
+    }
+
+    .ri-dashboard-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      margin: 0 0 22px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--ri-line);
+    }
+
+    .ri-dashboard-heading h2 {
+      margin: 0;
+      color: var(--ri-ink);
+      font-size: 25px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .ri-dashboard-heading p {
+      margin: 5px 0 0;
+      color: var(--ri-muted);
+      font-size: 13px;
+    }
+
+    .ri-live-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      padding: 8px 12px;
+      border: 1px solid var(--ri-line);
+      border-radius: 8px;
+      background: var(--ri-surface);
+      color: var(--ri-muted);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .ri-live-status::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+      content: "";
+    }
+
+    .ri-live-status[data-state="running"]::before {
+      background: #0f766e;
+      box-shadow: 0 0 0 4px #ccfbf1;
+    }
+
+    .ri-stats-row,
+    .ri-quick-row {
+      gap: 16px;
+    }
+
     .ri-stats-row {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
       margin-bottom: 12px;
     }
 
     .ri-quick-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ri-stats-row > div,
+    .ri-quick-row > div {
+      border: 1px solid var(--ri-line) !important;
+      border-radius: 8px !important;
+      background: var(--ri-surface) !important;
+      box-shadow: 0 2px 8px rgba(23, 33, 43, 0.04);
+    }
+
+    .ri-stats-row > div {
+      min-height: 92px;
+      padding: 16px !important;
+    }
+
+    .ri-stats-row > div > div:first-child,
+    .ri-quick-row > div > div:first-child {
+      color: var(--ri-muted) !important;
+      font-size: 11px !important;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .ri-stats-row > div > div:last-child {
+      margin-top: 8px;
+      color: var(--ri-ink);
+      font-size: 28px !important;
+    }
+
+    .ri-quick-row > div {
+      padding: 18px !important;
+    }
+
+    .ri-quick-row button,
+    .ri-quick-row a {
+      min-height: 36px;
+      border: 1px solid var(--ri-line) !important;
+      border-radius: 6px !important;
+      background: var(--ri-surface) !important;
+      color: var(--ri-ink) !important;
+      font-size: 12px !important;
+      font-weight: 700;
+      text-decoration: none;
+      transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+    }
+
+    .ri-quick-row button:hover,
+    .ri-quick-row a:hover {
+      border-color: var(--ri-accent) !important;
+      background: #f0fdfa !important;
+      color: var(--ri-accent-dark) !important;
+    }
+
+    .ri-quick-row button:focus-visible,
+    .ri-quick-row a:focus-visible {
+      outline: 3px solid rgba(15, 118, 110, .25);
+      outline-offset: 2px;
+    }
+
+    .ri-quick-row form:first-child button {
+      border-color: var(--ri-accent) !important;
+      background: var(--ri-accent) !important;
+      color: #fff !important;
+    }
+
+    .ri-quick-row form:first-child button:hover {
+      background: var(--ri-accent-dark) !important;
+      color: #fff !important;
     }
 
     @media (max-width: 900px) {
       .ri-stats-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
-    }
 
-    @media (max-width: 600px) {
-      .ri-stats-row {
+      .ri-quick-row {
         grid-template-columns: 1fr;
       }
     }
+
+    @media (max-width: 600px) {
+      #content > div:first-child {
+        padding: 8px 12px 20px;
+      }
+
+      .ri-dashboard-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .ri-live-status {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .ri-stats-row {
+        grid-template-columns: 1fr;
+      }
+
+      .ri-quick-row > div > div:nth-child(2) {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .ri-quick-row > div > div:nth-child(2) a,
+      .ri-quick-row > div > div:nth-child(2) button {
+        width: 100%;
+        box-sizing: border-box;
+        text-align: center;
+      }
+    }
   </style>
+
+  <div class="ri-dashboard-heading">
+    <div>
+      <h2>Scraper operations</h2>
+      <p>Monitor sources, launch controlled runs, and review the latest pipeline state.</p>
+    </div>
+    <div class="ri-live-status" id="ri-live-status" data-state="idle" aria-live="polite">Status unavailable</div>
+  </div>
 
   <div class="ri-stats-row">
     <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
@@ -68,10 +252,24 @@
     </div>
 
     <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
-      <div style="font-size: 12px; color: #666;">Latest Run Snapshot</div>
+      <div style="font-size: 12px; color: #666;">Active Website Runs</div>
+      <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+        {% for source in scraper_dashboard.active_sources %}
+          <form method="post" action="{{ scraper_dashboard.links.run_site_base }}{{ source.website_name }}/" style="display: inline; margin: 0;">
+            {% csrf_token %}
+            <button type="submit" style="padding: 6px 10px; border-radius: 6px; background: #475569; color: #fff; border: none; cursor: pointer;">Run {{ source.website_name }}</button>
+          </form>
+        {% empty %}
+          <span>No active websites configured.</span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
+            <div style="font-size: 12px; color: #666;">Latest Run Snapshot</div>
       <div style="margin-top: 8px; font-size: 14px;">
         {% if scraper_dashboard.last_run %}
-          <div><strong>Status:</strong> {{ scraper_dashboard.last_run.status }}</div>
+                <div><strong>Status:</strong> <span id="ri-run-status">{{ scraper_dashboard.last_run.status }}</span></div>
           <div><strong>Started:</strong> {{ scraper_dashboard.last_run_started_ist|default:"N/A" }}</div>
           <div><strong>Finished:</strong> {{ scraper_dashboard.last_run_finished_ist|default:"N/A" }}</div>
           <div><strong>New additions:</strong> {{ scraper_dashboard.new_additions_total }}</div>
@@ -169,6 +367,29 @@
     </div>
   {% endif %}
 </div>
+
+<script>
+  (function () {
+    var statusNode = document.getElementById("ri-live-status");
+    var runNode = document.getElementById("ri-run-status");
+
+    function refreshStatus() {
+    fetch("{{ scraper_dashboard.links.status }}", { credentials: "same-origin" })
+      .then(function (response) { return response.json(); })
+      .then(function (payload) {
+        var status = payload.run && payload.run.status;
+        if (!statusNode) return;
+        statusNode.dataset.state = status || "idle";
+        statusNode.textContent = status ? "Pipeline " + status.replace("_", " ") : "No runs recorded";
+        if (runNode && status) runNode.textContent = status;
+      })
+      .catch(function () {});
+    }
+
+    refreshStatus();
+    window.setInterval(refreshStatus, 5000);
+  }());
+</script>
 
 {{ block.super }}
 {% endblock %}

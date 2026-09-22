@@ -10,6 +10,7 @@ from .models import (
 	WebsiteScrapingData,
 	WebsiteScrapingRun,
 	WebsiteScrapingRunSiteStat,
+	WebsiteScrapingRunSiteDetail,
 	WebsiteScrapingSelector,
 	WebsiteScrapingSource,
 )
@@ -103,13 +104,24 @@ class WebsiteScrapingRunSiteStatInline(admin.TabularInline):
 		return False
 
 
+class WebsiteScrapingRunSiteDetailInline(admin.TabularInline):
+	model = WebsiteScrapingRunSiteDetail
+	extra = 0
+	can_delete = False
+	fields = ("website_name", "status", "error_message", "started_at", "finished_at")
+	readonly_fields = fields
+
+	def has_add_permission(self, request, obj=None):
+		return False
+
+
 @admin.register(WebsiteScrapingRun, site=regintel_admin_site)
 class WebsiteScrapingRunAdmin(SuperuserOnlyAdminMixin, admin.ModelAdmin):
 	list_display = ("id", "status", "started_at", "finished_at", "total_new_rows")
 	search_fields = ("status", "error_text")
 	list_filter = ("status",)
 	readonly_fields = ("started_at", "finished_at", "status", "total_new_rows", "error_text", "created_at", "updated_at")
-	inlines = (WebsiteScrapingRunSiteStatInline,)
+	inlines = (WebsiteScrapingRunSiteStatInline, WebsiteScrapingRunSiteDetailInline)
 
 	def has_add_permission(self, request):
 		return False

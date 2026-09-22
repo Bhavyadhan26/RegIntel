@@ -1,0 +1,63 @@
+services:
+  - type: web
+    name: regintel-web
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /admin/login/
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DEFAULT_DB_NAME
+        sync: false
+      - key: DEFAULT_DB_USER
+        sync: false
+      - key: DEFAULT_DB_PASS
+        sync: false
+      - key: DEFAULT_DB_HOST
+        sync: false
+      - key: DEFAULT_DB_PORT
+        value: "3306"
+      - key: SCRAPER_DB_NAME
+        sync: false
+      - key: SCRAPER_DB_USER
+        sync: false
+      - key: SCRAPER_DB_PASS
+        sync: false
+      - key: SCRAPER_DB_HOST
+        sync: false
+      - key: SCRAPER_DB_PORT
+        value: "3306"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
+      - key: GROQ_TIMEOUT_SECONDS
+        value: "30"
+
+  - type: cron
+    name: regintel-scraper-daily
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    schedule: "30 3 * * *"
+    startCommand: "python manage.py website_scraper"
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: SCRAPER_DB_NAME
+        sync: false
+      - key: SCRAPER_DB_USER
+        sync: false
+      - key: SCRAPER_DB_PASS
+        sync: false
+      - key: SCRAPER_DB_HOST
+        sync: false
+      - key: SCRAPER_DB_PORT
+        value: "3306"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
+      - key: GROQ_TIMEOUT_SECONDS
+        value: "30"

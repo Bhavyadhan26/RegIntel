@@ -1328,7 +1328,7 @@ async def _rbi_first_notice_title(page, sel):
 
                 const anchor = tr.querySelector("a.link2, td a[href*='NotificationUser.aspx?Id=']");
                 if (anchor) {
-                    return (anchor.textContent || "").replace(/\s+/g, ' ').trim();
+                    return (anchor.textContent || "").replace(/\\s+/g, ' ').trim();
                 }
             }
 

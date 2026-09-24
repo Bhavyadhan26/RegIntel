@@ -19,6 +19,7 @@ from .run_lock import request_cancel
 from .models import (
     WebsiteScrapingData,
     WebsiteScrapingRun,
+    WebsiteScrapingRunSiteDetail,
     WebsiteScrapingSelector,
     WebsiteScrapingSource,
 )
@@ -48,6 +49,7 @@ class RegIntelAdminSite(AdminSite):
         custom_urls = [
             path("run-scraper/", self.admin_view(self.run_scraper_view), name="run-scraper"),
             path("run-scraper/<str:website_name>/", self.admin_view(self.run_site_view), name="run-site-scraper"),
+            path("toggle-scraper/<str:website_name>/", self.admin_view(self.toggle_site_view), name="toggle-site-scraper"),
             path("scraper-status/", self.admin_view(self.scraper_status_view), name="scraper-status"),
             path("stop-scraper/", self.admin_view(self.stop_scraper_view), name="stop-scraper"),
         ]
@@ -117,6 +119,18 @@ class RegIntelAdminSite(AdminSite):
                 close_fds=True,
             )
         messages.success(request, f"{source.website_name} scraper started in the background.")
+        return HttpResponseRedirect(reverse("regintel_admin:index"))
+
+    def toggle_site_view(self, request, website_name):
+        if request.method == "POST":
+            source = WebsiteScrapingSource.objects.filter(website_name__iexact=website_name).first()
+            if source:
+                source.active = not source.active
+                source.save(using="scraper_db", update_fields=["active"])
+                state = "active" if source.active else "inactive"
+                messages.success(request, f"{source.website_name} is now {state}.")
+            else:
+                messages.error(request, f"{website_name.upper()} is not configured.")
         return HttpResponseRedirect(reverse("regintel_admin:index"))
 
     def scraper_status_view(self, request):
@@ -202,6 +216,7 @@ class RegIntelAdminSite(AdminSite):
                 "runs": "/admin/scraper/websitescrapingrun/",
                 "run_scraper": reverse("regintel_admin:run-scraper"),
                 "run_site_base": "/admin/run-scraper/",
+                "toggle_site_base": "/admin/toggle-scraper/",
                 "status": reverse("regintel_admin:scraper-status"),
                 "stop_scraper": reverse("regintel_admin:stop-scraper"),
                 "feedback": "/admin/scraper/userfeedback/",
@@ -219,6 +234,30 @@ class RegIntelAdminSite(AdminSite):
             dashboard["active_sources"] = list(
                 sources.filter(active=True).values("website_name", "website_full_name")
             )
+            latest_progress = {}
+            if last_run:
+                latest_progress = {
+                    row["website_name"]: row
+                    for row in last_run.site_progress.values(
+                        "website_name", "status", "stage", "failed_rows", "error_message"
+                    )
+                }
+            dashboard["website_operations"] = [
+                {
+                    "website_name": source.website_name,
+                    "website_full_name": source.website_full_name,
+                    "active": source.active,
+                    "progress": latest_progress.get(source.website_name, {}),
+                    "last_success": WebsiteScrapingRunSiteDetail.objects.filter(
+                        website_name=source.website_name, status="success"
+                    ).order_by("-finished_at").values_list("finished_at", flat=True).first(),
+                    "last_failure": WebsiteScrapingRunSiteDetail.objects.filter(
+                        website_name=source.website_name, status="failed"
+                    ).order_by("-finished_at").values_list("finished_at", flat=True).first(),
+                }
+                for source in sources
+            ]
+            dashboard["pipeline_running"] = bool(last_run and last_run.status == "running")
             dashboard["selector_count"] = selectors.count()
             dashboard["data_count"] = data_rows.count()
             dashboard["last_data_addition"] = data_rows.order_by("-created_at", "-id").first()

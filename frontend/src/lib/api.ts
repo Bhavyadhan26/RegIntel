@@ -1,6 +1,6 @@
 const API_ROOT = import.meta.env.VITE_API_ROOT || 'http://localhost:8000';
 const BASE_URL = `${API_ROOT}/api/auth`;
-const SCRAPER_BASE_URL = `${API_ROOT}/api/scraper`;
+export const SCRAPER_BASE_URL = `${API_ROOT}/api/scraper`;
 
 function getAccessToken(): string | null {
   return sessionStorage.getItem('access_token');
@@ -51,7 +51,7 @@ async function refreshAccessToken(): Promise<string | null> {
   return data.access;
 }
 
-async function apiFetch(path: string, options: RequestInit = {}, baseUrl = BASE_URL): Promise<Response> {
+export async function apiFetch(path: string, options: RequestInit = {}, baseUrl = BASE_URL): Promise<Response> {
   let access = getAccessToken();
 
   const makeRequest = (token: string | null) =>
@@ -126,7 +126,7 @@ export async function apiGetProfile() {
   const res = await apiFetch('/profile/');
   const data = await res.json();
   if (!res.ok) throw data;
-  return data as { full_name: string; email: string; profession: string; email_notifications: boolean };
+  return data as { full_name: string; email: string; profession: string; email_notifications: boolean; is_superuser: boolean };
 }
 
 export async function apiUpdateProfile(payload: Partial<{

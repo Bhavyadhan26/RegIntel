@@ -11,7 +11,7 @@ interface SidebarProps {
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { logout, isLoggingOut } = useAuth();
+    const { user, logout, isLoggingOut } = useAuth();
 
     const handleLogout = async () => {
         if (window.innerWidth < 1024) onClose();
@@ -26,6 +26,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         { name: 'Deadlines', icon: <Calendar size={20} />, path: '/deadlines' },
         { name: 'Feedback', icon: <HelpCircle size={20} />, path: '/feedback' },
     ];
+
+    if (user?.is_superuser) {
+        menuItems.push({
+            name: 'Scraper Ops Admin',
+            icon: <LayoutDashboard size={20} />,
+            path: '/admin'
+        });
+    }
 
     return (
         <div className="w-[260px] bg-light-100 border-r border-border h-full flex flex-col relative" aria-hidden={!isOpen}>

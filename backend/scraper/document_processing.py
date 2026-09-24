@@ -108,3 +108,15 @@ def process_pdf_url(pdf_url, model, timeout_seconds=30):
         if not result["due_date"]:
             result["due_date"] = extract_due_date(markdown)
         return result
+
+
+def process_text_content(text, model, timeout_seconds=30):
+    """Summarize extracted HTML/text content with Groq only."""
+    if not text or not text.strip():
+        raise ValueError("No text content available for Groq")
+    result = _groq_summary(text, model, timeout_seconds)
+    if result is None:
+        raise ValueError("Groq returned invalid or overlong summary JSON")
+    if not result["due_date"]:
+        result["due_date"] = extract_due_date(text)
+    return result

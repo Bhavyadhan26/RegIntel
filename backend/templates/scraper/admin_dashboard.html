@@ -151,6 +151,96 @@
       outline-offset: 2px;
     }
 
+    .ri-operations-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    .ri-operations-table th,
+    .ri-operations-table td {
+      padding: 9px 8px;
+      border-bottom: 1px solid #edf1f4;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .ri-operations-table th {
+      color: var(--ri-muted);
+      font-size: 10px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .ri-site-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 700;
+    }
+
+    .ri-site-state::before {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+      content: "";
+    }
+
+    .ri-site-state[data-active="true"]::before { background: #0f766e; }
+    .ri-site-state[data-active="false"]::before { background: #b42318; }
+
+    .ri-site-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .ri-site-actions form { margin: 0; }
+
+    .ri-site-meta {
+      color: var(--ri-muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .ri-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0 2px;
+      color: var(--ri-muted);
+      font-size: 12px;
+    }
+
+    .ri-filter-bar select {
+      min-height: 30px;
+      border: 1px solid var(--ri-line);
+      border-radius: 5px;
+      background: #fff;
+      color: var(--ri-ink);
+    }
+
+    .ri-mini-button {
+      min-height: 30px;
+      padding: 5px 8px;
+      border: 1px solid var(--ri-line);
+      border-radius: 5px;
+      background: #fff;
+      color: var(--ri-ink);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .ri-mini-button:hover { border-color: var(--ri-accent); color: var(--ri-accent-dark); }
+
+    @media (max-width: 700px) {
+      .ri-operations-table th:nth-child(2),
+      .ri-operations-table td:nth-child(2) { display: none; }
+    }
+
     .ri-quick-row form:first-child button {
       border-color: var(--ri-accent) !important;
       background: var(--ri-accent) !important;
@@ -209,9 +299,15 @@
   <div class="ri-dashboard-heading">
     <div>
       <h2>Scraper operations</h2>
-      <p>Monitor sources, launch controlled runs, and review the latest pipeline state.</p>
+      <p>Monitor sources, launch controlled runs, and review the latest pipeline state. Last refreshed <span id="ri-last-refreshed">now</span>.</p>
     </div>
-    <div class="ri-live-status" id="ri-live-status" data-state="idle" aria-live="polite">Status unavailable</div>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <div class="ri-live-status" id="ri-live-status" data-state="idle" aria-live="polite">Status unavailable</div>
+      <form method="post" action="{{ scraper_dashboard.links.stop_scraper }}" style="margin:0;">
+        {% csrf_token %}
+        <button class="ri-mini-button" type="submit" {% if not scraper_dashboard.pipeline_running %}disabled{% endif %}>Stop pipeline</button>
+      </form>
+    </div>
   </div>
 
   <div class="ri-stats-row">
@@ -239,7 +335,7 @@
       <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
         <form method="post" action="{{ scraper_dashboard.links.run_scraper }}" style="display: inline; margin: 0;">
           {% csrf_token %}
-          <button type="submit" style="padding: 6px 10px; border-radius: 6px; background: #15803d; color: #fff; text-decoration: none; font-size: 12px; border: none; cursor: pointer;">Run Scraper Now</button>
+          <button type="submit" {% if scraper_dashboard.pipeline_running %}disabled{% endif %} style="padding: 6px 10px; border-radius: 6px; background: #15803d; color: #fff; text-decoration: none; font-size: 12px; border: none; cursor: pointer;">Run {{ scraper_dashboard.active_source_count }} active websites</button>
         </form>
         <a href="{{ scraper_dashboard.links.sources }}" style="padding: 6px 10px; border-radius: 6px; background: #0f766e; color: #fff; text-decoration: none; font-size: 12px;">Manage Sources</a>
         <a href="{{ scraper_dashboard.links.selectors }}" style="padding: 6px 10px; border-radius: 6px; background: #1d4ed8; color: #fff; text-decoration: none; font-size: 12px;">Manage Selectors</a>
@@ -252,17 +348,37 @@
     </div>
 
     <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
-      <div style="font-size: 12px; color: #666;">Active Website Runs</div>
-      <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
-        {% for source in scraper_dashboard.active_sources %}
-          <form method="post" action="{{ scraper_dashboard.links.run_site_base }}{{ source.website_name }}/" style="display: inline; margin: 0;">
-            {% csrf_token %}
-            <button type="submit" style="padding: 6px 10px; border-radius: 6px; background: #475569; color: #fff; border: none; cursor: pointer;">Run {{ source.website_name }}</button>
-          </form>
-        {% empty %}
-          <span>No active websites configured.</span>
-        {% endfor %}
+      <div style="font-size: 12px; color: #666;">Website operations</div>
+      <div class="ri-filter-bar">
+        <label for="ri-site-filter">Show</label>
+        <select id="ri-site-filter" aria-label="Filter websites">
+          <option value="all">All websites</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="running">Running</option>
+          <option value="failed">Failed</option>
+        </select>
       </div>
+      <table class="ri-operations-table">
+        <thead><tr><th>Website</th><th>Pipeline state</th><th>Latest stage</th><th>Progress</th><th>History</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for site in scraper_dashboard.website_operations %}
+            <tr class="ri-site-row" data-active="{{ site.active|yesno:'active,inactive' }}" data-status="{{ site.progress.status|default:'idle' }}">
+              <td><strong>{{ site.website_name }}</strong><br><span style="color: #647181;">{{ site.website_full_name }}</span></td>
+              <td><span class="ri-site-state" data-active="{{ site.active|yesno:'true,false' }}">{% if site.active %}Active{% else %}Inactive{% endif %}</span></td>
+              <td>{{ site.progress.status|default:"No run" }}{% if site.progress.stage %}<br><span style="color: #647181;">{{ site.progress.stage }}</span>{% endif %}{% if site.progress.error_message %}<br><span style="color: #b42318;">{{ site.progress.error_message|truncatechars:70 }}</span>{% endif %}</td>
+              <td class="ri-site-meta">Discovered: {{ site.progress.discovered_rows|default:0 }}<br>New: {{ site.progress.new_rows|default:0 }}<br>Processed: {{ site.progress.processed_rows|default:0 }}<br>Failed: {{ site.progress.failed_rows|default:0 }}</td>
+              <td class="ri-site-meta">Success: {{ site.last_success|default:"Never" }}<br>Failure: {{ site.last_failure|default:"Never" }}</td>
+              <td><div class="ri-site-actions">
+                {% if site.active %}
+                  <form method="post" action="{{ scraper_dashboard.links.run_site_base }}{{ site.website_name }}/" onsubmit="return !this.dataset.disabled;"><button class="ri-mini-button" type="submit" {% if scraper_dashboard.pipeline_running %}disabled{% endif %}>Run now</button>{% csrf_token %}</form>
+                {% endif %}
+                <form method="post" action="{{ scraper_dashboard.links.toggle_site_base }}{{ site.website_name }}/" onsubmit="return confirm('{% if site.active %}Deactivate{% else %}Activate{% endif %} {{ site.website_name }}?');">{% csrf_token %}<button class="ri-mini-button" type="submit">{% if site.active %}Deactivate{% else %}Activate{% endif %}</button></form>
+              </div></td>
+            </tr>
+          {% empty %}<tr><td colspan="6">No websites configured.</td></tr>{% endfor %}
+        </tbody>
+      </table>
     </div>
 
     <div style="border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px; background: #ffffff;">
@@ -369,6 +485,17 @@
 </div>
 
 <script>
+  var filterNode = document.getElementById("ri-site-filter");
+  if (filterNode) {
+    filterNode.addEventListener("change", function () {
+      var value = filterNode.value;
+      document.querySelectorAll(".ri-site-row").forEach(function (row) {
+        var matches = value === "all" || row.dataset.active === value || row.dataset.status === value;
+        row.hidden = !matches;
+      });
+    });
+  }
+
   (function () {
     var statusNode = document.getElementById("ri-live-status");
     var runNode = document.getElementById("ri-run-status");
@@ -382,6 +509,10 @@
         statusNode.dataset.state = status || "idle";
         statusNode.textContent = status ? "Pipeline " + status.replace("_", " ") : "No runs recorded";
         if (runNode && status) runNode.textContent = status;
+        var refreshed = document.getElementById("ri-last-refreshed");
+        if (refreshed) refreshed.textContent = new Date().toLocaleTimeString();
+        var stopButton = document.querySelector(".ri-dashboard-heading button[type='submit']");
+        if (stopButton) stopButton.disabled = status !== "running";
       })
       .catch(function () {});
     }

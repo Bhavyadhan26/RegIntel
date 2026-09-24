@@ -15,6 +15,8 @@ import Publications from "@/pages/Publications";
 import { UserProfile } from "@/pages/Profile";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminRoute from "@/components/AdminRoute";
+import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 
 function App() {
   return (
@@ -44,6 +46,10 @@ function App() {
           <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
           <Route path="/deadlines" element={<ProtectedRoute><Deadlines /></ProtectedRoute>} />
           <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
+          
+          {/* ADMIN ROUTES */}
+          <Route path="/admin/*" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+
           <Route
             path="*"
             element={
@@ -58,4 +64,4 @@ function App() {
   );
 }
 
-export default App;
+export default App;

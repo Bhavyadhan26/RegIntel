@@ -7,6 +7,7 @@ interface AuthUser {
   email: string;
   profession: string;
   email_notifications: boolean;
+  is_superuser: boolean;
 }
 
 interface AuthContextType {

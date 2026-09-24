@@ -18,15 +18,15 @@ services:
         sync: false
       - key: DEFAULT_DB_PORT
         value: "3306"
-      - key: SCRAPER_DB_NAME
+      - key: DB_NAME
         sync: false
-      - key: SCRAPER_DB_USER
+      - key: DB_USER
         sync: false
-      - key: SCRAPER_DB_PASS
+      - key: DB_PASS
         sync: false
-      - key: SCRAPER_DB_HOST
+      - key: DB_HOST
         sync: false
-      - key: SCRAPER_DB_PORT
+      - key: DB_PORT
         value: "3306"
       - key: GROQ_API_KEY
         sync: false
@@ -45,15 +45,15 @@ services:
     envVars:
       - key: DJANGO_SECRET_KEY
         sync: false
-      - key: SCRAPER_DB_NAME
+      - key: DB_NAME
         sync: false
-      - key: SCRAPER_DB_USER
+      - key: DB_USER
         sync: false
-      - key: SCRAPER_DB_PASS
+      - key: DB_PASS
         sync: false
-      - key: SCRAPER_DB_HOST
+      - key: DB_HOST
         sync: false
-      - key: SCRAPER_DB_PORT
+      - key: DB_PORT
         value: "3306"
       - key: GROQ_API_KEY
         sync: false

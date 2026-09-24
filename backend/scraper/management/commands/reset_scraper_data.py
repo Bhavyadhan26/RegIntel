@@ -28,6 +28,15 @@ class Command(BaseCommand):
                 if cursor.fetchone():
                     raise CommandError("Cannot reset while a scraper lease is active.")
 
+                cursor.execute(
+                    "SELECT id FROM Website_Scraping_Runs WHERE status IN ('queued', 'running') LIMIT 1"
+                )
+                active_run = cursor.fetchone()
+                if active_run:
+                    raise CommandError(
+                        f"Cannot reset while scraper run {active_run['id']} is queued or running."
+                    )
+
                 cursor.execute("SELECT COUNT(*) AS total FROM Website_Scraping_data")
                 data_count = cursor.fetchone()["total"]
                 cursor.execute("SELECT COUNT(*) AS total FROM Website_Scraping_Run_Site_Stats")
@@ -47,6 +56,7 @@ class Command(BaseCommand):
                 cursor.execute("DELETE FROM Website_Scraping_Site_Progress")
                 cursor.execute("DELETE FROM Website_Scraping_data")
                 cursor.execute("DELETE FROM Website_Scraping_Runs")
+                cursor.execute("ALTER TABLE Website_Scraping_data AUTO_INCREMENT = 1")
                 connection.commit()
             finally:
                 cursor.close()

@@ -48,10 +48,11 @@ class ProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(read_only=True)
     profession = serializers.SerializerMethodField()
     email_notifications = serializers.BooleanField(source='profile.email_notifications', required=False)
+    is_superuser = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['full_name', 'email', 'profession', 'email_notifications']
+        fields = ['full_name', 'email', 'profession', 'email_notifications', 'is_superuser']
 
     def get_full_name(self, obj):
         return obj.get_full_name() or obj.email

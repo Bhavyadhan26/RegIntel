@@ -136,11 +136,11 @@ DATABASES = {
     },
     'scraper_db': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': _required_database_value('SCRAPER_DB_NAME', 'DB_NAME'),
-        'USER': _required_database_value('SCRAPER_DB_USER', 'DB_USER'),
-        'PASSWORD': _required_database_value('SCRAPER_DB_PASS', 'DB_PASS'),
-        'HOST': _get_env('SCRAPER_DB_HOST', 'DB_HOST', 'localhost'),
-        'PORT': _get_env('SCRAPER_DB_PORT', 'DB_PORT', '3306'),
+        'NAME': _required_database_value('DB_NAME'),
+        'USER': _required_database_value('DB_USER'),
+        'PASSWORD': _required_database_value('DB_PASS'),
+        'HOST': _get_env('DB_HOST', default='localhost'),
+        'PORT': _get_env('DB_PORT', default='3306'),
         'CONN_MAX_AGE': None,
         'CONN_HEALTH_CHECKS': True,
         'OPTIONS': {

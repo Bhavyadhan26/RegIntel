@@ -800,7 +800,7 @@ export function AdminDashboard() {
                   <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wider">Profession Category</label>
                   <select 
                     value={editingUser.profile?.profession_category || ''} 
-                    onChange={e => setEditingUser({...editingUser, profile: { profession_category: null, email_notifications: false, ...editingUser.profile, profession_category: parseInt(e.target.value) || null }})}
+                    onChange={e => setEditingUser({...editingUser, profile: { email_notifications: editingUser.profile?.email_notifications ?? false, profession_category: parseInt(e.target.value) || null }})}
                     className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#116d64]/50 focus:border-[#116d64] transition-all bg-white"
                   >
                     <option value="">-- No Category --</option>
@@ -816,7 +816,7 @@ export function AdminDashboard() {
                     <label htmlFor="user-active" className="text-sm font-bold text-gray-800">Account Active</label>
                   </div>
                   <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <input type="checkbox" checked={!!editingUser.profile?.email_notifications} onChange={e => setEditingUser({...editingUser, profile: { profession_category: null, email_notifications: false, ...editingUser.profile, email_notifications: e.target.checked }})} id="user-alerts" className="w-5 h-5 text-[#116d64] rounded border-gray-300 focus:ring-[#116d64]" />
+                    <input type="checkbox" checked={!!editingUser.profile?.email_notifications} onChange={e => setEditingUser({...editingUser, profile: { profession_category: editingUser.profile?.profession_category ?? null, email_notifications: e.target.checked }})} id="user-alerts" className="w-5 h-5 text-[#116d64] rounded border-gray-300 focus:ring-[#116d64]" />
                     <label htmlFor="user-alerts" className="text-sm font-bold text-gray-800">Email Alerts Enabled</label>
                   </div>
                 </div>

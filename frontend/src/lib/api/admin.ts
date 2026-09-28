@@ -60,6 +60,15 @@ export const fetchAdminRunLogs = async (): Promise<AdminRun[]> => {
   return adminFetch('/admin/run-logs/');
 };
 
+export interface PendingSummaryCounts {
+  total: number;
+  by_website: Record<string, number>;
+}
+
+export const fetchPendingSummaryCounts = async (): Promise<PendingSummaryCounts> => {
+  return adminFetch('/admin/pending-summaries/');
+};
+
 export const fetchAdminSources = async (): Promise<AdminSource[]> => {
   return adminFetch('/admin/sources/');
 };

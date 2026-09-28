@@ -3,6 +3,7 @@ import {
   fetchAdminRunLogs, fetchAdminSources, fetchAdminData, fetchAdminSelectors,
   saveAdminSource, deleteAdminSource, saveAdminSelector, deleteAdminSelector,
   fetchAdminFeedback, fetchAdminProfessions, fetchAdminUsers, saveAdminUser
+  , fetchPendingSummaryCounts
 } from '@/lib/api/admin';
 import { SCRAPER_BASE_URL, getAccessToken } from '@/lib/api';
 import type { 
@@ -27,6 +28,8 @@ export function AdminDashboard() {
   const [feedback, setFeedback] = useState<AdminUserFeedback[]>([]);
   const [professions, setProfessions] = useState<AdminProfessionalCategory[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [pendingSummaries, setPendingSummaries] = useState<Record<string, number>>({});
+  const [pendingSummaryTotal, setPendingSummaryTotal] = useState(0);
   
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,6 +73,9 @@ export function AdminDashboard() {
       if (activeTab === 'overview' || activeTab === 'sources') {
         const resSources = await fetchAdminSources();
         setSources(resSources);
+        const pending = await fetchPendingSummaryCounts();
+        setPendingSummaries(pending.by_website);
+        setPendingSummaryTotal(pending.total);
         if (activeTab === 'sources') {
           const resSelectors = await fetchAdminSelectors();
           setSelectors(resSelectors);
@@ -185,18 +191,23 @@ export function AdminDashboard() {
     }
   };
 
-  const triggerRun = async (websiteName?: string) => {
+  const triggerRun = async (websiteName?: string, skipSummary = false, summaryOnly = false) => {
     try {
-      const url = websiteName ? `${SCRAPER_BASE_URL}/trigger/?website=${websiteName}` : `${SCRAPER_BASE_URL}/trigger/`;
+      const params = new URLSearchParams();
+      if (websiteName) params.set('website', websiteName);
+      if (skipSummary) params.set('skip_summary', 'true');
+      if (summaryOnly) params.set('summary_only', 'true');
+      const query = params.toString();
+      const url = `${SCRAPER_BASE_URL}/trigger/${query ? `?${query}` : ''}`;
       const token = getAccessToken();
       const res = await fetch(url, {
         method: 'POST',
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
       });
       if (!res.ok) throw new Error("Failed to trigger");
-      alert("Scraping run triggered successfully!");
+      alert(summaryOnly ? "Summary retry run triggered successfully." : (skipSummary ? "Scrape-only run triggered successfully." : "Scrape and summary run triggered successfully."));
     } catch (err) {
-      alert("Failed to trigger scraper run.");
+      alert(err instanceof Error ? err.message : "Failed to trigger scraper run.");
     }
   };
 
@@ -294,9 +305,17 @@ export function AdminDashboard() {
               </button>
             )}
             {activeTab === 'overview' && (
-              <button onClick={() => triggerRun()} className="flex items-center gap-2 px-4 py-2 bg-[#116d64] hover:bg-[#0d554d] text-white text-sm font-bold rounded-full shadow-sm transition-colors">
-                <PlayCircle className="w-4 h-4" /> Run all Active websites
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => triggerRun(undefined, true)} className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-teal-50 border border-teal-200 text-teal-800 text-sm font-bold rounded-full shadow-sm transition-colors">
+                  <PlayCircle className="w-4 h-4" /> Scrape only
+                </button>
+                <button onClick={() => triggerRun(undefined, false, true)} className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold rounded-full shadow-sm transition-colors">
+                  <PlayCircle className="w-4 h-4" /> Retry summaries ({pendingSummaryTotal})
+                </button>
+                <button onClick={() => triggerRun()} className="flex items-center gap-2 px-4 py-2 bg-[#116d64] hover:bg-[#0d554d] text-white text-sm font-bold rounded-full shadow-sm transition-colors">
+                  <PlayCircle className="w-4 h-4" /> Scrape + summaries
+                </button>
+              </div>
             )}
           </div>
         </header>
@@ -366,9 +385,19 @@ export function AdminDashboard() {
                               </span>
                             </td>
                             <td className="py-4 px-6 text-right">
-                              <button onClick={() => triggerRun(s.website_name)} className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-lg border border-gray-300 shadow-sm transition-all group-hover:border-teal-500 group-hover:text-teal-700">
-                                Trigger Run
-                              </button>
+                              <div className="flex justify-end gap-2">
+                                {s.active && <>
+                                  <button onClick={() => triggerRun(s.website_name, true)} className="px-3 py-2 bg-white hover:bg-teal-50 text-teal-800 text-xs font-bold rounded-lg border border-teal-200 shadow-sm transition-all">
+                                    Scrape only
+                                  </button>
+                                  <button onClick={() => triggerRun(s.website_name)} className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-lg border border-gray-300 shadow-sm transition-all group-hover:border-teal-500 group-hover:text-teal-700">
+                                    Full run
+                                  </button>
+                                  <button onClick={() => triggerRun(s.website_name, false, true)} disabled={!pendingSummaries[s.website_name]} className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold rounded-lg border border-amber-200 shadow-sm transition-all disabled:opacity-40">
+                                    Retry summaries ({pendingSummaries[s.website_name] || 0})
+                                  </button>
+                                </>}
+                              </div>
                             </td>
                           </tr>
                         );

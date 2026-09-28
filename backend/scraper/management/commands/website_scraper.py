@@ -65,9 +65,15 @@ def get_conn() -> pymysql.connections.Connection:
         try:
             _conn.ping(reconnect=True)
         except Exception:
-            _conn = pymysql.connect(
+            previous_conn = _conn
+            replacement = pymysql.connect(
                 **scraper_connection_kwargs(),
             )
+            try:
+                previous_conn.close()
+            except Exception:
+                pass
+            _conn = replacement
     return _conn
 
 
@@ -671,7 +677,7 @@ def update_pdf_processed(row_id, summary, due_date):
     conn.commit()
 
 
-def get_pending_pdf_rows(website_name=None):
+def get_pending_pdf_rows(website_name=None, pdf_only=False):
     conn = get_conn()
     cur = conn.cursor()
     query = """
@@ -693,6 +699,8 @@ def get_pending_pdf_rows(website_name=None):
     if website_name:
         query += " AND UPPER(d.website_name) = %s"
         params = (website_name.upper(),)
+    if pdf_only:
+        query += " AND d.pdf_url IS NOT NULL AND d.pdf_url <> ''"
     cur.execute(query, params)
     rows = cur.fetchall()
     return rows
@@ -2109,10 +2117,15 @@ async def scrape_all_sites():
                     await context.close()
                 except Exception as cleanup_error:
                     print(f"{site_name} browser cleanup warning: {cleanup_error}")
-                try:
-                    connection.close()
-                except Exception as cleanup_error:
-                    print(f"{site_name} database cleanup warning: {cleanup_error}")
+                connections_to_close = [connection]
+                current_connection = _worker_conn.get()
+                if current_connection is not None and current_connection is not connection:
+                    connections_to_close.append(current_connection)
+                for connection_to_close in connections_to_close:
+                    try:
+                        connection_to_close.close()
+                    except Exception as cleanup_error:
+                        print(f"{site_name} database cleanup warning: {cleanup_error}")
                 _worker_conn.reset(connection_token)
 
         configured_sites = ("ICAI", "BCI", "ICMAI", "RBI", "CBIC")
@@ -2131,14 +2144,14 @@ async def scrape_all_sites():
         return results
 
 
-def process_all_pdfs(limit=None, website_name=None):
+def process_all_pdfs(limit=None, website_name=None, pdf_only=False):
     """Process pending records from PDF URLs or detail URLs and save summaries."""
     icmai_skip_urls = (
         "https://icmai.in/ClntAbout/Notifications",
         "https://icmai.in/ClntAbout/Tender",
         "https://icmai.in/ClntAbout/Events",
     )
-    rows = get_pending_pdf_rows(website_name=website_name)
+    rows = get_pending_pdf_rows(website_name=website_name, pdf_only=pdf_only)
     if limit is not None:
         rows = rows[:limit]
     if not rows:
@@ -2312,6 +2325,11 @@ class Command(BaseCommand):
             help="Process at most this many pending PDF/detail documents.",
         )
         parser.add_argument(
+            "--summary-only",
+            action="store_true",
+            help="Skip website scraping and process pending summaries only.",
+        )
+        parser.add_argument(
             "--seed",
             action="store_true",
             help="Force reseeding Website_Scraping_Sources and Website_Scraping_Selectors from code defaults.",
@@ -2327,6 +2345,7 @@ class Command(BaseCommand):
         SELECTED_SITE = (kwargs.get("website") or "").upper() or None
         skip_summary = bool(kwargs.get("skip_summary"))
         summary_limit = kwargs.get("summary_limit")
+        summary_only = bool(kwargs.get("summary_only"))
         force_seed = bool(kwargs.get("seed"))
 
         print("Initializing unified tables...")
@@ -2361,9 +2380,14 @@ class Command(BaseCommand):
         before_site_counts = get_site_data_counts()
 
         try:
-            print("Starting parallel scraping for active websites...")
-            site_results = asyncio.run(scrape_all_sites())
-            get_conn().commit()
+            if summary_only:
+                print("Skipping website scraping; processing pending summaries only...")
+                site_results = []
+                get_conn().commit()
+            else:
+                print("Starting parallel scraping for active websites...")
+                site_results = asyncio.run(scrape_all_sites())
+                get_conn().commit()
             site_failures = [f"{site}: {error}" for site, error in site_results if error is not None]
 
             if skip_summary:
@@ -2371,7 +2395,11 @@ class Command(BaseCommand):
                 summary_result = {"processed": 0, "failed": 0, "total": 0}
             else:
                 print("\nStarting PDF summary processing...")
-                summary_result = process_all_pdfs(limit=summary_limit, website_name=SELECTED_SITE)
+                summary_result = process_all_pdfs(
+                    limit=summary_limit,
+                    website_name=SELECTED_SITE,
+                    pdf_only=summary_only,
+                )
 
             after_total = get_total_data_count()
             after_site_counts = get_site_data_counts()

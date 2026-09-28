@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import AlertListView, DashboardSummaryView, DeadlineListView, PublicationListView
 from .admin_views import (
     AdminRunLogViewSet, AdminSourceViewSet, AdminSelectorViewSet, 
-    AdminDataViewSet, AdminFeedbackViewSet, TriggerScraperView
+    AdminDataViewSet, AdminFeedbackViewSet, TriggerScraperView, PendingSummaryCountView
 )
 
 router = DefaultRouter()
@@ -20,6 +20,7 @@ urlpatterns = [
     path("deadlines/", DeadlineListView.as_view(), name="scraper-deadlines"),
     path("dashboard-summary/", DashboardSummaryView.as_view(), name="scraper-dashboard-summary"),
     path("trigger/", TriggerScraperView.as_view(), name="scraper-trigger"),
+    path("admin/pending-summaries/", PendingSummaryCountView.as_view(), name="admin-pending-summaries"),
     
     # Admin URLs
     path("", include(router.urls)),

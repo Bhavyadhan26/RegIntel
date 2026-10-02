@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import AlertListView, DashboardSummaryView, DeadlineListView, PublicationListView
 from .admin_views import (
     AdminRunLogViewSet, AdminSourceViewSet, AdminSelectorViewSet, 
-    AdminDataViewSet, AdminFeedbackViewSet, TriggerScraperView, PendingSummaryCountView
+    AdminDataViewSet, AdminFeedbackViewSet, TriggerScraperView, PendingSummaryCountView, PipelineStatusView, StopScraperView
 )
 
 router = DefaultRouter()
@@ -21,6 +21,8 @@ urlpatterns = [
     path("dashboard-summary/", DashboardSummaryView.as_view(), name="scraper-dashboard-summary"),
     path("trigger/", TriggerScraperView.as_view(), name="scraper-trigger"),
     path("admin/pending-summaries/", PendingSummaryCountView.as_view(), name="admin-pending-summaries"),
+    path("admin/pipeline-status/", PipelineStatusView.as_view(), name="admin-pipeline-status"),
+    path("admin/stop-scraper/", StopScraperView.as_view(), name="admin-stop-scraper"),
     
     # Admin URLs
     path("", include(router.urls)),

@@ -277,6 +277,7 @@ export interface AlertListResponse {
   page_size: number;
   has_more: boolean;
   profession: string;
+  website_counts: Array<{ website_name: string; total: number }>;
 }
 
 export async function apiGetAlerts(params: { tab: 'new' | 'old'; page?: number; page_size?: number }) {
@@ -357,6 +358,7 @@ export interface DashboardSummaryResponse {
   upcoming_deadlines_page_size: number;
   upcoming_deadlines_has_more: boolean;
   profession: string;
+  website_counts: Array<{ website_name: string; total: number }>;
 }
 
 export async function apiGetDashboardSummary(params?: { page?: number; page_size?: number }) {

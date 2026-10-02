@@ -17,8 +17,8 @@ from playwright.async_api import async_playwright
 from pymysql.cursors import DictCursor
 
 from scraper.database import open_scraper_connection, scraper_connection_kwargs
-from scraper.document_processing import process_pdf_url, process_text_content
-from scraper.run_lock import acquire_run_lock, clear_cancel, is_cancel_requested, release_run_lock
+from scraper.document_processing import GroqProcessingError, process_pdf_url, process_text_content
+from scraper.run_lock import acquire_run_lock, clear_cancel, is_cancel_requested, release_run_lock, request_cancel
 
 load_dotenv()
 requests.packages.urllib3.disable_warnings()  # type: ignore[attr-defined]
@@ -204,7 +204,12 @@ def init_tables():
             started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             finished_at TIMESTAMP NULL,
             status VARCHAR(16) NOT NULL,
+            action VARCHAR(16) NOT NULL DEFAULT 'full',
             total_new_rows INT NOT NULL DEFAULT 0,
+            pending_before INT NOT NULL DEFAULT 0,
+            summary_success INT NOT NULL DEFAULT 0,
+            summary_failed INT NOT NULL DEFAULT 0,
+            pending_after INT NOT NULL DEFAULT 0,
             error_text TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -331,6 +336,15 @@ def init_tables():
         )
         if not cur.fetchone()["total"]:
             cur.execute(f"ALTER TABLE `{table_name}` ADD COLUMN `{column_name}` {definition}")
+
+    for column_name, definition in {
+        "action": "VARCHAR(16) NOT NULL DEFAULT 'full'",
+        "pending_before": "INT NOT NULL DEFAULT 0",
+        "summary_success": "INT NOT NULL DEFAULT 0",
+        "summary_failed": "INT NOT NULL DEFAULT 0",
+        "pending_after": "INT NOT NULL DEFAULT 0",
+    }.items():
+        ensure_column("Website_Scraping_Runs", column_name, definition)
 
     ensure_column("Website_Scraping_data", "title_identity", "BINARY(32) NULL AFTER title")
     cur.execute(
@@ -492,6 +506,7 @@ def seed_sources_and_selectors():
     selectors = [
         ("ICAI", "list_wait", "ul.list-group"),
         ("ICAI", "item_links", "ul.list-group li.list-group-item a"),
+        ("ICAI", "pagination_next", "ul.pagination li a:has-text('Next')"),
         ("ICAI", "date_regex", r"\((\d{2}-\d{2}-\d{4})\)"),
         ("ICAI", "base_url", "https://www.icai.org"),
         ("BCI", "feed_wait", "div.feeds___coJNE"),
@@ -499,6 +514,10 @@ def seed_sources_and_selectors():
         ("BCI", "card_title", "h5.title"),
         ("BCI", "card_date_regex", r"\d{1,2}\s+[A-Za-z]{3},\s+\d{4}"),
         ("BCI", "base_url", "https://www.barcouncilofindia.org"),
+        ("BCI", "archive_url", "https://www.barcouncilofindia.org/l/narchive"),
+        ("BCI", "archive_feed_wait", "main ol li a[href]"),
+        ("BCI", "archive_card_links", "main ol li a[href]"),
+        ("BCI", "pagination_next", "li.ant-pagination-next:not(.ant-pagination-disabled)"),
         ("BCI", "detail_pdf_primary", "a[href$='.pdf'], a[href*='.pdf?']"),
         ("ICMAI", "updates_url", "https://icmai.in/ClntAbout/Updates"),
         ("ICMAI", "updates_archive_url", "https://icmai.in/ClntAbout/UpdateArchive"),
@@ -506,12 +525,10 @@ def seed_sources_and_selectors():
         ("ICMAI", "notifications_url", "https://icmai.in/ClntAbout/Notifications"),
         ("ICMAI", "events_url", "https://icmai.in/ClntAbout/Events"),
         ("ICMAI", "tenders_url", "https://icmai.in/ClntAbout/Tender"),
-        ("ICMAI", "students_connect_url", "https://icmai.in/ClntAbout/StudentsConnect"),
         ("ICMAI", "content_list_wait", "ul#elearning"),
         ("ICMAI", "content_list_links", "ul#elearning li a"),
         ("ICMAI", "content_pagination", "#pagination"),
         ("ICMAI", "content_pagination_next", "#pagination a.next"),
-        ("ICMAI", "students_content_links", ".disciplinary-wrap a[href]"),
         ("ICMAI", "list_wait", "ul#disciplinarydirectorate"),
         ("ICMAI", "list_links", "ul#disciplinarydirectorate li a"),
         ("ICMAI", "archive_table_rows", "#datatable tbody tr"),
@@ -532,6 +549,7 @@ def seed_sources_and_selectors():
         ("CBIC", "list_wait", ".all-new-list"),
         ("CBIC", "item_links", ".all-new-list li a"),
         ("CBIC", "next_button", "li.pagination-next:not(.disabled) a, a:has-text('Next')"),
+        ("CBIC", "tenders_url", "https://www.cbic.gov.in/entities/tenders"),
         ("CBIC", "date_regex", r"(\d{2}[./-]\d{2}[./-]\d{4})"),
     ]
 
@@ -609,6 +627,7 @@ def insert_row(website_name, title, category, detail_url, notice_date, pdf_url, 
     cur = conn.cursor()
     try:
         notice_date = normalize_notice_date(notice_date)
+        due_date = normalize_due_date(due_date)
         cur.execute(
             """
             INSERT INTO Website_Scraping_data
@@ -622,7 +641,7 @@ def insert_row(website_name, title, category, detail_url, notice_date, pdf_url, 
                 category,
                 detail_url,
                 notice_date,
-                due_date or "",
+                due_date,
                 pdf_url,
             ),
         )
@@ -645,6 +664,7 @@ def update_row_by_key(website_name, title, category, detail_url, notice_date, pd
     conn = get_conn()
     cur = conn.cursor()
     notice_date = normalize_notice_date(notice_date)
+    due_date = normalize_due_date(due_date)
     cur.execute(
         """
         UPDATE Website_Scraping_data
@@ -655,7 +675,7 @@ def update_row_by_key(website_name, title, category, detail_url, notice_date, pd
             updated_at = CURRENT_TIMESTAMP
         WHERE website_name = %s AND title = %s AND category = %s
         """,
-        (detail_url, notice_date, due_date or "", pdf_url, website_name, title, category),
+        (detail_url, notice_date, due_date, pdf_url, website_name, title, category),
     )
     conn.commit()
     return cur.rowcount
@@ -672,7 +692,7 @@ def update_pdf_processed(row_id, summary, due_date):
             due_date = %s
         WHERE id = %s
         """,
-        (summary, due_date or "", row_id),
+        (summary, normalize_due_date(due_date), row_id),
     )
     conn.commit()
 
@@ -742,10 +762,10 @@ def get_site_data_counts():
     return {r["website_name"]: int(r["total"]) for r in rows}
 
 
-def create_run():
+def create_run(action):
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("INSERT INTO Website_Scraping_Runs (status) VALUES ('running')")
+    cur.execute("INSERT INTO Website_Scraping_Runs (status, action) VALUES ('running', %s)", (action,))
     run_id = cur.lastrowid
     conn.commit()
     return run_id
@@ -877,7 +897,17 @@ def finish_item_progress(item_id, status, stage, error_message=None):
         )
 
 
-def complete_run(run_id, total_new_rows, per_site_new_rows, site_results, status="success"):
+def complete_run(
+    run_id,
+    total_new_rows,
+    per_site_new_rows,
+    site_results,
+    status="success",
+    pending_before=0,
+    summary_success=0,
+    summary_failed=0,
+    pending_after=0,
+):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
@@ -886,10 +916,14 @@ def complete_run(run_id, total_new_rows, per_site_new_rows, site_results, status
         SET status = %s,
             finished_at = CURRENT_TIMESTAMP,
             total_new_rows = %s,
+            pending_before = %s,
+            summary_success = %s,
+            summary_failed = %s,
+            pending_after = %s,
             error_text = NULL
         WHERE id = %s
         """,
-        (status, total_new_rows, run_id),
+        (status, total_new_rows, pending_before, summary_success, summary_failed, pending_after, run_id),
     )
 
     for website_name, new_rows in per_site_new_rows.items():
@@ -994,6 +1028,8 @@ def normalize_due_date(value):
 
     patterns = [
         "%d-%m-%Y",
+        "%d-%b-%Y",
+        "%d-%B-%Y",
         "%d/%m/%Y",
         "%m/%d/%Y",
         "%d.%m.%Y",
@@ -1271,6 +1307,8 @@ def generate_summary_from_detail_page(detail_url, title, category, website_name)
         return result
     except Exception as exc:
         print(f"  ✗ Groq HTML processing failed: {exc}")
+        if isinstance(exc, GroqProcessingError):
+            raise
         return None
 
 
@@ -1281,33 +1319,57 @@ async def scrape_icai(page):
         print("ICAI source/selectors missing")
         return
 
-    await page.goto(src["start_url"], wait_until="networkidle", timeout=60000)
-    await page.wait_for_selector(sel["list_wait"], timeout=30000)
-    links = await page.locator(sel["item_links"]).all()
-
     new_count = 0
-    for link in links:
-        text = await link.inner_text()
-        href = await link.get_attribute("href")
-        if not text or not href:
-            continue
+    page_count = 0
+    visited_pages = set()
+    page_url = src["start_url"]
 
-        clean_text = text.strip()
-        m = re.search(sel["date_regex"], clean_text)
-        notice_date = m.group(1) if m else "N/A"
-        title = re.sub(r"\s*-\s*\(" + re.escape(notice_date) + r"\)$", "", clean_text).strip() if m else clean_text
+    while page_url and page_url not in visited_pages:
+        visited_pages.add(page_url)
+        await page.goto(page_url, wait_until="networkidle", timeout=60000)
+        await page.wait_for_selector(sel["list_wait"], timeout=30000)
+        page_count += 1
 
-        category = "Notification"
-        if row_exists("ICAI", title, category):
-            print(f"ICAI exists: {title}")
-            if not FORCE_FULL_SCAN and new_count == 0:
-                print("ICAI up to date (first item exists), stopping.")
-                break
-            continue
+        for link in await page.locator(sel["item_links"]).all():
+            text = await link.inner_text()
+            href = await link.get_attribute("href")
+            if not text or not href:
+                continue
 
-        pdf_url = urljoin(sel["base_url"], href)
-        insert_row("ICAI", title, category, src["start_url"], notice_date, pdf_url)
-        new_count += 1
+            clean_text = text.strip()
+            match = re.search(sel["date_regex"], clean_text)
+            notice_date = match.group(1) if match else "N/A"
+            title = (
+                re.sub(r"\s*-\s*\(" + re.escape(notice_date) + r"\)$", "", clean_text).strip()
+                if match
+                else clean_text
+            )
+            category = "Notification"
+            if row_exists("ICAI", title, category):
+                continue
+
+            pdf_url = urljoin(sel["base_url"], href)
+            insert_row("ICAI", title, category, page_url, notice_date, pdf_url)
+            new_count += 1
+
+        next_button = page.locator(sel.get("pagination_next", "ul.pagination li a:has-text('Next')")).first
+        if await next_button.count() == 0:
+            break
+
+        parent_classes = ((await next_button.locator("..").get_attribute("class")) or "").lower()
+        if "disabled" in parent_classes:
+            break
+
+        next_href = ((await next_button.get_attribute("href")) or "").strip()
+        if not next_href:
+            break
+
+        next_url = urljoin(page_url, next_href)
+        if next_url in visited_pages:
+            break
+        page_url = next_url
+
+    print(f"ICAI pages scraped: {page_count}, new rows: {new_count}")
 
 
 def _clean_rbi_text(value):
@@ -1419,12 +1481,36 @@ async def scrape_rbi(page):
     await page.wait_for_selector(sel["list_table"], timeout=30000)
 
     first_title = await _rbi_first_notice_title(page, sel)
-    if first_title and row_exists("RBI", first_title, "Notification"):
+    if first_title and row_exists("RBI", first_title, "Notification") and not FORCE_FULL_SCAN:
         print(f"RBI up to date (first item exists): {first_title}")
         return
 
     new_count = await _scrape_rbi_current_table(page, sel)
     print(f"RBI landing page scraped: 2026, new rows: {new_count}")
+
+    if FORCE_FULL_SCAN:
+        year_ids = await page.locator("a[id^='btn20']").evaluate_all(
+            "links => links.map(link => link.id.replace('btn', '')).filter(Boolean)"
+        )
+        archive_total = 0
+        for year in sorted(set(year_ids), reverse=True):
+            await page.goto(src["start_url"], wait_until="domcontentloaded", timeout=90000)
+            await page.wait_for_selector(sel["list_table"], timeout=30000)
+            all_month_link = page.locator(f"a[id='{year}0']").first
+            if await all_month_link.count() == 0:
+                print(f"RBI archive year {year} has no All Months link")
+                continue
+            try:
+                async with page.expect_navigation(wait_until="domcontentloaded", timeout=90000):
+                    await all_month_link.evaluate("element => element.click()")
+            except Exception as exc:
+                print(f"RBI archive year {year} navigation failed: {exc}")
+                continue
+            await page.wait_for_selector(sel["list_table"], timeout=30000)
+            inserted = await _scrape_rbi_current_table(page, sel)
+            archive_total += inserted
+            print(f"RBI archive year {year}: new rows {inserted}")
+        print(f"RBI historical archive scan complete: new rows {archive_total}")
 
 
 async def scrape_icmai(page):
@@ -1615,15 +1701,14 @@ async def scrape_icmai_update_archive(page):
 
         for row in rows:
             cells = row.locator("td")
-            if await cells.count() < 5:
+            if await cells.count() < 3:
                 continue
 
             title = re.sub(r"\s+", " ", (await cells.nth(1).inner_text() or "").strip())
             if not title:
                 continue
 
-            closing_date_text = (await cells.nth(2).inner_text() or "").strip()
-            link_loc = cells.nth(4).locator("a").first
+            link_loc = cells.nth(2).locator("a").first
             href = (await link_loc.get_attribute("href") if await link_loc.count() > 0 else "") or ""
             href = href.strip()
 
@@ -1632,13 +1717,9 @@ async def scrape_icmai_update_archive(page):
             lowered = detail_url.lower()
             pdf_url = detail_url if any(ext in lowered for ext in [".pdf", ".png", ".jpg", ".jpeg"]) else None
 
-            notice_date = "N/A"
-            if closing_date_text and closing_date_text not in {"-", "--", "N/A", "NA"}:
-                notice_date = closing_date_text
-            else:
-                notice_date = _extract_notice_date(title)
+            notice_date = _extract_notice_date(title)
 
-            category = "Updates"
+            category = "Updates Archive"
             if row_exists("ICMAI", title, category):
                 update_row_by_key("ICMAI", title, category, detail_url, notice_date, pdf_url, "")
                 continue
@@ -1726,7 +1807,7 @@ async def scrape_icmai_tender_archive(page):
 
         for row in rows:
             cells = row.locator("td")
-            if await cells.count() < 8:
+            if await cells.count() < 7:
                 continue
 
             title_col = re.sub(r"\s+", " ", (await cells.nth(1).inner_text() or "").strip())
@@ -1742,15 +1823,11 @@ async def scrape_icmai_tender_archive(page):
             tender_doc_link = ""
             corr_link = ""
 
-            read_more_loc = cells.nth(5).locator("a").first
-            if await read_more_loc.count() > 0:
-                read_more_link = _normalize_link(await read_more_loc.get_attribute("href"))
-
-            tender_doc_loc = cells.nth(6).locator("a").first
+            tender_doc_loc = cells.nth(5).locator("a").first
             if await tender_doc_loc.count() > 0:
                 tender_doc_link = _normalize_link(await tender_doc_loc.get_attribute("href"))
 
-            corr_loc = cells.nth(7).locator("a").first
+            corr_loc = cells.nth(6).locator("a").first
             if await corr_loc.count() > 0:
                 corr_link = _normalize_link(await corr_loc.get_attribute("href"))
 
@@ -1766,7 +1843,7 @@ async def scrape_icmai_tender_archive(page):
             else:
                 notice_date = _extract_notice_date(desc_col)
 
-            category = "Tenders"
+            category = "Tenders Archive"
             due_date = notice_date if notice_date != "N/A" else ""
             if row_exists("ICMAI", title, category):
                 update_row_by_key("ICMAI", title, category, detail_url, notice_date, pdf_url, due_date)
@@ -1829,64 +1906,130 @@ async def scrape_bci(page, context):
         print("BCI source/selectors missing")
         return
 
-    await page.goto(src["start_url"], wait_until="networkidle", timeout=60000)
-    await page.wait_for_selector(sel["feed_wait"], timeout=30000)
-    cards = await page.locator(sel["card_links"]).all()
-
     new_count = 0
-    for card in cards:
-        href = await card.get_attribute("href")
-        if not href:
-            continue
+    async def scrape_stream(stream_url, category, archive=False):
+        nonlocal new_count
+        current_url = stream_url
+        visited_urls = set()
+        page_number = 1
+        page_loaded = False
+        previous_first_href = None
 
-        title_loc = card.locator(sel["card_title"]).first
-        title = ""
-        if await title_loc.count() > 0:
-            title = (await title_loc.inner_text()).strip()
-        if not title:
-            continue
+        while current_url and page_number <= 100:
+            if not page_loaded:
+                if current_url in visited_urls:
+                    break
+                visited_urls.add(current_url)
+                await page.goto(current_url, wait_until="networkidle", timeout=60000)
+                page_loaded = True
 
-        spans = await card.locator("span").all_inner_texts()
-        notice_date = "N/A"
-        for t in spans:
-            m = re.search(sel["card_date_regex"], t.strip())
-            if m:
-                notice_date = m.group(0)
+            feed_wait = (sel.get("archive_feed_wait") or "main ol li a[href]") if archive else sel["feed_wait"]
+            card_selector = (sel.get("archive_card_links") or "main ol li a[href]") if archive else sel["card_links"]
+            await page.wait_for_selector(feed_wait, timeout=30000)
+            cards = await page.locator(card_selector).all()
+            if not cards:
                 break
 
-        detail_url = urljoin(sel["base_url"], href)
-        pdf_url = None
+            first_href = ((await cards[0].get_attribute("href")) or "").strip()
+            if first_href and first_href == previous_first_href:
+                break
+            previous_first_href = first_href
 
-        detail = await context.new_page()
-        try:
-            await detail.goto(detail_url, wait_until="networkidle", timeout=60000)
-            pdf_a = detail.locator(sel["detail_pdf_primary"]).first
-            if await pdf_a.count() > 0:
-                p = await pdf_a.get_attribute("href")
-                if p:
-                    pdf_url = urljoin(sel["base_url"], p)
-            if not pdf_url:
-                all_anchors = await detail.locator("a").all()
-                for a in all_anchors:
-                    p = await a.get_attribute("href")
-                    if p and ".pdf" in p.lower():
-                        pdf_url = urljoin(sel["base_url"], p)
+            for card in cards:
+                href = ((await card.get_attribute("href")) or "").strip()
+                if not href:
+                    continue
+
+                title_loc = None if archive else card.locator(sel["card_title"]).first
+                title = (
+                    (await title_loc.inner_text()).strip()
+                    if title_loc is not None and await title_loc.count() > 0
+                    else (await card.inner_text()).strip()
+                )
+                if not title:
+                    continue
+
+                notice_date = "N/A"
+                for text in await card.locator("span").all_inner_texts():
+                    match = re.search(sel["card_date_regex"], text.strip())
+                    if match:
+                        notice_date = match.group(0)
                         break
-        except Exception as e:
-            print(f"BCI detail parse error: {e}")
-        finally:
-            await detail.close()
 
-        category = "Notification"
-        if row_exists("BCI", title, category):
-            print(f"BCI exists: {title}")
-            if not FORCE_FULL_SCAN and new_count == 0:
-                print("BCI up to date (first item exists), stopping.")
+                detail_url = urljoin(sel["base_url"], href)
+                pdf_url = detail_url if archive and ".pdf" in detail_url.lower() else None
+                if not archive:
+                    detail = await context.new_page()
+                    try:
+                        await detail.goto(detail_url, wait_until="domcontentloaded", timeout=30000)
+                        pdf_a = detail.locator(sel["detail_pdf_primary"]).first
+                        if await pdf_a.count() > 0:
+                            pdf_href = await pdf_a.get_attribute("href")
+                            if pdf_href:
+                                pdf_url = urljoin(sel["base_url"], pdf_href)
+                        if not pdf_url:
+                            for anchor in await detail.locator("a").all():
+                                pdf_href = await anchor.get_attribute("href")
+                                if pdf_href and ".pdf" in pdf_href.lower():
+                                    pdf_url = urljoin(sel["base_url"], pdf_href)
+                                    break
+                    except Exception as exc:
+                        print(f"BCI detail parse error: {exc}")
+                    finally:
+                        await detail.close()
+
+                if row_exists("BCI", title, category):
+                    update_row_by_key("BCI", title, category, detail_url, notice_date, pdf_url, "")
+                    continue
+
+                insert_row("BCI", title, category, detail_url, notice_date, pdf_url)
+                new_count += 1
+
+            next_button = page.locator(
+                sel.get("pagination_next", "li.ant-pagination-next:not(.ant-pagination-disabled)")
+            ).first
+            if await next_button.count() == 0:
                 break
-            continue
 
-        insert_row("BCI", title, category, detail_url, notice_date, pdf_url)
-        new_count += 1
+            button_classes = ((await next_button.get_attribute("class")) or "").lower()
+            if "disabled" in button_classes or await next_button.get_attribute("aria-disabled") == "true":
+                break
+
+            next_anchor = next_button.locator("a").first
+            next_href = (
+                ((await next_anchor.get_attribute("href")) or "").strip()
+                if await next_anchor.count()
+                else ""
+            )
+            if next_href:
+                next_url = urljoin(current_url, next_href)
+                if next_url in visited_urls:
+                    break
+                current_url = next_url
+                page_loaded = False
+            else:
+                before_click_href = first_href
+                await next_button.click()
+                changed = False
+                for _ in range(40):
+                    await page.wait_for_timeout(250)
+                    probe = await page.locator(card_selector).first.get_attribute("href")
+                    if probe and probe != before_click_href:
+                        changed = True
+                        break
+                if not changed:
+                    break
+                page_loaded = True
+            page_number += 1
+
+        print(f"BCI {category} pages scraped: {page_number}, new rows: {new_count}")
+
+    await scrape_stream(src["start_url"], "Notification")
+    await scrape_stream(
+        sel.get("archive_url", f"{sel['base_url']}/l/narchive"),
+        "Notification Archive",
+        archive=True,
+    )
 
 
 async def scrape_cbic(page):
@@ -1896,42 +2039,143 @@ async def scrape_cbic(page):
         print("CBIC source/selectors missing")
         return
 
-    await page.goto(src["start_url"], wait_until="networkidle", timeout=60000)
-
     new_count = 0
-    page_num = 1
-    while True:
-        await page.wait_for_selector(sel["list_wait"], timeout=30000)
-        await asyncio.sleep(1)
 
-        texts = await page.locator(sel["item_links"]).all_inner_texts()
-        for txt in texts:
-            clean = txt.strip().replace("\xa0", " ")
-            if not clean:
-                continue
-            dates = re.findall(sel["date_regex"], clean)
-            notice_date = dates[0] if dates else "N/A"
-            title = clean
-            category = "Notification"
+    async def scrape_stream(stream_url, category, due_date_required=False):
+        nonlocal new_count
+        current_url = stream_url
+        visited_urls = set()
+        page_num = 0
 
-            if row_exists("CBIC", title, category):
-                if not FORCE_FULL_SCAN and new_count == 0 and page_num == 1:
-                    print("CBIC up to date (first item exists), stopping.")
-                    return
-                continue
-
-            insert_row("CBIC", title, category, src["start_url"], notice_date, None)
-            new_count += 1
-
-        next_btn = page.locator(sel["next_button"]).first
-        if await next_btn.count() > 0 and await next_btn.is_visible() and await next_btn.is_enabled():
-            await next_btn.click()
+        while current_url and current_url not in visited_urls:
+            visited_urls.add(current_url)
+            await page.goto(current_url, wait_until="domcontentloaded", timeout=60000)
+            await page.wait_for_selector(sel["list_wait"], timeout=30000)
             page_num += 1
-            await asyncio.sleep(2)
-        else:
-            break
 
-    print(f"CBIC pages scraped: {page_num}, new rows: {new_count}")
+            for link in await page.locator(sel["item_links"]).all():
+                clean = re.sub(r"\s+", " ", (await link.inner_text() or "").replace("\xa0", " ")).strip()
+                href = ((await link.get_attribute("href")) or "").strip()
+                if not clean or not href:
+                    continue
+
+                notice_date = "N/A"
+                due_date = ""
+                if due_date_required:
+                    due_match = re.search(
+                        r"Last\s+date\s+of\s+Submission\s*[:\-]?\s*(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})",
+                        clean,
+                        flags=re.IGNORECASE,
+                    )
+                    due_date = due_match.group(1) if due_match else ""
+                    title = re.sub(
+                        r"\s*Last\s+date\s+of\s+Submission\s*[:\-]?\s*\d{1,2}[./-]\d{1,2}[./-]\d{2,4}",
+                        "",
+                        clean,
+                        flags=re.IGNORECASE,
+                    ).strip()
+                else:
+                    dates = re.findall(sel["date_regex"], clean)
+                    notice_date = dates[0] if dates else "N/A"
+                    title = clean
+
+                detail_url = urljoin(sel["base_url"], href)
+                if row_exists("CBIC", title, category):
+                    update_row_by_key("CBIC", title, category, detail_url, notice_date, None, due_date)
+                    continue
+
+                insert_row("CBIC", title, category, detail_url, notice_date, None, due_date)
+                new_count += 1
+
+            next_btn = page.locator(sel["next_button"]).first
+            if await next_btn.count() == 0 or not await next_btn.is_visible():
+                break
+
+            parent_classes = ((await next_btn.locator("..").get_attribute("class")) or "").lower()
+            if "disabled" in parent_classes or not await next_btn.is_enabled():
+                break
+
+            next_href = ((await next_btn.get_attribute("href")) or "").strip()
+            if not next_href:
+                next_href = ((await next_btn.locator("..").get_attribute("href")) or "").strip()
+            if not next_href:
+                break
+
+            next_url = urljoin(current_url, next_href)
+            if next_url in visited_urls:
+                break
+            current_url = next_url
+
+        print(f"CBIC {category} pages scraped: {page_num}, new rows: {new_count}")
+
+    async def scrape_tenders():
+        nonlocal new_count
+        tender_url = sel.get("tenders_url", "https://www.cbic.gov.in/entities/tenders")
+        page_num = 0
+        seen_first_rows = set()
+
+        await page.goto(tender_url, wait_until="domcontentloaded", timeout=60000)
+        while True:
+            await page.wait_for_selector("table tbody tr", timeout=30000)
+            rows = await page.locator("table tbody tr").all()
+            if not rows:
+                break
+
+            first_row_text = re.sub(r"\s+", " ", (await rows[0].inner_text()).strip())
+            if not first_row_text or first_row_text in seen_first_rows:
+                break
+            seen_first_rows.add(first_row_text)
+            page_num += 1
+
+            for row in rows:
+                cells = row.locator("td")
+                if await cells.count() < 3:
+                    continue
+
+                due_date = re.sub(r"\s+", " ", (await cells.nth(1).inner_text()).strip())
+                title_link = row.locator("td:nth-child(3) a").first
+                title = (
+                    re.sub(r"\s+", " ", (await title_link.inner_text()).strip())
+                    if await title_link.count() > 0
+                    else re.sub(r"\s+", " ", (await cells.nth(2).inner_text()).strip())
+                )
+                if not title:
+                    continue
+
+                category = "Tender and Auctions"
+                if row_exists("CBIC", title, category):
+                    update_row_by_key("CBIC", title, category, tender_url, "N/A", None, due_date)
+                    continue
+                insert_row("CBIC", title, category, tender_url, "N/A", None, due_date)
+                new_count += 1
+
+            next_button = page.locator("a:has-text('Next')").last
+            if await next_button.count() == 0 or not await next_button.is_visible():
+                break
+            classes = ((await next_button.get_attribute("class")) or "").lower()
+            if "disabled" in classes or await next_button.get_attribute("aria-disabled") == "true":
+                break
+
+            previous_first_row = first_row_text
+            await next_button.click()
+            changed = False
+            for _ in range(40):
+                await page.wait_for_timeout(250)
+                probe_rows = await page.locator("table tbody tr").all()
+                if not probe_rows:
+                    continue
+                probe_first_row = re.sub(r"\s+", " ", (await probe_rows[0].inner_text()).strip())
+                if probe_first_row and probe_first_row != previous_first_row:
+                    changed = True
+                    break
+            if not changed:
+                break
+
+        print(f"CBIC Tender and Auctions pages scraped: {page_num}, new rows: {new_count}")
+
+    await scrape_stream(src["start_url"], "Notification")
+    await scrape_tenders()
+    print(f"CBIC total new rows: {new_count}")
 
 
 async def scrape_icmai(page):
@@ -1952,32 +2196,59 @@ async def scrape_icmai(page):
 
         visited_pages = set()
         page_number = 1
-        page_loaded = False
-        while tab_url and page_number <= 100 and (page_loaded or tab_url not in visited_pages):
-            if not page_loaded:
-                visited_pages.add(tab_url)
-                await page.goto(tab_url, wait_until="domcontentloaded", timeout=60000)
-                await page.wait_for_selector(".disciplinary-wrap", timeout=30000)
-                page_loaded = True
+        while tab_url and page_number <= 100 and tab_url not in visited_pages:
+            visited_pages.add(tab_url)
+            await page.goto(tab_url, wait_until="domcontentloaded", timeout=60000)
+            await page.wait_for_selector(".disciplinary-wrap", timeout=30000)
 
-            links = await page.locator(link_selector).all()
-            for link in links:
-                href = ((await link.get_attribute("href")) or "").strip()
-                title = re.sub(r"\s+", " ", (await link.inner_text() or "").strip())
-                if not title or not href or href == "#" or title.lower() in {"prev", "next"}:
-                    continue
+            async def scrape_loaded_page():
+                links = await page.locator(link_selector).all()
+                page_new_count = 0
+                for link in links:
+                    href = ((await link.get_attribute("href")) or "").strip()
+                    title = re.sub(r"\s+", " ", (await link.inner_text() or "").strip())
+                    if not title or not href or href == "#" or title.lower() in {"prev", "next"}:
+                        continue
 
-                full_url = urljoin(sel["base_url"], href)
-                item_key = (category, title, full_url)
-                if item_key in seen_items:
-                    continue
-                seen_items.add(item_key)
-                pdf_url = full_url if ".pdf" in full_url.lower() else None
+                    full_url = urljoin(sel["base_url"], href)
+                    item_key = (category, title, full_url)
+                    if item_key in seen_items:
+                        continue
+                    seen_items.add(item_key)
+                    pdf_url = full_url if ".pdf" in full_url.lower() else None
 
-                if row_exists("ICMAI", title, category):
-                    update_row_by_key("ICMAI", title, category, full_url, "N/A", pdf_url, "")
+                    if row_exists("ICMAI", title, category):
+                        update_row_by_key("ICMAI", title, category, full_url, "N/A", pdf_url, "")
+                        continue
+                    insert_row("ICMAI", title, category, full_url, "N/A", pdf_url)
+                    page_new_count += 1
+                return page_new_count
+
+            await scrape_loaded_page()
+
+            numbered_pages = await page.locator(
+                f"{sel['content_pagination']} a[onclick*='changePage']"
+            ).all()
+            page_numbers = []
+            for pagination_link in numbered_pages:
+                onclick = (await pagination_link.get_attribute("onclick")) or ""
+                match = re.search(r"changePage\(\s*(\d+)\s*\)", onclick)
+                if match:
+                    page_numbers.append(int(match.group(1)))
+
+            for client_page_number in sorted(set(page_numbers)):
+                if client_page_number <= 1:
                     continue
-                insert_row("ICMAI", title, category, full_url, "N/A", pdf_url)
+                await page.evaluate(
+                    """(pageNumber) => {
+                        if (typeof window.changePage === 'function') {
+                            window.changePage(pageNumber);
+                        }
+                    }""",
+                    client_page_number,
+                )
+                await page.wait_for_timeout(150)
+                await scrape_loaded_page()
 
             next_button = page.locator(sel["content_pagination_next"]).first
             if await next_button.count() == 0:
@@ -1986,16 +2257,12 @@ async def scrape_icmai(page):
             if "disabled" in classes or await next_button.get_attribute("aria-disabled") == "true":
                 break
             next_href = ((await next_button.get_attribute("href")) or "").strip()
-            if next_href and next_href != "#":
-                next_url = urljoin(tab_url, next_href)
-                if next_url in visited_pages:
-                    break
-                tab_url = next_url
-                page_loaded = False
-            else:
-                await next_button.click()
-                await page.wait_for_timeout(250)
-                page_loaded = True
+            if not next_href or next_href == "#":
+                break
+            next_url = urljoin(tab_url, next_href)
+            if next_url in visited_pages:
+                break
+            tab_url = next_url
             page_number += 1
 
         print(f"ICMAI {category}: scraped {page_number} page(s)")
@@ -2006,8 +2273,6 @@ async def scrape_icmai(page):
 
     await scrape_icmai_update_archive(page)
     await scrape_icmai_tender_archive(page)
-
-    await scrape_content_tab("Students Connect", "students_connect_url", sel["students_content_links"])
 
     tender_url = sel.get("tenders_url")
     if tender_url:
@@ -2034,15 +2299,15 @@ async def scrape_icmai(page):
                         href = candidate
                         break
                 full_url = urljoin(sel["base_url"], href) if href else next_url
-                item_key = ("Tender", title, full_url)
+                item_key = ("Tenders", title, full_url)
                 if item_key in seen_items:
                     continue
                 seen_items.add(item_key)
                 pdf_url = full_url if ".pdf" in full_url.lower() else None
-                if row_exists("ICMAI", title, "Tender"):
-                    update_row_by_key("ICMAI", title, "Tender", full_url, "N/A", pdf_url, "")
+                if row_exists("ICMAI", title, "Tenders"):
+                    update_row_by_key("ICMAI", title, "Tenders", full_url, "N/A", pdf_url, "")
                 else:
-                    insert_row("ICMAI", title, "Tender", full_url, "N/A", pdf_url)
+                    insert_row("ICMAI", title, "Tenders", full_url, "N/A", pdf_url)
 
             next_button = page.locator(sel["tender_next"]).first
             if await next_button.count() == 0:
@@ -2161,6 +2426,25 @@ def process_all_pdfs(limit=None, website_name=None, pdf_only=False):
     print(f"Found {len(rows)} pending rows to process")
     processed_count = 0
     failed_count = 0
+    consecutive_groq_failures = 0
+    groq_failure_limit = max(int(os.getenv("GROQ_CONSECUTIVE_FAILURE_LIMIT", "20")), 1)
+
+    def record_groq_failure(item_progress_id, row_id, error):
+        nonlocal consecutive_groq_failures
+        consecutive_groq_failures += 1
+        finish_item_progress(item_progress_id, "failed", "groq_summary", str(error))
+        print(
+            f"  ✗ Groq failure streak: {consecutive_groq_failures}/{groq_failure_limit} "
+            f"(row {row_id})"
+        )
+        if consecutive_groq_failures < groq_failure_limit:
+            return False
+        request_cancel(get_conn())
+        print(
+            f"  ⚠ Groq failed for {consecutive_groq_failures} consecutive rows; "
+            "cancellation requested and summary processing is stopping safely."
+        )
+        return True
     
     for row in rows:
         pdf_url = (row.get("pdf_url") or "").strip()
@@ -2183,6 +2467,7 @@ def process_all_pdfs(limit=None, website_name=None, pdf_only=False):
             update_pdf_processed(row_id, "No summary available", "")
             finish_item_progress(item_progress_id, "completed", "database_update")
             processed_count += 1
+            consecutive_groq_failures = 0
             continue
 
         if (
@@ -2194,6 +2479,7 @@ def process_all_pdfs(limit=None, website_name=None, pdf_only=False):
             update_pdf_processed(row_id, "No summary available", "")
             finish_item_progress(item_progress_id, "completed", "database_update")
             processed_count += 1
+            consecutive_groq_failures = 0
             continue
         
         print(f"\nProcessing row {row_id}: {title[:60]}...")
@@ -2210,19 +2496,31 @@ def process_all_pdfs(limit=None, website_name=None, pdf_only=False):
                     model=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
                     timeout_seconds=int(os.getenv("GROQ_TIMEOUT_SECONDS", "30")),
                 )
+            except GroqProcessingError as exc:
+                failed_count += 1
+                if record_groq_failure(item_progress_id, row_id, exc):
+                    break
+                continue
             except Exception as exc:
                 print(f"  ✗ MarkItDown/Groq processing failed for row {row_id}: {exc}")
                 finish_item_progress(item_progress_id, "failed", "groq_summary", str(exc))
                 failed_count += 1
+                consecutive_groq_failures = 0
                 continue
         else:
             report_site_progress(website_name, stage="detail_processing", current_url=source_url)
-            result = generate_summary_from_detail_page(
-                source_url,
-                title,
-                row["category"],
-                website_name,
-            )
+            try:
+                result = generate_summary_from_detail_page(
+                    source_url,
+                    title,
+                    row["category"],
+                    website_name,
+                )
+            except GroqProcessingError as exc:
+                failed_count += 1
+                if record_groq_failure(item_progress_id, row_id, exc):
+                    break
+                continue
         
         if result:
             if result.get("no_summary"):
@@ -2236,6 +2534,7 @@ def process_all_pdfs(limit=None, website_name=None, pdf_only=False):
                 print(f"  ✗ Generated summary quality check failed for row {row_id} (will retry next run)")
                 finish_item_progress(item_progress_id, "failed", "validation", "Summary quality validation failed")
                 failed_count += 1
+                consecutive_groq_failures = 0
                 # Cleanup any temporary local files when quality validation fails
                 try:
                     if local_pdf and os.path.exists(local_pdf):
@@ -2259,6 +2558,7 @@ def process_all_pdfs(limit=None, website_name=None, pdf_only=False):
             finish_item_progress(item_progress_id, "completed", "database_update")
             print(f"  ✓ Summary and due date saved for row {row_id}")
             processed_count += 1
+            consecutive_groq_failures = 0
             
             # Cleanup: delete the PDF file and folder
             try:
@@ -2278,6 +2578,7 @@ def process_all_pdfs(limit=None, website_name=None, pdf_only=False):
             print(f"  ✗ Summary/due date extraction failed for row {row_id} (will retry next run)")
             finish_item_progress(item_progress_id, "failed", "summary", "No valid summary returned")
             failed_count += 1
+            consecutive_groq_failures = 0
             
             # Still cleanup the downloaded file to save space
             try:
@@ -2368,7 +2669,8 @@ class Command(BaseCommand):
         if FORCE_FULL_SCAN:
             print("FULL_SCAN mode enabled: ignoring first-existing-item early stops for this run.\n")
 
-        run_id = create_run()
+        action = "summary" if summary_only else ("scrape" if skip_summary else "full")
+        run_id = create_run(action)
         CURRENT_RUN_ID = run_id
         lock_token = acquire_run_lock(get_conn(), run_id)
         if not lock_token:
@@ -2378,6 +2680,7 @@ class Command(BaseCommand):
         clear_cancel(get_conn())
         before_total = get_total_data_count()
         before_site_counts = get_site_data_counts()
+        pending_before = len(get_pending_pdf_rows(website_name=SELECTED_SITE, pdf_only=summary_only))
 
         try:
             if summary_only:
@@ -2403,6 +2706,7 @@ class Command(BaseCommand):
 
             after_total = get_total_data_count()
             after_site_counts = get_site_data_counts()
+            pending_after = len(get_pending_pdf_rows(website_name=SELECTED_SITE, pdf_only=summary_only))
 
             total_new_rows = max(after_total - before_total, 0)
             all_sites = set(before_site_counts) | set(after_site_counts)
@@ -2419,6 +2723,10 @@ class Command(BaseCommand):
                 per_site_new_rows,
                 site_results,
                 status=run_status,
+                pending_before=pending_before,
+                summary_success=summary_result["processed"],
+                summary_failed=summary_result["failed"],
+                pending_after=pending_after,
             )
 
             print("\nDone. Unified data is in table: Website_Scraping_data")

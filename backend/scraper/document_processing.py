@@ -1,12 +1,18 @@
 import json
+import os
 import re
 import tempfile
+import time
 from pathlib import Path
 
 import requests
 
 
 MAX_SUMMARY_WORDS = 60
+
+
+class GroqProcessingError(RuntimeError):
+    """Raised when Groq cannot return a usable summary response."""
 
 
 def summary_word_count(summary):
@@ -74,6 +80,10 @@ def _groq_summary(markdown, model, timeout_seconds):
         {"role": "user", "content": bounded_markdown},
     ]
     for attempt in range(2):
+        if attempt or os.getenv("GROQ_REQUEST_GAP_SECONDS"):
+            gap_seconds = max(float(os.getenv("GROQ_REQUEST_GAP_SECONDS", "2")), 0)
+            if gap_seconds:
+                time.sleep(gap_seconds)
         if attempt:
             messages.append(
                 {
@@ -81,16 +91,19 @@ def _groq_summary(markdown, model, timeout_seconds):
                     "content": "Correction: return valid JSON only and shorten summary to at most 60 words. Do not add unsupported facts.",
                 }
             )
-        completion = client.chat.completions.create(
-            model=model,
-            temperature=0,
-            response_format={"type": "json_object"},
-            messages=messages,
-        )
+        try:
+            completion = client.chat.completions.create(
+                model=model,
+                temperature=0,
+                response_format={"type": "json_object"},
+                messages=messages,
+            )
+        except Exception as exc:
+            raise GroqProcessingError(f"Groq request failed: {exc}") from exc
         result = parse_provider_response(completion.choices[0].message.content)
         if result is not None:
             return result
-    return None
+    raise GroqProcessingError("Groq returned invalid or overlong summary JSON")
 
 
 def process_pdf_url(pdf_url, model, timeout_seconds=30):
@@ -103,8 +116,6 @@ def process_pdf_url(pdf_url, model, timeout_seconds=30):
         if not markdown:
             raise ValueError("MarkItDown returned no Markdown content")
         result = _groq_summary(markdown, model, timeout_seconds)
-        if result is None:
-            raise ValueError("Groq returned invalid or overlong summary JSON")
         if not result["due_date"]:
             result["due_date"] = extract_due_date(markdown)
         return result
@@ -115,8 +126,6 @@ def process_text_content(text, model, timeout_seconds=30):
     if not text or not text.strip():
         raise ValueError("No text content available for Groq")
     result = _groq_summary(text, model, timeout_seconds)
-    if result is None:
-        raise ValueError("Groq returned invalid or overlong summary JSON")
     if not result["due_date"]:
         result["due_date"] = extract_due_date(text)
     return result

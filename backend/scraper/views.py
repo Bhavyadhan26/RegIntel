@@ -493,6 +493,10 @@ class DashboardSummaryView(APIView):
 		else:
 			all_rows = WebsiteScrapingData.objects.none()
 
+		website_counts = list(
+			WebsiteScrapingData.objects.values("website_name").annotate(total=Count("id")).order_by("website_name")
+		)
+
 		if profession_source_names:
 			profession_rows = WebsiteScrapingData.objects.filter(website_name__in=profession_source_names).order_by("-id")
 		else:
@@ -578,6 +582,7 @@ class DashboardSummaryView(APIView):
 					"deadlines_active": deadlines_active_count,
 					"deadlines_week_with_due": deadlines_week_with_due_count,
 				},
+				"website_counts": website_counts,
 				"last_updated": last_run.isoformat() if last_run else None,
 				"upcoming_deadlines": paginated_upcoming_items,
 				"upcoming_deadlines_total": total_upcoming,

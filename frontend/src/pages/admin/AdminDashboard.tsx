@@ -1,21 +1,22 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { 
   fetchAdminRunLogs, fetchAdminSources, fetchAdminData, fetchAdminSelectors,
   saveAdminSource, deleteAdminSource, saveAdminSelector, deleteAdminSelector,
   fetchAdminFeedback, fetchAdminProfessions, fetchAdminUsers, saveAdminUser
-  , fetchPendingSummaryCounts
+  , fetchPendingSummaryCounts, fetchAdminPipelineStatus, stopAdminScraper
 } from '@/lib/api/admin';
-import { SCRAPER_BASE_URL, getAccessToken } from '@/lib/api';
+import { SCRAPER_BASE_URL, apiFetch } from '@/lib/api';
 import type { 
   AdminRun, AdminSource, AdminDataRow, AdminSelector, 
   AdminUserFeedback, AdminProfessionalCategory, AdminUser 
 } from '@/lib/api/admin';
 import { 
   Search, Download, Plus, Trash2, Edit2, PlayCircle, Settings, Users, MessageSquare, Database, 
-  Globe, Activity, ChevronDown, ChevronUp, ChevronRight
+  Globe, Activity, RefreshCw, ChevronDown, ChevronUp, ChevronRight
 } from 'lucide-react';
 
 type TabType = 'overview' | 'sources' | 'data' | 'runs' | 'feedback' | 'users';
+const currentDateFilter = new Date().toISOString().slice(0, 10);
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -25,14 +26,39 @@ export function AdminDashboard() {
   const [sources, setSources] = useState<AdminSource[]>([]);
   const [selectors, setSelectors] = useState<AdminSelector[]>([]);
   const [dataRows, setDataRows] = useState<AdminDataRow[]>([]);
+  const [dataSearch, setDataSearch] = useState('');
+  const [dataWebsite, setDataWebsite] = useState('');
+  const [dataCategory, setDataCategory] = useState('');
+  const [dataProcessed, setDataProcessed] = useState('');
+  const [dataOrdering, setDataOrdering] = useState('-created_at');
+  const [dataPage, setDataPage] = useState(1);
+  const [dataHasMore, setDataHasMore] = useState(false);
+  const [dataTotal, setDataTotal] = useState(0);
+  const [dataLoadingMore, setDataLoadingMore] = useState(false);
+  const dataSentinelRef = useRef<HTMLTableRowElement | null>(null);
   const [feedback, setFeedback] = useState<AdminUserFeedback[]>([]);
   const [professions, setProfessions] = useState<AdminProfessionalCategory[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [pendingSummaries, setPendingSummaries] = useState<Record<string, number>>({});
   const [pendingSummaryTotal, setPendingSummaryTotal] = useState(0);
+  const [pipelineStatus, setPipelineStatus] = useState<Awaited<ReturnType<typeof fetchAdminPipelineStatus>> | null>(null);
+  const [stoppingRun, setStoppingRun] = useState(false);
+  const [activityStartedAt, setActivityStartedAt] = useState<number | null>(null);
+  const [refreshingTab, setRefreshingTab] = useState(false);
+  const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [summaryDialogWebsite, setSummaryDialogWebsite] = useState<string | undefined>();
+  const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
+  const [summaryLimitInput, setSummaryLimitInput] = useState('50');
+  const [summaryDialogMax, setSummaryDialogMax] = useState(0);
+  const loadedTabsRef = useRef<Record<string, boolean>>({});
+  const dataLoadedRef = useRef(false);
   
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [runWebsiteFilters, setRunWebsiteFilters] = useState<string[]>([]);
+  const [runStartDate, setRunStartDate] = useState(currentDateFilter);
+  const [runEndDate, setRunEndDate] = useState(currentDateFilter);
+  const [websiteFilterOpen, setWebsiteFilterOpen] = useState(false);
   
   // Modal / Expanded State
   const [editingSource, setEditingSource] = useState<AdminSource | Partial<AdminSource> | null>(null);
@@ -67,43 +93,126 @@ export function AdminDashboard() {
     }
   };
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (force = false) => {
     setLoading(true);
     try {
       if (activeTab === 'overview' || activeTab === 'sources') {
-        const resSources = await fetchAdminSources();
-        setSources(resSources);
-        const pending = await fetchPendingSummaryCounts();
-        setPendingSummaries(pending.by_website);
-        setPendingSummaryTotal(pending.total);
-        if (activeTab === 'sources') {
+        if (force || !loadedTabsRef.current.sources) {
+          const resSources = await fetchAdminSources();
+          setSources(resSources);
+          const pending = await fetchPendingSummaryCounts();
+          setPendingSummaries(pending.by_website);
+          setPendingSummaryTotal(pending.total);
+          loadedTabsRef.current.sources = true;
+        }
+        if (activeTab === 'sources' && (force || !loadedTabsRef.current.selectors)) {
           const resSelectors = await fetchAdminSelectors();
           setSelectors(resSelectors);
+          loadedTabsRef.current.selectors = true;
         }
       }
       if (activeTab === 'runs' || activeTab === 'overview') {
-        const res = await fetchAdminRunLogs();
-        setRuns(res);
-      } 
-      if (activeTab === 'data') {
-        const res = await fetchAdminData();
-        setDataRows(res);
+        if (force || !loadedTabsRef.current.runs) {
+          const res = await fetchAdminRunLogs();
+          setRuns(res);
+          loadedTabsRef.current.runs = true;
+        }
       } 
       if (activeTab === 'feedback') {
-        const res = await fetchAdminFeedback();
-        setFeedback(res);
+        if (force || !loadedTabsRef.current.feedback) {
+          const res = await fetchAdminFeedback();
+          setFeedback(res);
+          loadedTabsRef.current.feedback = true;
+        }
       } 
       if (activeTab === 'users') {
-        const resP = await fetchAdminProfessions();
-        setProfessions(resP);
-        const resU = await fetchAdminUsers();
-        setUsers(resU);
+        if (force || !loadedTabsRef.current.users) {
+          const resP = await fetchAdminProfessions();
+          setProfessions(resP);
+          const resU = await fetchAdminUsers();
+          setUsers(resU);
+          loadedTabsRef.current.users = true;
+        }
       }
     } catch (err) {
       console.error(err);
     }
     setLoading(false);
   }, [activeTab]);
+
+  const loadDataPage = useCallback(async (page: number, append: boolean) => {
+    if (append) setDataLoadingMore(true);
+    try {
+      const response = await fetchAdminData({
+        page,
+        page_size: 50,
+        search: dataSearch,
+        website: dataWebsite,
+        category: dataCategory,
+        processed: dataProcessed,
+        ordering: dataOrdering,
+      });
+      setDataRows(prev => append ? [...prev, ...response.results] : response.results);
+      setDataPage(response.page);
+      setDataHasMore(response.has_more);
+      setDataTotal(response.total);
+      if (!append) dataLoadedRef.current = true;
+    } catch (err) {
+      console.error(err);
+    } finally {
+      if (append) setDataLoadingMore(false);
+    }
+  }, [dataSearch, dataWebsite, dataCategory, dataProcessed, dataOrdering]);
+
+  useEffect(() => {
+    if (activeTab === 'data' && !dataLoadedRef.current) void loadDataPage(1, false);
+  }, [activeTab, loadDataPage]);
+
+  useEffect(() => {
+    if (activeTab !== 'runs' && activeTab !== 'overview') return;
+    let disposed = false;
+    const refreshPipeline = async () => {
+      try {
+        const [status, pending, logs] = await Promise.all([
+          fetchAdminPipelineStatus(),
+          fetchPendingSummaryCounts(),
+          fetchAdminRunLogs(),
+        ]);
+        if (disposed) return;
+        setPipelineStatus(status);
+        setPendingSummaryTotal(pending.total);
+        setPendingSummaries(pending.by_website);
+        setRuns(logs);
+        const completedTriggeredRun = activityStartedAt
+          && status.run
+          && new Date(status.run.started_at).getTime() >= activityStartedAt
+          && !['running', 'queued'].includes(status.run.status);
+        if (completedTriggeredRun) {
+          setActivityStartedAt(null);
+          dataLoadedRef.current = false;
+          loadedTabsRef.current.runs = true;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    void refreshPipeline();
+    const timer = window.setInterval(refreshPipeline, activityStartedAt ? 3000 : 120000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [activeTab, activityStartedAt, loadData, loadDataPage]);
+
+  useEffect(() => {
+    if (activeTab !== 'data' || !dataHasMore || dataLoadingMore) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0]?.isIntersecting) void loadDataPage(dataPage + 1, true);
+    }, { rootMargin: '320px' });
+    const sentinel = dataSentinelRef.current;
+    if (sentinel) observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [activeTab, dataHasMore, dataLoadingMore, dataPage, loadDataPage]);
 
   useEffect(() => {
     setSearchTerm(""); // Reset search when switching tabs
@@ -141,7 +250,7 @@ export function AdminDashboard() {
     try {
       await saveAdminSource(editingSource.id ? editingSource.id : null, editingSource);
       setEditingSource(null);
-      void loadData();
+      void loadData(true);
     } catch {
       alert("Failed to save source");
     }
@@ -191,32 +300,120 @@ export function AdminDashboard() {
     }
   };
 
-  const triggerRun = async (websiteName?: string, skipSummary = false, summaryOnly = false) => {
+  const triggerRun = async (websiteName?: string, skipSummary = false, summaryOnly = false, summaryLimit?: number) => {
     try {
       const params = new URLSearchParams();
       if (websiteName) params.set('website', websiteName);
       if (skipSummary) params.set('skip_summary', 'true');
       if (summaryOnly) params.set('summary_only', 'true');
+      if (summaryLimit) params.set('summary_limit', String(summaryLimit));
       const query = params.toString();
       const url = `${SCRAPER_BASE_URL}/trigger/${query ? `?${query}` : ''}`;
-      const token = getAccessToken();
-      const res = await fetch(url, {
+      const res = await apiFetch(url.replace(SCRAPER_BASE_URL, ''), {
         method: 'POST',
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      }, SCRAPER_BASE_URL);
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload.detail || payload.message || `Trigger failed (${res.status})`);
+      }
+      setActiveTab('runs');
+      setActivityStartedAt(Date.now());
+      void loadData(true);
+      setActionNotice({
+        type: 'success',
+        message: summaryOnly
+          ? `Summary processing started${summaryLimit ? ` for ${summaryLimit} row${summaryLimit === 1 ? '' : 's'}` : ''}. Live progress is now being tracked.`
+          : skipSummary ? 'Scrape-only activity started. Live progress is now being tracked.' : 'Scrape and summary activity started. Live progress is now being tracked.',
       });
-      if (!res.ok) throw new Error("Failed to trigger");
-      alert(summaryOnly ? "Summary retry run triggered successfully." : (skipSummary ? "Scrape-only run triggered successfully." : "Scrape and summary run triggered successfully."));
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to trigger scraper run.");
+      setActionNotice({ type: 'error', message: err instanceof Error ? err.message : 'Failed to trigger scraper run.' });
+    }
+  };
+
+  const triggerSummaryRetry = (websiteName?: string) => {
+    const available = websiteName ? (pendingSummaries[websiteName] || 0) : pendingSummaryTotal;
+    setSummaryDialogWebsite(websiteName);
+    setSummaryDialogMax(available);
+    setSummaryLimitInput(String(Math.min(50, available)));
+    setSummaryDialogOpen(true);
+  };
+
+  const submitSummaryRetry = async () => {
+    const limit = Number.parseInt(summaryLimitInput.trim(), 10);
+    if (!Number.isInteger(limit) || limit <= 0 || limit > summaryDialogMax) {
+      setActionNotice({ type: 'error', message: `Enter a number between 1 and ${summaryDialogMax}.` });
+      return;
+    }
+    setSummaryDialogOpen(false);
+    await triggerRun(summaryDialogWebsite, false, true, limit);
+  };
+
+  const stopRun = async () => {
+    if (!window.confirm('Stop the active scraper run? It will finish its current safe operation first.')) return;
+    setStoppingRun(true);
+    try {
+      await stopAdminScraper();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to request scraper stop.');
+    } finally {
+      setStoppingRun(false);
+    }
+  };
+
+  const refreshCurrentTab = async () => {
+    setRefreshingTab(true);
+    setActionNotice(null);
+    try {
+      if (activeTab === 'data') {
+        dataLoadedRef.current = false;
+        await loadDataPage(1, false);
+      } else {
+        loadedTabsRef.current[activeTab] = false;
+        await loadData(true);
+      }
+      setActionNotice({ type: 'success', message: `${activeTab === 'data' ? 'Scraped data' : activeTab} refreshed successfully.` });
+    } finally {
+      setRefreshingTab(false);
     }
   };
 
   // Derived filtered states
   const filteredSources = useMemo(() => sources.filter(s => s.website_name.toLowerCase().includes(searchTerm.toLowerCase()) || s.website_full_name.toLowerCase().includes(searchTerm.toLowerCase())), [sources, searchTerm]);
-  const filteredData = useMemo(() => dataRows.filter(d => d.title.toLowerCase().includes(searchTerm.toLowerCase()) || d.website_name.toLowerCase().includes(searchTerm.toLowerCase())), [dataRows, searchTerm]);
+  const filteredData = dataRows;
   const filteredFeedback = useMemo(() => feedback.filter(f => f.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || f.user_email.toLowerCase().includes(searchTerm.toLowerCase()) || f.message.toLowerCase().includes(searchTerm.toLowerCase())), [feedback, searchTerm]);
   const filteredUsers = useMemo(() => users.filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()) || u.first_name.toLowerCase().includes(searchTerm.toLowerCase())), [users, searchTerm]);
-  const filteredRuns = useMemo(() => runs.filter(r => r.status.toLowerCase().includes(searchTerm.toLowerCase())), [runs, searchTerm]);
+  const runWebsiteOptions = useMemo(() => Array.from(new Set([
+    ...sources.map(source => source.website_name),
+    ...(pipelineStatus?.sites || []).map(site => site.website_name),
+    ...runs.flatMap(run => run.websites || []),
+  ])).sort(), [sources, pipelineStatus, runs]);
+  const filteredRuns = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    return runs.filter(run => {
+      const searchable = [
+        run.status,
+        run.activity,
+        run.action,
+        run.error_text,
+        ...(run.websites || []),
+        ...(run.errors || []),
+      ].filter(Boolean).join(' ').toLowerCase();
+      const matchesText = !query || searchable.includes(query);
+      const matchesWebsite = !runWebsiteFilters.length || runWebsiteFilters.some(website => (run.websites || []).includes(website));
+      const runDate = new Date(run.started_at).toISOString().slice(0, 10);
+      const matchesDate = (!runStartDate || runDate >= runStartDate) && (!runEndDate || runDate <= runEndDate);
+      return matchesText && matchesWebsite && matchesDate;
+    });
+  }, [runs, searchTerm, runWebsiteFilters, runStartDate, runEndDate]);
+  const pipelineSites = pipelineStatus?.sites ?? [];
+  const pipelineItems = pipelineStatus?.items ?? [];
+  const pipelineFailures = pipelineStatus?.failure_reasons ?? [];
+
+  useEffect(() => {
+    if (!actionNotice) return;
+    const timer = window.setTimeout(() => setActionNotice(null), 10000);
+    return () => window.clearTimeout(timer);
+  }, [actionNotice]);
 
   return (
     <div className="min-h-screen flex bg-gray-50 text-gray-800 font-sans">
@@ -272,13 +469,16 @@ export function AdminDashboard() {
           </h2>
           
           <div className="flex items-center gap-4">
+            <button onClick={refreshCurrentTab} disabled={refreshingTab} className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 shadow-sm transition hover:border-teal-400 hover:text-teal-700 disabled:cursor-wait disabled:opacity-60" title="Refresh this page's data">
+              <RefreshCw className={`h-4 w-4 ${refreshingTab ? 'animate-spin' : ''}`} /> {refreshingTab ? 'Refreshing...' : 'Refresh'}
+            </button>
             {/* Contextual Top Actions */}
-            {activeTab !== 'overview' && (
+            {activeTab !== 'overview' && activeTab !== 'sources' && (
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input 
                   type="text" 
-                  placeholder={`Search ${activeTab}...`} 
+                  placeholder={activeTab === 'runs' ? 'Search status, activity, website, or error...' : `Search ${activeTab}...`} 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9 pr-4 py-2 border border-gray-200 rounded-full text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#116d64]/50 focus:border-[#116d64] transition-all w-64"
@@ -286,19 +486,6 @@ export function AdminDashboard() {
               </div>
             )}
             
-            {activeTab === 'sources' && (
-              <>
-                <button onClick={() => toggleAllSources(true)} className="flex items-center gap-2 px-4 py-2 bg-teal-50 border border-teal-200 hover:bg-teal-100 text-teal-800 text-sm font-bold rounded-full shadow-sm transition-colors">
-                  Enable All
-                </button>
-                <button onClick={() => toggleAllSources(false)} className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 hover:bg-red-100 text-red-800 text-sm font-bold rounded-full shadow-sm transition-colors">
-                  Disable All
-                </button>
-                <button onClick={() => setEditingSource({ active: true })} className="flex items-center gap-2 px-4 py-2 bg-[#116d64] hover:bg-[#0d554d] text-white text-sm font-bold rounded-full shadow-sm transition-colors">
-                  <Plus className="w-4 h-4" /> Add Source
-                </button>
-              </>
-            )}
             {activeTab === 'feedback' && (
               <button onClick={exportFeedbackCSV} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold rounded-full shadow-sm transition-colors">
                 <Download className="w-4 h-4" /> Export CSV
@@ -309,7 +496,7 @@ export function AdminDashboard() {
                 <button onClick={() => triggerRun(undefined, true)} className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-teal-50 border border-teal-200 text-teal-800 text-sm font-bold rounded-full shadow-sm transition-colors">
                   <PlayCircle className="w-4 h-4" /> Scrape only
                 </button>
-                <button onClick={() => triggerRun(undefined, false, true)} className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold rounded-full shadow-sm transition-colors">
+                <button onClick={() => triggerSummaryRetry()} disabled={!pendingSummaryTotal} className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold rounded-full shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50">
                   <PlayCircle className="w-4 h-4" /> Retry summaries ({pendingSummaryTotal})
                 </button>
                 <button onClick={() => triggerRun()} className="flex items-center gap-2 px-4 py-2 bg-[#116d64] hover:bg-[#0d554d] text-white text-sm font-bold rounded-full shadow-sm transition-colors">
@@ -319,6 +506,11 @@ export function AdminDashboard() {
             )}
           </div>
         </header>
+
+        {actionNotice && <div className={`fixed right-6 top-6 z-[60] flex w-[min(28rem,calc(100vw-3rem))] items-start gap-4 rounded-2xl border px-5 py-4 text-sm font-semibold shadow-2xl ${actionNotice.type === 'success' ? 'border-teal-200 bg-teal-50 text-teal-800' : 'border-red-200 bg-red-50 text-red-800'}`} role="status">
+          <span className="flex-1">{actionNotice.message}</span>
+          <button onClick={() => setActionNotice(null)} className="rounded-full p-1 text-lg leading-none opacity-60 transition hover:bg-black/5 hover:opacity-100" aria-label="Close notification">×</button>
+        </div>}
 
         {/* SCROLLABLE CONTENT */}
         <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
@@ -357,15 +549,19 @@ export function AdminDashboard() {
                         <th className="py-4 px-6">Website</th>
                         <th className="py-4 px-6">Pipeline State</th>
                         <th className="py-4 px-6">Latest Stage</th>
+                        <th className="py-4 px-6">Total Notices</th>
+                        <th className="py-4 px-6">Last Run New</th>
                         <th className="py-4 px-6 text-right">Manual Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {sources.map(s => {
                         const latestRunDetail = runs[0]?.details?.find(d => d.website_name === s.website_name);
-                        const stageStatus = latestRunDetail ? latestRunDetail.status : (runs.length > 0 ? 'NOT RUN' : 'PENDING');
-                        const statusColor = stageStatus === 'SUCCESS' ? 'text-teal-600 bg-teal-50 ring-teal-600/20' 
-                                          : stageStatus === 'ERROR' ? 'text-red-600 bg-red-50 ring-red-600/20'
+                        const liveSite = pipelineStatus?.sites.find(site => site.website_name === s.website_name);
+                        const stageStatus = liveSite?.status || latestRunDetail?.status || (runs.length > 0 ? 'NOT RUN' : 'PENDING');
+                        const stageLabel = liveSite?.stage || (latestRunDetail ? 'completed' : 'Not run');
+                        const statusColor = stageStatus.toLowerCase() === 'success' ? 'text-teal-600 bg-teal-50 ring-teal-600/20'
+                                          : stageStatus.toLowerCase() === 'failed' ? 'text-red-600 bg-red-50 ring-red-600/20'
                                           : 'text-gray-500 bg-gray-50 ring-gray-500/20';
                         return (
                           <tr key={s.id} className="hover:bg-gray-50/50 transition-colors group">
@@ -381,9 +577,11 @@ export function AdminDashboard() {
                             </td>
                             <td className="py-4 px-6">
                               <span className={`px-2.5 py-1 text-xs font-bold rounded-md ring-1 ${statusColor}`}>
-                                {stageStatus}
+                                {stageLabel}
                               </span>
                             </td>
+                            <td className="py-4 px-6 font-bold text-gray-900">{pipelineStatus?.website_totals?.[s.website_name] ?? 0}</td>
+                            <td className="py-4 px-6 font-bold text-teal-700">{liveSite ? `+${liveSite.latest_new_notices}` : '—'}</td>
                             <td className="py-4 px-6 text-right">
                               <div className="flex justify-end gap-2">
                                 {s.active && <>
@@ -393,7 +591,7 @@ export function AdminDashboard() {
                                   <button onClick={() => triggerRun(s.website_name)} className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-lg border border-gray-300 shadow-sm transition-all group-hover:border-teal-500 group-hover:text-teal-700">
                                     Full run
                                   </button>
-                                  <button onClick={() => triggerRun(s.website_name, false, true)} disabled={!pendingSummaries[s.website_name]} className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold rounded-lg border border-amber-200 shadow-sm transition-all disabled:opacity-40">
+                                  <button onClick={() => triggerSummaryRetry(s.website_name)} disabled={!pendingSummaries[s.website_name]} className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold rounded-lg border border-amber-200 shadow-sm transition-all disabled:opacity-40">
                                     Retry summaries ({pendingSummaries[s.website_name] || 0})
                                   </button>
                                 </>}
@@ -403,7 +601,7 @@ export function AdminDashboard() {
                         );
                       })}
                       {sources.length === 0 && (
-                        <tr><td colSpan={4} className="py-8 text-center text-gray-500 font-medium">No sources configured.</td></tr>
+                        <tr><td colSpan={6} className="py-8 text-center text-gray-500 font-medium">No sources configured.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -413,7 +611,24 @@ export function AdminDashboard() {
 
               {/* SOURCES & SELECTORS TAB */}
               {activeTab === 'sources' && (
-                <div className="overflow-x-auto">
+                <div>
+                  <div className="border-b border-gray-200 bg-gradient-to-r from-white via-teal-50/30 to-white px-6 py-5">
+                    <div className="flex flex-wrap items-end justify-between gap-4">
+                      <div className="min-w-[280px] flex-1">
+                        <label htmlFor="source-search" className="mb-2 block text-[11px] font-black uppercase tracking-wider text-gray-500">Search sources</label>
+                        <div className="relative">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                          <input id="source-search" type="text" placeholder="Search by code or full name..." value={searchTerm} onChange={event => setSearchTerm(event.target.value)} className="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-700 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={() => toggleAllSources(true)} className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2.5 text-xs font-bold text-teal-800 transition hover:bg-teal-100">Enable all</button>
+                        <button onClick={() => toggleAllSources(false)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold text-red-800 transition hover:bg-red-100">Disable all</button>
+                        <button onClick={() => setEditingSource({ active: true })} className="flex items-center gap-2 rounded-lg bg-[#116d64] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0d554d]"><Plus className="h-4 w-4" /> Add source</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm border-collapse">
                     <thead className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
                       <tr>
@@ -499,33 +714,74 @@ export function AdminDashboard() {
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
 
               {/* DATA TAB */}
               {activeTab === 'data' && (
-                <div className="overflow-x-auto">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 p-5">
+                    <input value={dataSearch} onChange={e => setDataSearch(e.target.value)} placeholder="Search title, summary, date..." className="min-w-64 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    <select value={dataWebsite} onChange={e => setDataWebsite(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                      <option value="">All websites</option>
+                      {sources.map(source => <option key={source.website_name} value={source.website_name}>{source.website_name}</option>)}
+                    </select>
+                    <select value={dataCategory} onChange={e => setDataCategory(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                      <option value="">All categories</option>
+                      {Array.from(new Set(dataRows.map(row => row.category).filter(Boolean))).map(category => <option key={category} value={category}>{category}</option>)}
+                    </select>
+                    <select value={dataProcessed} onChange={e => setDataProcessed(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                      <option value="">All processing states</option>
+                      <option value="true">Processed</option>
+                      <option value="false">Pending</option>
+                    </select>
+                    <select value={dataOrdering} onChange={e => setDataOrdering(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                      <option value="-created_at">Newest first</option>
+                      <option value="created_at">Oldest first</option>
+                      <option value="title">Title A-Z</option>
+                      <option value="-title">Title Z-A</option>
+                      <option value="website_name">Website A-Z</option>
+                      <option value="-notice_date">Notice date newest</option>
+                      <option value="due_date">Due date</option>
+                    </select>
+                    <span className="text-xs font-semibold text-gray-500">{dataTotal.toLocaleString()} records</span>
+                  </div>
+                  <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
                       <tr>
+                        <th className="py-4 px-6">ID</th>
                         <th className="py-4 px-6">Source</th>
+                        <th className="py-4 px-6">Category</th>
                         <th className="py-4 px-6">Title</th>
-                        <th className="py-4 px-6">Date</th>
+                        <th className="py-4 px-6">Notice date</th>
+                        <th className="py-4 px-6">Due date</th>
+                        <th className="py-4 px-6">Links</th>
+                        <th className="py-4 px-6">Summary</th>
                         <th className="py-4 px-6 text-center">AI Processed</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {filteredData.map(d => (
                         <tr key={d.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="py-3 px-6 font-mono text-xs text-gray-500">{d.id}</td>
                           <td className="py-3 px-6">
                             <span className="font-bold text-gray-900 bg-gray-100 px-2 py-1 rounded text-xs">{d.website_name}</span>
                           </td>
+                          <td className="py-3 px-6 text-xs text-gray-600">{d.category || '-'}</td>
                           <td className="py-3 px-6">
                             <a href={d.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-medium line-clamp-2 pr-4">
                               {d.title}
                             </a>
                           </td>
                           <td className="py-3 px-6 text-gray-500 whitespace-nowrap font-medium">{d.notice_date}</td>
+                          <td className="py-3 px-6 text-gray-500 whitespace-nowrap">{d.due_date || '-'}</td>
+                          <td className="py-3 px-6 text-xs whitespace-nowrap">
+                            {d.pdf_url && <a href={d.pdf_url} target="_blank" rel="noreferrer" className="mr-2 text-blue-600 hover:underline">PDF</a>}
+                            {d.detail_url && <a href={d.detail_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Detail</a>}
+                          </td>
+                          <td className="max-w-sm py-3 px-6 text-xs text-gray-600"><span title={d.summary || ''} className="line-clamp-2">{d.summary || '-'}</span></td>
                           <td className="py-3 px-6 text-center">
                             {d.processed ? (
                               <span className="text-teal-700 text-xs px-2.5 py-1 bg-teal-50 ring-1 ring-teal-600/20 rounded-md font-bold">Yes</span>
@@ -536,24 +792,114 @@ export function AdminDashboard() {
                         </tr>
                       ))}
                       {filteredData.length === 0 && (
-                        <tr><td colSpan={4} className="py-8 text-center text-gray-500 font-medium">No records match your search.</td></tr>
+                        <tr><td colSpan={9} className="py-8 text-center text-gray-500 font-medium">No records match your filters.</td></tr>
                       )}
+                      <tr ref={dataSentinelRef}><td colSpan={9} className="py-5 text-center text-xs text-gray-400">{dataLoadingMore ? 'Loading more records...' : dataHasMore ? 'Scroll to load more' : 'End of results'}</td></tr>
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
 
               {/* RUNS TAB WITH INLINE DETAILS */}
               {activeTab === 'runs' && (
-                <div className="overflow-x-auto">
+                <div className="space-y-5 p-5">
+                  <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-5">
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-start">
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wider text-teal-700">Live pipeline tracking</div>
+                        <div className="mt-1 text-2xl font-black text-gray-900">
+                          {pipelineStatus?.run ? pipelineStatus.run.status.replace('_', ' ') : 'No run recorded'}
+                        </div>
+                        {pipelineStatus?.run && <div className="mt-1 text-xs text-gray-500">Run #{pipelineStatus.run.id} · Pending PDF summaries: {pipelineStatus.pending_summaries}</div>}
+                      </div>
+                      {pipelineStatus?.run?.status === 'running' && <div className="justify-self-center rounded-full bg-white px-3 py-1.5 text-xs font-bold text-teal-700 shadow-sm">Live · updates every 3 seconds</div>}
+                      {pipelineStatus?.run?.status === 'running' && <button onClick={stopRun} disabled={stoppingRun} className="justify-self-end rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50">{stoppingRun ? 'Stopping...' : 'Stop run'}</button>}
+                    </div>
+                      {pipelineStatus?.run && (
+                      <>
+                        <div className="mt-4 grid gap-2 text-xs text-gray-600 sm:grid-cols-3">
+                          <div><span className="font-bold text-gray-500">Activity</span><div className="mt-1 font-semibold text-gray-900">{pipelineStatus.run.activity || pipelineStatus.run.action || 'full'}</div></div>
+                          <div><span className="font-bold text-gray-500">Websites</span><div className="mt-1 font-semibold text-gray-900">{pipelineStatus.run.websites?.join(', ') || '—'}</div></div>
+                          <div><span className="font-bold text-gray-500">Time taken</span><div className="mt-1 font-semibold text-gray-900">{pipelineStatus.run.duration_display || '0:00:00'}</div></div>
+                        </div>
+                      </>
+                    )}
+                    {pipelineSites.length ? (
+                      <div className="mt-5 grid gap-3 md:grid-cols-2">
+                        {pipelineSites.map(site => (
+                          <div key={site.website_name} className="rounded-lg border border-white bg-white p-3 shadow-sm">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="font-bold text-gray-900">{site.website_name}</span>
+                              <span className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${site.status === 'success' ? 'bg-teal-50 text-teal-700' : site.status === 'failed' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{site.status}</span>
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">{site.stage || 'Waiting'}{site.current_url ? ` · ${site.current_url}` : ''}</div>
+                            {site.error_message && <div className="mt-2 truncate text-xs text-red-600" title={site.error_message}>{site.error_message}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    ) : <div className="mt-4 text-sm text-gray-500">Start a run from the Dashboard to track each website here.</div>}
+                    {pipelineFailures.length ? (
+                      <div className="mt-5 rounded-lg border border-red-100 bg-red-50 p-4">
+                        <div className="text-xs font-bold uppercase tracking-wider text-red-700">Unique failure reasons</div>
+                        <div className="mt-3 space-y-2">
+                          {pipelineFailures.map(failure => (
+                            <div key={failure.reason} className="rounded border border-red-100 bg-white p-3 text-xs">
+                              <div className="font-bold text-red-800">{failure.reason} <span className="font-normal text-red-600">({failure.count})</span></div>
+                              <div className="mt-1 text-gray-600">Sites: {failure.sites.join(', ')}</div>
+                              <div className="mt-1 text-gray-500">Items: {failure.items.slice(0, 5).map(item => `${item.website_name} #${item.data_id ?? '-'}`).join(', ')}{failure.items.length > 5 ? '…' : ''}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {pipelineItems.length ? (
+                      <div className="mt-5 overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                        <div className="border-b border-gray-100 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-500">Live item log</div>
+                        <table className="w-full text-left text-xs"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-4 py-2">Website</th><th className="px-4 py-2">Item</th><th className="px-4 py-2">Stage</th><th className="px-4 py-2">Status</th><th className="px-4 py-2">Error</th></tr></thead><tbody className="divide-y divide-gray-100">{pipelineItems.slice(0, 50).map((item, index) => <tr key={`${item.data_id}-${index}`}><td className="px-4 py-2 font-bold">{item.website_name}</td><td className="px-4 py-2">#{item.data_id ?? '-'}</td><td className="px-4 py-2">{item.stage}</td><td className="px-4 py-2">{item.status}</td><td className="max-w-md truncate px-4 py-2 text-red-600" title={item.error_message || ''}>{item.error_message || '-'}</td></tr>)}</tbody></table>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="rounded-xl border border-gray-200 bg-gradient-to-r from-white via-teal-50/30 to-white p-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-black text-gray-900">Filter pipeline logs</div>
+                        <div className="mt-1 text-xs text-gray-500">Search, choose websites, or select a run date.</div>
+                      </div>
+                      {(runWebsiteFilters.length > 0 || runStartDate || runEndDate || searchTerm) && <button onClick={() => { setRunWebsiteFilters([]); setRunStartDate(''); setRunEndDate(''); setSearchTerm(''); }} className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:border-teal-400 hover:text-teal-700">Clear all</button>}
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
+                      <div className="relative min-w-[260px] flex-1">
+                        <div className="mb-2 flex items-center justify-between"><div className="text-[11px] font-black uppercase tracking-wider text-gray-500">Website</div><div className="text-[11px] font-bold text-teal-700">{runWebsiteFilters.length ? `${runWebsiteFilters.length} selected` : 'All websites'}</div></div>
+                        <button type="button" onClick={() => setWebsiteFilterOpen(open => !open)} className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-left text-sm font-semibold text-gray-700 shadow-sm transition hover:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-100">
+                          <span>{runWebsiteFilters.length ? runWebsiteFilters.join(', ') : 'Select websites'}</span>
+                          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${websiteFilterOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {websiteFilterOpen && <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 shadow-xl">
+                          {runWebsiteOptions.map(website => (
+                            <label key={website} className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-teal-50">
+                              <input type="checkbox" checked={runWebsiteFilters.includes(website)} onChange={event => setRunWebsiteFilters(current => event.target.checked ? [...current, website] : current.filter(item => item !== website))} className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
+                              {website}
+                            </label>
+                          ))}
+                          {!runWebsiteOptions.length && <span className="block px-3 py-2 text-xs text-gray-400">No configured websites found.</span>}
+                        </div>}
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        <div><label htmlFor="run-start-date" className="mb-2 block text-[11px] font-black uppercase tracking-wider text-gray-500">Start date</label><input id="run-start-date" type="date" value={runStartDate} onChange={event => setRunStartDate(event.target.value)} className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100" /></div>
+                        <div><label htmlFor="run-end-date" className="mb-2 block text-[11px] font-black uppercase tracking-wider text-gray-500">End date</label><input id="run-end-date" type="date" value={runEndDate} onChange={event => setRunEndDate(event.target.value)} className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100" /></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm border-collapse">
                     <thead className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
                       <tr>
                         <th className="py-4 px-6">Run ID</th>
                         <th className="py-4 px-6">Status</th>
-                        <th className="py-4 px-6">Started At</th>
-                        <th className="py-4 px-6">New Rows</th>
-                        <th className="py-4 px-6">Errors</th>
+                        <th className="py-4 px-6">Activity / Website</th>
+                        <th className="py-4 px-6">Time Taken</th>
+                        <th className="py-4 px-6">New / Processed / Failed</th>
                         <th className="py-4 px-6 text-right">Details</th>
                       </tr>
                     </thead>
@@ -569,9 +915,9 @@ export function AdminDashboard() {
                                   {r.status || 'UNKNOWN'}
                                 </span>
                               </td>
-                              <td className="py-3 px-6 text-gray-600 font-medium">{new Date(r.started_at).toLocaleString()}</td>
-                              <td className="py-3 px-6 font-bold text-gray-900">{r.total_new_rows}</td>
-                              <td className="py-3 px-6 text-red-500 text-xs max-w-xs truncate" title={r.error_text || ''}>{r.error_text || '-'}</td>
+                              <td className="py-3 px-6 text-gray-600"><div className="font-semibold text-gray-900">{r.activity || r.action || 'full'}</div><div className="text-xs">{r.websites?.join(', ') || '—'}</div></td>
+                              <td className="py-3 px-6 text-gray-600"><div className="font-semibold text-gray-900">{r.duration_display || '0:00:00'}</div><div className="text-xs">{new Date(r.started_at).toLocaleString()}</div></td>
+                              <td className="py-3 px-6 font-bold text-gray-900">{r.total_new_rows} / {r.metrics?.processed ?? r.summary_success ?? 0} / {r.metrics?.failed ?? r.summary_failed ?? 0}</td>
                               <td className="py-3 px-6 text-right">
                                 <button 
                                   onClick={() => setExpandedRun(isExpanded ? null : r.id)}
@@ -584,52 +930,14 @@ export function AdminDashboard() {
                             {isExpanded && (
                               <tr className="bg-gray-50/50 border-t-0">
                                 <td colSpan={6} className="p-4 px-6 pb-6">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    {/* Stats Table */}
-                                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-                                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Site Stats (New Rows)</h4>
-                                      {r.stats && r.stats.length > 0 ? (
-                                        <table className="w-full text-xs text-left">
-                                          <thead className="text-gray-400 border-b border-gray-100">
-                                            <tr><th>Website</th><th className="text-right">New Rows</th></tr>
-                                          </thead>
-                                          <tbody className="divide-y divide-gray-50">
-                                            {r.stats.map(st => (
-                                              <tr key={st.id}>
-                                                <td className="py-2 font-bold text-gray-700">{st.website_name}</td>
-                                                <td className="py-2 text-right font-mono text-teal-600 font-bold">+{st.new_rows}</td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                      ) : <div className="text-xs text-gray-400">No stats recorded.</div>}
-                                    </div>
-
-                                    {/* Details Table */}
-                                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-                                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Site Details (Status)</h4>
-                                      {r.details && r.details.length > 0 ? (
-                                        <table className="w-full text-xs text-left">
-                                          <thead className="text-gray-400 border-b border-gray-100">
-                                            <tr><th>Website</th><th>Status</th><th>Error</th></tr>
-                                          </thead>
-                                          <tbody className="divide-y divide-gray-50">
-                                            {r.details.map(det => (
-                                              <tr key={det.id}>
-                                                <td className="py-2 font-bold text-gray-700">{det.website_name}</td>
-                                                <td className="py-2">
-                                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${det.status === 'SUCCESS' ? 'bg-teal-50 text-teal-600' : 'bg-red-50 text-red-600'}`}>
-                                                    {det.status}
-                                                  </span>
-                                                </td>
-                                                <td className="py-2 text-red-500 truncate max-w-[100px]" title={det.error_message || ''}>{det.error_message || '-'}</td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                      ) : <div className="text-xs text-gray-400">No details recorded.</div>}
-                                    </div>
-                                  </div>
+                                  {r.errors?.length ? <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-xs">
+                                    <h4 className="font-black uppercase tracking-wider text-red-700">Run notes</h4>
+                                    <ul className="mt-2 list-disc space-y-1 pl-4 text-red-800">
+                                      {r.errors.map(error => <li key={error}>{error}</li>)}
+                                    </ul>
+                                  </div> : <div className="rounded-lg border border-teal-100 bg-teal-50 p-4 text-xs font-bold text-teal-800">
+                                    {r.status?.toLowerCase() === 'success' ? 'No errors — successful run.' : 'No errors recorded.'}
+                                  </div>}
                                 </td>
                               </tr>
                             )}
@@ -641,6 +949,7 @@ export function AdminDashboard() {
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
 
@@ -869,6 +1178,18 @@ export function AdminDashboard() {
             </div>
           </div>
         )}
+        {summaryDialogOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div><div className="text-lg font-black text-gray-900">Retry summaries</div><div className="mt-1 text-sm text-gray-500">Choose how many remaining rows to process in this run.</div></div>
+              <button onClick={() => setSummaryDialogOpen(false)} className="text-xl leading-none text-gray-400 hover:text-gray-700" aria-label="Close">×</button>
+            </div>
+            <label htmlFor="summary-limit" className="mt-5 block text-xs font-black uppercase tracking-wider text-gray-500">Rows to process</label>
+            <input id="summary-limit" type="number" min="1" max={summaryDialogMax} step="1" value={summaryLimitInput} onChange={event => { const value = event.target.value; const parsed = Number.parseInt(value, 10); setSummaryLimitInput(parsed > summaryDialogMax ? String(summaryDialogMax) : value); }} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-3 text-lg font-bold text-gray-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" autoFocus />
+            <div className="mt-2 text-xs text-gray-500">Maximum available: <span className="font-bold text-teal-700">{summaryDialogMax}</span> pending PDF summaries.</div>
+            <div className="mt-5 flex justify-end gap-3"><button onClick={() => setSummaryDialogOpen(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50">Cancel</button><button onClick={() => void submitSummaryRetry()} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700">Start retry</button></div>
+          </div>
+        </div>}
       </main>
     </div>
   );

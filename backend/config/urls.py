@@ -15,12 +15,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.urls import path, include
-from django.http import JsonResponse
+from django.http import HttpResponse
 
 from scraper.admin_site import regintel_admin_site
 
 def health_check(request):
-    return JsonResponse({"status": "healthy", "message": "Server is active"})
+    return HttpResponse("ok")
 
 urlpatterns = [
     path('health/', health_check, name='health_check'),

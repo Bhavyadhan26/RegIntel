@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 
 type TabType = 'overview' | 'sources' | 'data' | 'runs' | 'live_tracking' | 'feedback' | 'users';
-const currentDateFilter = new Date().toISOString().slice(0, 10);
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');

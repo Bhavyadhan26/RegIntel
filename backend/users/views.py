@@ -42,7 +42,7 @@ def set_auth_cookies(response, tokens):
         max_age=15 * 60,
         httponly=True,
         secure=True,
-        samesite='Lax'
+        samesite='None'
     )
     response.set_cookie(
         'refresh_token',
@@ -50,7 +50,7 @@ def set_auth_cookies(response, tokens):
         max_age=7 * 24 * 60 * 60,
         httponly=True,
         secure=True,
-        samesite='Lax'
+        samesite='None'
     )
 
 class CustomTokenRefreshView(TokenRefreshView):

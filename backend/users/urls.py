@@ -5,7 +5,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     RegisterView, LoginView, LogoutView, ProfileView,
     ChangePasswordView, FeedbackSubmitView,
-    ForgotPasswordView, ResetPasswordView,
+    ForgotPasswordView, ResetPasswordView, CustomTokenRefreshView,
 )
 
 from .admin_views import AdminUserViewSet, AdminProfessionalCategoryViewSet
@@ -18,7 +18,7 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='auth-register'),
     path('login/', LoginView.as_view(), name='auth-login'),
     path('logout/', LogoutView.as_view(), name='auth-logout'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='auth-token-refresh'),
+    path('token/refresh/', CustomTokenRefreshView.as_view(), name='auth-token-refresh'),
     path('profile/', ProfileView.as_view(), name='auth-profile'),
     path('change-password/', ChangePasswordView.as_view(), name='auth-change-password'),
     path('feedback/', FeedbackSubmitView.as_view(), name='auth-feedback-submit'),

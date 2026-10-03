@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
@@ -27,6 +28,7 @@ class RegisterSerializer(serializers.Serializer):
         validate_password(data['password'])
         return data
 
+    @transaction.atomic
     def create(self, validated_data):
         full_name = validated_data['full_name'].strip()
         first_name, *rest = full_name.split(' ', 1)

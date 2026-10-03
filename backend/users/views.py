@@ -11,7 +11,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from rest_framework_simplejwt.views import TokenRefreshView
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
 from scraper.management.commands.website_scraper import get_conn
 
 from .serializers import (
@@ -32,24 +35,66 @@ def _token_pair(user):
         'access': str(refresh.access_token),
     }
 
+def set_auth_cookies(response, tokens):
+    response.set_cookie(
+        'access_token',
+        tokens['access'],
+        max_age=15 * 60,
+        httponly=True,
+        secure=True,
+        samesite='Lax'
+    )
+    response.set_cookie(
+        'refresh_token',
+        tokens['refresh'],
+        max_age=7 * 24 * 60 * 60,
+        httponly=True,
+        secure=True,
+        samesite='Lax'
+    )
+
+class CustomTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        refresh = request.COOKIES.get('refresh_token')
+        if refresh and 'refresh' not in request.data:
+            request.data['refresh'] = refresh
+        
+        try:
+            response = super().post(request, *args, **kwargs)
+        except InvalidToken as e:
+            return Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        if response.status_code == 200:
+            access = response.data.get('access')
+            new_refresh = response.data.get('refresh') or refresh
+            tokens = {'access': access, 'refresh': new_refresh}
+            set_auth_cookies(response, tokens)
+        
+        return response
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         user = serializer.save()
-        return Response(
-            {'message': 'Account created successfully.', **_token_pair(user)},
+        tokens = _token_pair(user)
+        response = Response(
+            {'message': 'Account created successfully.', 'user': ProfileSerializer(user).data},
             status=status.HTTP_201_CREATED,
         )
+        set_auth_cookies(response, tokens)
+        return response
 
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request):
         email = request.data.get('email', '').lower().strip()
         password = request.data.get('password', '')
@@ -69,34 +114,42 @@ class LoginView(APIView):
             )
 
         profile_serializer = ProfileSerializer(user)
-        return Response(
-            {**_token_pair(user), 'user': profile_serializer.data},
+        tokens = _token_pair(user)
+        response = Response(
+            {'user': profile_serializer.data},
             status=status.HTTP_200_OK,
         )
+        set_auth_cookies(response, tokens)
+        return response
 
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        refresh_token = request.data.get('refresh')
-        if not refresh_token:
-            return Response({'detail': 'Refresh token required.'}, status=status.HTTP_400_BAD_REQUEST)
+        refresh_token = request.COOKIES.get('refresh_token') or request.data.get('refresh')
         
         # Blacklist token asynchronously so logout is instant for user.
         # This prevents slow DB writes from blocking the response.
         def blacklist_token():
+            from django.db import connection
             try:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
+                if refresh_token:
+                    token = RefreshToken(refresh_token)
+                    token.blacklist()
             except TokenError:
                 pass  # Ignore errors for background cleanup
+            finally:
+                connection.close()
         
         # Fire and forget - return immediately
         from threading import Thread
         Thread(target=blacklist_token, daemon=True).start()
         
-        return Response({'message': 'Logged out successfully.'}, status=status.HTTP_200_OK)
+        response = Response({'message': 'Logged out successfully.'}, status=status.HTTP_200_OK)
+        response.delete_cookie('access_token')
+        response.delete_cookie('refresh_token')
+        return response
 
 
 class ProfileView(APIView):
@@ -174,6 +227,7 @@ class FeedbackSubmitView(APIView):
 class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
 
+    @method_decorator(ratelimit(key='ip', rate='3/m', method='POST', block=True))
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
         if not serializer.is_valid():

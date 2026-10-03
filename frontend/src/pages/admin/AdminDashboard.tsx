@@ -833,7 +833,7 @@ export function AdminDashboard() {
                               <span className="font-bold text-gray-900">{site.website_name}</span>
                               <span className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${site.status === 'success' ? 'bg-teal-50 text-teal-700' : site.status === 'failed' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{site.status}</span>
                             </div>
-                            <div className="mt-2 text-xs text-gray-500">{site.stage || 'Waiting'}{site.current_url ? ` · ${site.current_url}` : ''}</div>
+                            <div className="mt-2 text-xs text-gray-500 break-all">{site.stage || 'Waiting'}{site.current_url ? ` · ${site.current_url}` : ''}</div>
                             {site.error_message && <div className="mt-2 truncate text-xs text-red-600" title={site.error_message}>{site.error_message}</div>}
                           </div>
                         ))}

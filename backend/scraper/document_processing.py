@@ -65,9 +65,12 @@ def _convert_pdf(pdf_path):
 
 
 def _groq_summary(markdown, model, timeout_seconds):
-    from groq import Groq
+    from groq import Groq, RateLimitError
 
-    client = Groq(timeout=timeout_seconds)
+    api_key = os.environ.get("GROQ_API_KEY")
+    fallback_api_key = os.environ.get("GROQ_API_KEY_FALLBACK")
+    client = Groq(timeout=timeout_seconds, api_key=api_key)
+
     max_input_chars = 12000
     bounded_markdown = markdown[:max_input_chars]
     if len(markdown) > max_input_chars:
@@ -92,12 +95,25 @@ def _groq_summary(markdown, model, timeout_seconds):
                 }
             )
         try:
-            completion = client.chat.completions.create(
-                model=model,
-                temperature=0,
-                response_format={"type": "json_object"},
-                messages=messages,
-            )
+            try:
+                completion = client.chat.completions.create(
+                    model=model,
+                    temperature=0,
+                    response_format={"type": "json_object"},
+                    messages=messages,
+                )
+            except RateLimitError as e:
+                if fallback_api_key:
+                    print(f"Groq RateLimitError caught. Using fallback API key. Error: {e}")
+                    fallback_client = Groq(timeout=timeout_seconds, api_key=fallback_api_key)
+                    completion = fallback_client.chat.completions.create(
+                        model=model,
+                        temperature=0,
+                        response_format={"type": "json_object"},
+                        messages=messages,
+                    )
+                else:
+                    raise e
         except Exception as exc:
             raise GroqProcessingError(f"Groq request failed: {exc}") from exc
         result = parse_provider_response(completion.choices[0].message.content)

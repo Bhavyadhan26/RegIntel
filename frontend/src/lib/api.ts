@@ -3,20 +3,18 @@ const BASE_URL = `${API_ROOT}/api/auth`;
 export const SCRAPER_BASE_URL = `${API_ROOT}/api/scraper`;
 
 function getAccessToken(): string | null {
-  return sessionStorage.getItem('access_token');
+  return null;
 }
 
 function getRefreshToken(): string | null {
-  return sessionStorage.getItem('refresh_token');
+  return null;
 }
 
-function saveTokens(access: string, refresh: string) {
-  sessionStorage.setItem('access_token', access);
-  sessionStorage.setItem('refresh_token', refresh);
-
-  // Cleanup legacy persistent tokens from older builds.
+function saveTokens(access?: string, refresh?: string) {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
+  sessionStorage.removeItem('access_token');
+  sessionStorage.removeItem('refresh_token');
 }
 
 function clearTokens() {
@@ -31,45 +29,29 @@ export function clearProfessionSensitiveCaches() {
   sessionStorage.removeItem('publications_cache');
 }
 
-async function refreshAccessToken(): Promise<string | null> {
-  const refresh = getRefreshToken();
-  if (!refresh) return null;
-
-  const res = await fetch(`${BASE_URL}/token/refresh/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh }),
-  });
-
-  if (!res.ok) {
-    clearTokens();
-    return null;
-  }
-
-  const data = await res.json();
-  saveTokens(data.access, data.refresh ?? refresh);
-  return data.access;
-}
-
 export async function apiFetch(path: string, options: RequestInit = {}, baseUrl = BASE_URL): Promise<Response> {
-  let access = getAccessToken();
-
-  const makeRequest = (token: string | null) =>
+  const makeRequest = () =>
     fetch(`${baseUrl}${path}`, {
       ...options,
+      credentials: "include",
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers ?? {}),
       },
     });
 
-  let response = await makeRequest(access);
+  let response = await makeRequest();
 
-  if (response.status === 401) {
-    access = await refreshAccessToken();
-    if (access) {
-      response = await makeRequest(access);
+  if (response.status === 401 && path !== '/login/' && path !== '/register/') {
+    const refreshRes = await fetch(`${BASE_URL}/token/refresh/`, {
+      method: 'POST',
+      credentials: "include",
+    });
+    
+    if (refreshRes.ok) {
+      response = await makeRequest();
+    } else {
+      clearTokens();
     }
   }
 
@@ -91,31 +73,28 @@ export async function apiRegister(payload: {
   });
   const data = await res.json();
   if (!res.ok) throw data;
-  saveTokens(data.access, data.refresh);
+  saveTokens();
   return data;
 }
 
 export async function apiLogin(email: string, password: string) {
   const res = await fetch(`${BASE_URL}/login/`, {
     method: 'POST',
+    credentials: "include",
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
   const data = await res.json();
   if (!res.ok) throw data;
-  saveTokens(data.access, data.refresh);
+  saveTokens();
   return data;
 }
 
 export async function apiLogout() {
-  const refresh = getRefreshToken();
   try {
-    if (refresh) {
-      await apiFetch('/logout/', {
-        method: 'POST',
-        body: JSON.stringify({ refresh }),
-      });
-    }
+    await apiFetch('/logout/', {
+      method: 'POST',
+    });
   } finally {
     // Always clear local auth state, even if backend logout fails.
     clearTokens();

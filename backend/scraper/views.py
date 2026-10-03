@@ -73,20 +73,7 @@ def _parse_due_date(raw_value: str) -> date | None:
 
 
 def _publication_sort_date_expression():
-	parsed_notice_date_variants = [
-		Func(F("notice_date"), Value("%Y-%m-%d"), function="STR_TO_DATE", output_field=DateTimeField()),
-		Func(F("notice_date"), Value("%d-%m-%Y"), function="STR_TO_DATE", output_field=DateTimeField()),
-		Func(F("notice_date"), Value("%d/%m/%Y"), function="STR_TO_DATE", output_field=DateTimeField()),
-		Func(F("notice_date"), Value("%d.%m.%Y"), function="STR_TO_DATE", output_field=DateTimeField()),
-		Func(F("notice_date"), Value("%b %d, %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
-		Func(F("notice_date"), Value("%B %d, %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
-		Func(F("notice_date"), Value("%d %b, %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
-		Func(F("notice_date"), Value("%d %B, %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
-		Func(F("notice_date"), Value("%d %b %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
-		Func(F("notice_date"), Value("%d %B %Y"), function="STR_TO_DATE", output_field=DateTimeField()),
-	]
-
-	return Coalesce(*parsed_notice_date_variants, F("created_at"), output_field=DateTimeField())
+	pass
 
 
 class PublicationListView(APIView):
@@ -165,9 +152,7 @@ class PublicationListView(APIView):
 				| Q(website_name__icontains=search)
 			)
 
-		queryset = queryset.annotate(
-			sort_date=_publication_sort_date_expression(),
-		).order_by("-sort_date", "-id")
+		queryset = queryset.order_by(F("notice_date").desc(nulls_last=True), "-created_at", "-id")
 		total = queryset.count()
 		offset = (page - 1) * page_size
 		rows = list(queryset[offset: offset + page_size + 1])
@@ -210,7 +195,7 @@ class PublicationListView(APIView):
 					"title": row.title,
 					"authority": row.website_name,
 					"summary": row.summary or "",
-					"notice_date": row.notice_date or "",
+					"notice_date": row.notice_date.isoformat() if row.notice_date else "",
 					"created_at": row.created_at.isoformat() if row.created_at else "",
 					"category": row.category or "",
 					"type": normalize_type(row.category),
@@ -308,7 +293,7 @@ class AlertListView(APIView):
 					"title": row.title,
 					"authority": row.website_name,
 					"summary": row.summary or "",
-					"notice_date": row.notice_date or "",
+					"notice_date": row.notice_date.isoformat() if row.notice_date else "",
 					"category": row.category or "",
 					"tag": detect_tag(row.category),
 					"url": preferred_url,
@@ -393,7 +378,7 @@ class DeadlineListView(APIView):
 			)
 
 		today = timezone.localdate()
-		rows = WebsiteScrapingData.objects.filter(website_name__in=source_names).order_by("-id")
+		rows = WebsiteScrapingData.objects.filter(website_name__in=source_names, due_date__gte=today).order_by("due_date", "-id")
 
 		results = []
 		urgent_count = 0
@@ -401,24 +386,16 @@ class DeadlineListView(APIView):
 		total_count = 0
 
 		for row in rows:
-			due = _parse_due_date(row.due_date or "")
-			if due is None:
-				continue
-
+			due = row.due_date
 			days_left = (due - today).days
-			if days_left < 0:
-				continue
 
 			if days_left <= 4:
 				status = "Urgent"
-				priority = 0
 				urgent_count += 1
 			elif days_left <= 10:
 				status = "Upcoming"
-				priority = 1
 			else:
 				status = "Normal"
-				priority = 2
 
 			if days_left <= 10:
 				this_week_count += 1
@@ -433,18 +410,15 @@ class DeadlineListView(APIView):
 					"title": row.title,
 					"category": row.category or "",
 					"website_name": row.website_name,
-					"body_date": row.notice_date or "",
+					"body_date": row.notice_date.isoformat() if row.notice_date else "",
 					"due_date": due.strftime("%d %b %Y"),
 					"days_left": days_left,
 					"status": status,
 					"url": preferred_url,
-					"_priority": priority,
 				}
 			)
 
-		results.sort(key=lambda item: (item["_priority"], item["days_left"], -int(item["id"])))
-		for item in results:
-			item.pop("_priority", None)
+
 
 		return Response(
 			{
@@ -523,28 +497,17 @@ class DashboardSummaryView(APIView):
 		).count()
 
 		# Card 3: deadline metrics from all websites
-		deadlines_active_count = 0
-		deadlines_week_with_due_count = 0
-
-		for row in all_rows:
-			due = _parse_due_date(row.due_date or "")
-			if due is None:
-				continue
-
-			if due >= today:
-				deadlines_active_count += 1
-
-			created_local_date = timezone.localtime(row.created_at, tz).date() if row.created_at else None
-			if created_local_date and created_local_date >= week_start and due >= today:
-				deadlines_week_with_due_count += 1
+		deadlines_active_count = all_rows.filter(due_date__gte=today).count()
+		deadlines_week_with_due_count = all_rows.filter(created_at__gte=week_start_dt, due_date__gte=today).count()
 
 		# Upcoming deadlines: user profession websites only, max 5, nearest due first
 		upcoming_items = []
-		for row in profession_rows:
-			due = _parse_due_date(row.due_date or "")
-			if due is None or due < today:
-				continue
-
+		upcoming_queryset = profession_rows.filter(due_date__gte=today).order_by("due_date", "-id")
+		total_upcoming = upcoming_queryset.count()
+		offset = (page - 1) * page_size
+		
+		for row in upcoming_queryset[offset: offset + page_size]:
+			due = row.due_date
 			days_left = (due - today).days
 			source_url = profession_source_urls.get((row.website_name or "").upper(), "")
 			preferred_url = (row.pdf_url or "").strip() or (row.detail_url or "").strip() or source_url
@@ -558,11 +521,7 @@ class DashboardSummaryView(APIView):
 					"url": preferred_url,
 				}
 			)
-
-		upcoming_items.sort(key=lambda item: (item["days_left"], -int(item["id"])))
-		total_upcoming = len(upcoming_items)
-		offset = (page - 1) * page_size
-		paginated_upcoming_items = upcoming_items[offset: offset + page_size]
+		
 		has_more_upcoming = offset + page_size < total_upcoming
 
 		last_run = (
@@ -584,7 +543,7 @@ class DashboardSummaryView(APIView):
 				},
 				"website_counts": website_counts,
 				"last_updated": last_run.isoformat() if last_run else None,
-				"upcoming_deadlines": paginated_upcoming_items,
+				"upcoming_deadlines": upcoming_items,
 				"upcoming_deadlines_total": total_upcoming,
 				"upcoming_deadlines_page": page,
 				"upcoming_deadlines_page_size": page_size,

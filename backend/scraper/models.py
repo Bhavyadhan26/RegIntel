@@ -63,15 +63,15 @@ class WebsiteScrapingSelector(models.Model):
 
 class WebsiteScrapingData(models.Model):
 	title = models.CharField(max_length=700)
-	category = models.CharField(max_length=64, default="Notification")
-	website_name = models.CharField(max_length=32)
+	category = models.CharField(max_length=64, default="Notification", db_index=True)
+	website_name = models.CharField(max_length=32, db_index=True)
 	detail_url = models.CharField(max_length=2048, null=True, blank=True)
-	notice_date = models.CharField(max_length=64, null=True, blank=True)
-	due_date = models.CharField(max_length=64, default="-")
+	notice_date = models.DateField(null=True, blank=True, db_index=True)
+	due_date = models.DateField(null=True, blank=True, db_index=True)
 	pdf_url = models.CharField(max_length=2048, null=True, blank=True)
 	processed = models.BooleanField(default=False)
 	summary = models.TextField(null=True, blank=True)
-	created_at = models.DateTimeField(null=True, blank=True)
+	created_at = models.DateTimeField(null=True, blank=True, db_index=True)
 	updated_at = models.DateTimeField(null=True, blank=True)
 
 	class Meta:

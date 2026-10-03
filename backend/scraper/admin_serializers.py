@@ -58,6 +58,7 @@ class WebsiteScrapingRunSerializer(serializers.ModelSerializer):
     def get_websites(self, obj):
         names = set(obj.site_details.values_list('website_name', flat=True))
         names.update(obj.site_stats.values_list('website_name', flat=True))
+        names.update(obj.site_progress.values_list('website_name', flat=True))
         return sorted(names)
 
     def get_errors(self, obj):

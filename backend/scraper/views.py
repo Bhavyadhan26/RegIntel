@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 
-from django.db.models import Case, DateTimeField, F, Func, Q, Value, When
+from django.db.models import Case, Count, DateTimeField, F, Func, Q, Value, When
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated

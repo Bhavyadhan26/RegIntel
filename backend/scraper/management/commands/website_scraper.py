@@ -715,7 +715,7 @@ def get_pending_pdf_rows(website_name=None, pdf_only=False):
                 WHERE (d.pdf_url IS NOT NULL OR d.detail_url IS NOT NULL)
                     AND (d.processed = 0 OR d.summary IS NULL)
                     AND d.id NOT IN (
-                        SELECT row_id FROM Website_Scraping_Item_Progress WHERE status = 'failed'
+                        SELECT data_id FROM Website_Scraping_Item_Progress WHERE status = 'failed' AND data_id IS NOT NULL
                     )
         """
     params = ()

@@ -17,10 +17,14 @@ import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 function App() {
   return (
     <AuthProvider>
+      <Analytics />
+      <SpeedInsights />
       <LogoutOverlay />
       <BrowserRouter>
         <ScrollToTop />

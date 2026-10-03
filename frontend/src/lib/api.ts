@@ -6,11 +6,9 @@ function getAccessToken(): string | null {
   return null;
 }
 
-function getRefreshToken(): string | null {
-  return null;
-}
 
-function saveTokens(access?: string, refresh?: string) {
+
+function saveTokens() {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   sessionStorage.removeItem('access_token');

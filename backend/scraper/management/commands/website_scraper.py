@@ -2431,8 +2431,17 @@ def process_all_pdfs(limit=None, website_name=None, pdf_only=False):
 
     def record_groq_failure(item_progress_id, row_id, error):
         nonlocal consecutive_groq_failures
+        error_str = str(error)
+        
+        # Stop immediately on severe API errors (rate limits or max token limits)
+        if "max completion tokens reached" in error_str or "json_validate_failed" in error_str or "Rate limit reached" in error_str or "Error code: 429" in error_str:
+            finish_item_progress(item_progress_id, "failed", "groq_summary", error_str)
+            request_cancel(get_conn())
+            print(f"  ⚠ Severe Groq API error encountered: {error_str}\n  Cancellation requested immediately.")
+            return True
+
         consecutive_groq_failures += 1
-        finish_item_progress(item_progress_id, "failed", "groq_summary", str(error))
+        finish_item_progress(item_progress_id, "failed", "groq_summary", error_str)
         print(
             f"  ✗ Groq failure streak: {consecutive_groq_failures}/{groq_failure_limit} "
             f"(row {row_id})"

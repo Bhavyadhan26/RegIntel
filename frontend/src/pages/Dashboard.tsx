@@ -672,24 +672,7 @@ export const Dashboard = () => {
             </FadeIn>
           </div>
 
-          <FadeIn delay={0.35} direction="up">
-            <Card className="mb-8">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-bold">Database rows by website</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                  {websiteCounts.map((site) => (
-                    <div key={site.website_name} className="rounded-lg border border-gray-200 bg-gray-50/70 px-4 py-3">
-                      <div className="truncate text-xs font-bold uppercase tracking-wide text-text-muted">{site.website_name}</div>
-                      <div className="mt-1 text-2xl font-black text-text-main">{isLoadingSummary ? '...' : site.total.toLocaleString()}</div>
-                    </div>
-                  ))}
-                  {!isLoadingSummary && websiteCounts.length === 0 && <div className="text-sm text-text-muted">No website rows found.</div>}
-                </div>
-              </CardContent>
-            </Card>
-          </FadeIn>
+
 
           {/* Upcoming Deadlines */}
           <FadeIn delay={0.4} direction="up">

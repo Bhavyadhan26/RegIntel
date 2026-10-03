@@ -15,7 +15,7 @@ import {
   Globe, Activity, RefreshCw, ChevronDown, ChevronUp, ChevronRight
 } from 'lucide-react';
 
-type TabType = 'overview' | 'sources' | 'data' | 'runs' | 'feedback' | 'users';
+type TabType = 'overview' | 'sources' | 'data' | 'runs' | 'live_tracking' | 'feedback' | 'users';
 const currentDateFilter = new Date().toISOString().slice(0, 10);
 
 export function AdminDashboard() {
@@ -56,8 +56,8 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [runWebsiteFilters, setRunWebsiteFilters] = useState<string[]>([]);
-  const [runStartDate, setRunStartDate] = useState(currentDateFilter);
-  const [runEndDate, setRunEndDate] = useState(currentDateFilter);
+  const [runStartDate, setRunStartDate] = useState('');
+  const [runEndDate, setRunEndDate] = useState('');
   const [websiteFilterOpen, setWebsiteFilterOpen] = useState(false);
   
   // Modal / Expanded State
@@ -169,7 +169,7 @@ export function AdminDashboard() {
   }, [activeTab, loadDataPage]);
 
   useEffect(() => {
-    if (activeTab !== 'runs' && activeTab !== 'overview') return;
+    if (activeTab !== 'runs' && activeTab !== 'overview' && activeTab !== 'live_tracking') return;
     let disposed = false;
     const refreshPipeline = async () => {
       try {
@@ -316,7 +316,7 @@ export function AdminDashboard() {
       if (!res.ok) {
         throw new Error(payload.detail || payload.message || `Trigger failed (${res.status})`);
       }
-      setActiveTab('runs');
+      setActiveTab('live_tracking');
       setActivityStartedAt(Date.now());
       void loadData(true);
       setActionNotice({
@@ -399,7 +399,7 @@ export function AdminDashboard() {
         ...(run.errors || []),
       ].filter(Boolean).join(' ').toLowerCase();
       const matchesText = !query || searchable.includes(query);
-      const matchesWebsite = !runWebsiteFilters.length || runWebsiteFilters.some(website => (run.websites || []).includes(website));
+      const matchesWebsite = !runWebsiteFilters.length || !(run.websites?.length) || runWebsiteFilters.some(website => (run.websites || []).includes(website));
       const runDate = new Date(run.started_at).toISOString().slice(0, 10);
       const matchesDate = (!runStartDate || runDate >= runStartDate) && (!runEndDate || runDate <= runEndDate);
       return matchesText && matchesWebsite && matchesDate;
@@ -433,6 +433,7 @@ export function AdminDashboard() {
             { id: 'overview', icon: Activity, label: 'Dashboard' },
             { id: 'sources', icon: Globe, label: 'Sources & Selectors' },
             { id: 'data', icon: Database, label: 'Scraped Data' },
+            { id: 'live_tracking', icon: Activity, label: 'Live Tracking' },
             { id: 'runs', icon: Settings, label: 'Pipeline Logs' },
             { id: 'feedback', icon: MessageSquare, label: 'User Feedback' },
             { id: 'users', icon: Users, label: 'Users & Profiles' },
@@ -465,32 +466,14 @@ export function AdminDashboard() {
         {/* TOP HEADER */}
         <header className="bg-white border-b border-gray-200 px-8 py-5 flex items-center justify-between shrink-0 shadow-sm z-0 relative">
           <h2 className="text-xl font-bold text-gray-800 capitalize tracking-tight">
-            {activeTab.replace('-', ' ')}
+            {activeTab === 'runs' ? 'Pipeline Logs' : activeTab.replace(/[-_]/g, ' ')}
           </h2>
           
-          <div className="flex items-center gap-4">
+          <div className={`flex items-center gap-4 ${loading ? 'pointer-events-none opacity-50' : ''}`}>
             <button onClick={refreshCurrentTab} disabled={refreshingTab} className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 shadow-sm transition hover:border-teal-400 hover:text-teal-700 disabled:cursor-wait disabled:opacity-60" title="Refresh this page's data">
               <RefreshCw className={`h-4 w-4 ${refreshingTab ? 'animate-spin' : ''}`} /> {refreshingTab ? 'Refreshing...' : 'Refresh'}
             </button>
-            {/* Contextual Top Actions */}
-            {activeTab !== 'overview' && activeTab !== 'sources' && (
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder={activeTab === 'runs' ? 'Search status, activity, website, or error...' : `Search ${activeTab}...`} 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 border border-gray-200 rounded-full text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#116d64]/50 focus:border-[#116d64] transition-all w-64"
-                />
-              </div>
-            )}
-            
-            {activeTab === 'feedback' && (
-              <button onClick={exportFeedbackCSV} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold rounded-full shadow-sm transition-colors">
-                <Download className="w-4 h-4" /> Export CSV
-              </button>
-            )}
+
             {activeTab === 'overview' && (
               <div className="flex items-center gap-2">
                 <button onClick={() => triggerRun(undefined, true)} className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-teal-50 border border-teal-200 text-teal-800 text-sm font-bold rounded-full shadow-sm transition-colors">
@@ -801,13 +784,18 @@ export function AdminDashboard() {
                 </div>
               )}
 
-              {/* RUNS TAB WITH INLINE DETAILS */}
-              {activeTab === 'runs' && (
+              {/* LIVE TRACKING TAB */}
+              {activeTab === 'live_tracking' && (
                 <div className="space-y-5 p-5">
+                  {pipelineStatus?.run?.status === 'running' || pipelineStatus?.run?.status === 'queued' ? null : (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm font-bold text-blue-800 shadow-sm">
+                      Nothing running right now, showing details of the last trigger.
+                    </div>
+                  )}
                   <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-5">
-                    <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-start">
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
                       <div>
-                        <div className="text-xs font-bold uppercase tracking-wider text-teal-700">Live pipeline tracking</div>
+                        <div className="text-xs font-bold uppercase tracking-wider text-teal-700">{pipelineStatus?.run?.status === 'running' || pipelineStatus?.run?.status === 'queued' ? 'Live pipeline tracking' : 'Last pipeline run'}</div>
                         <div className="mt-1 text-2xl font-black text-gray-900">
                           {pipelineStatus?.run ? pipelineStatus.run.status.replace('_', ' ') : 'No run recorded'}
                         </div>
@@ -826,7 +814,7 @@ export function AdminDashboard() {
                       </>
                     )}
                     {pipelineSites.length ? (
-                      <div className="mt-5 grid gap-3 md:grid-cols-2">
+                      <div className="mt-5 grid gap-3 grid-cols-1">
                         {pipelineSites.map(site => (
                           <div key={site.website_name} className="rounded-lg border border-white bg-white p-3 shadow-sm">
                             <div className="flex items-center justify-between gap-3">
@@ -839,9 +827,19 @@ export function AdminDashboard() {
                         ))}
                       </div>
                     ) : <div className="mt-4 text-sm text-gray-500">Start a run from the Dashboard to track each website here.</div>}
+                    
+                    {pipelineItems.length ? (
+                      <details className="mt-5 overflow-x-auto rounded-lg border border-gray-200 bg-white group" open>
+                        <summary className="list-none [&::-webkit-details-marker]:hidden border-b border-gray-100 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-500 cursor-pointer hover:bg-gray-50">Live item log <ChevronDown className="w-4 h-4 inline ml-2 group-open:rotate-180 transition-transform" /></summary>
+                        <div className="p-2">
+                          <table className="w-full text-left text-xs"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-4 py-2">Website</th><th className="px-4 py-2">Item</th><th className="px-4 py-2">Stage</th><th className="px-4 py-2">Status</th><th className="px-4 py-2">Error</th></tr></thead><tbody className="divide-y divide-gray-100">{pipelineItems.slice(0, 50).map((item, index) => <tr key={`${item.data_id}-${index}`}><td className="px-4 py-2 font-bold">{item.website_name}</td><td className="px-4 py-2">#{item.data_id ?? '-'}</td><td className="px-4 py-2">{item.stage}</td><td className="px-4 py-2">{item.status}</td><td className="max-w-md truncate px-4 py-2 text-red-600" title={item.error_message || ''}>{item.error_message || '-'}</td></tr>)}</tbody></table>
+                        </div>
+                      </details>
+                    ) : null}
+
                     {pipelineFailures.length ? (
-                      <div className="mt-5 rounded-lg border border-red-100 bg-red-50 p-4">
-                        <div className="text-xs font-bold uppercase tracking-wider text-red-700">Unique failure reasons</div>
+                      <details className="mt-5 rounded-lg border border-red-100 bg-red-50 p-4 group" open>
+                        <summary className="list-none [&::-webkit-details-marker]:hidden text-xs font-bold uppercase tracking-wider text-red-700 cursor-pointer hover:text-red-900">Unique failure reasons <ChevronDown className="w-4 h-4 inline ml-2 group-open:rotate-180 transition-transform" /></summary>
                         <div className="mt-3 space-y-2">
                           {pipelineFailures.map(failure => (
                             <div key={failure.reason} className="rounded border border-red-100 bg-white p-3 text-xs">
@@ -851,31 +849,50 @@ export function AdminDashboard() {
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </details>
                     ) : null}
-                    {pipelineItems.length ? (
-                      <div className="mt-5 overflow-x-auto rounded-lg border border-gray-200 bg-white">
-                        <div className="border-b border-gray-100 px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-500">Live item log</div>
-                        <table className="w-full text-left text-xs"><thead className="bg-gray-50 text-gray-500"><tr><th className="px-4 py-2">Website</th><th className="px-4 py-2">Item</th><th className="px-4 py-2">Stage</th><th className="px-4 py-2">Status</th><th className="px-4 py-2">Error</th></tr></thead><tbody className="divide-y divide-gray-100">{pipelineItems.slice(0, 50).map((item, index) => <tr key={`${item.data_id}-${index}`}><td className="px-4 py-2 font-bold">{item.website_name}</td><td className="px-4 py-2">#{item.data_id ?? '-'}</td><td className="px-4 py-2">{item.stage}</td><td className="px-4 py-2">{item.status}</td><td className="max-w-md truncate px-4 py-2 text-red-600" title={item.error_message || ''}>{item.error_message || '-'}</td></tr>)}</tbody></table>
-                      </div>
-                    ) : null}
+                  </div>
+                </div>
+              )}
+
+              {/* RUNS TAB */}
+              {activeTab === 'runs' && (
+                <div className="space-y-5 p-5">
+                  <div className="w-full mb-2">
+                    <div className="relative">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input 
+                        type="text" 
+                        disabled={loading}
+                        placeholder="Search status, activity, website, or error..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#116d64]/50 focus:border-[#116d64] transition-all shadow-sm"
+                      />
+                    </div>
                   </div>
                   <div className="rounded-xl border border-gray-200 bg-gradient-to-r from-white via-teal-50/30 to-white p-4 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <div className="text-sm font-black text-gray-900">Filter pipeline logs</div>
-                        <div className="mt-1 text-xs text-gray-500">Search, choose websites, or select a run date.</div>
+                        <div className="mt-1 text-xs text-gray-500">Choose websites or select a run date.</div>
                       </div>
                       {(runWebsiteFilters.length > 0 || runStartDate || runEndDate || searchTerm) && <button onClick={() => { setRunWebsiteFilters([]); setRunStartDate(''); setRunEndDate(''); setSearchTerm(''); }} className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition hover:border-teal-400 hover:text-teal-700">Clear all</button>}
                     </div>
                     <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
                       <div className="relative min-w-[260px] flex-1">
-                        <div className="mb-2 flex items-center justify-between"><div className="text-[11px] font-black uppercase tracking-wider text-gray-500">Website</div><div className="text-[11px] font-bold text-teal-700">{runWebsiteFilters.length ? `${runWebsiteFilters.length} selected` : 'All websites'}</div></div>
+                        <div className="mb-2 flex items-center justify-between"><div className="text-[11px] font-black uppercase tracking-wider text-gray-500">Website</div>{runWebsiteFilters.length > 0 && <div className="text-[11px] font-bold text-teal-700">{runWebsiteFilters.length} selected</div>}</div>
                         <button type="button" onClick={() => setWebsiteFilterOpen(open => !open)} className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-left text-sm font-semibold text-gray-700 shadow-sm transition hover:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-100">
                           <span>{runWebsiteFilters.length ? runWebsiteFilters.join(', ') : 'Select websites'}</span>
                           <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${websiteFilterOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {websiteFilterOpen && <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 shadow-xl">
+                          {runWebsiteOptions.length > 0 && (
+                            <div className="flex justify-between items-center px-3 py-2 border-b border-gray-100">
+                              <button onClick={() => setRunWebsiteFilters(runWebsiteOptions)} className="text-xs font-bold text-teal-600 hover:text-teal-800">Select All</button>
+                              <button onClick={() => setRunWebsiteFilters([])} className="text-xs font-bold text-gray-500 hover:text-gray-700">Clear</button>
+                            </div>
+                          )}
                           {runWebsiteOptions.map(website => (
                             <label key={website} className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-teal-50">
                               <input type="checkbox" checked={runWebsiteFilters.includes(website)} onChange={event => setRunWebsiteFilters(current => event.target.checked ? [...current, website] : current.filter(item => item !== website))} className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
@@ -896,6 +913,9 @@ export function AdminDashboard() {
                     <thead className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
                       <tr>
                         <th className="py-4 px-6">Run ID</th>
+                        <th className="py-4 px-6">Date</th>
+                        <th className="py-4 px-6">Start Time</th>
+                        <th className="py-4 px-6">End Time</th>
                         <th className="py-4 px-6">Status</th>
                         <th className="py-4 px-6">Activity / Website</th>
                         <th className="py-4 px-6">Time Taken</th>
@@ -910,13 +930,16 @@ export function AdminDashboard() {
                           <React.Fragment key={r.id}>
                             <tr className={`hover:bg-gray-50 transition-colors ${isExpanded ? 'bg-gray-50' : ''}`}>
                               <td className="py-3 px-6 font-mono text-gray-500 font-medium">#{r.id}</td>
+                              <td className="py-3 px-6 text-gray-600 font-medium">{new Date(r.started_at).toLocaleDateString()}</td>
+                              <td className="py-3 px-6 text-gray-600 font-medium">{new Date(r.started_at).toLocaleTimeString()}</td>
+                              <td className="py-3 px-6 text-gray-600 font-medium">{r.finished_at ? new Date(r.finished_at).toLocaleTimeString() : '—'}</td>
                               <td className="py-3 px-6">
                                 <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${r.status === 'SUCCESS' ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-600/20' : r.status === 'FAILED' ? 'bg-red-50 text-red-700 ring-1 ring-red-600/20' : 'bg-gray-100 text-gray-700 ring-1 ring-gray-300'}`}>
                                   {r.status || 'UNKNOWN'}
                                 </span>
                               </td>
-                              <td className="py-3 px-6 text-gray-600"><div className="font-semibold text-gray-900">{r.activity || r.action || 'full'}</div><div className="text-xs">{r.websites?.join(', ') || '—'}</div></td>
-                              <td className="py-3 px-6 text-gray-600"><div className="font-semibold text-gray-900">{r.duration_display || '0:00:00'}</div><div className="text-xs">{new Date(r.started_at).toLocaleString()}</div></td>
+                              <td className="py-3 px-6 text-gray-600"><div className="font-semibold text-gray-900">{r.activity || r.action || 'full'}</div><div className="text-xs">{r.websites?.length ? r.websites.join(', ') : 'All Websites (Full Run)'}</div></td>
+                              <td className="py-3 px-6 font-semibold text-gray-900">{r.duration_display || '0:00:00'}</td>
                               <td className="py-3 px-6 font-bold text-gray-900">{r.total_new_rows} / {r.metrics?.processed ?? r.summary_success ?? 0} / {r.metrics?.failed ?? r.summary_failed ?? 0}</td>
                               <td className="py-3 px-6 text-right">
                                 <button 
@@ -955,7 +978,24 @@ export function AdminDashboard() {
 
               {/* FEEDBACK TAB */}
               {activeTab === 'feedback' && (
-                <div className="overflow-x-auto">
+                <div className="flex flex-col space-y-4 p-5">
+                  <div className="flex items-center gap-4 w-full">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input 
+                        type="text" 
+                        disabled={loading}
+                        placeholder="Search feedback..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#116d64]/50 focus:border-[#116d64] transition-all"
+                      />
+                    </div>
+                    <button onClick={exportFeedbackCSV} disabled={loading || filteredFeedback.length === 0} className="flex shrink-0 items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                      <Download className="w-4 h-4" /> Export CSV
+                    </button>
+                  </div>
+                <div className="overflow-x-auto border border-gray-200 rounded-xl">
                   <table className="w-full text-left text-sm border-collapse">
                     <thead className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
                       <tr>
@@ -989,6 +1029,7 @@ export function AdminDashboard() {
                       )}
                     </tbody>
                   </table>
+                </div>
                 </div>
               )}
 

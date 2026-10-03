@@ -216,13 +216,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     *(_get_csv_env(
         'CORS_ALLOWED_ORIGINS',
-        'http://localhost:5173,http://127.0.0.1:5173,https://regintel-ten.vercel.app',
+        'http://localhost:5173,http://127.0.0.1:5173,https://regintel-plum.vercel.app',
     )),
 ]
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = _get_csv_env(
     'CSRF_TRUSTED_ORIGINS',
-    'http://localhost:8000,http://127.0.0.1:8000,https://regintel-ten.vercel.app',
+    'http://localhost:8000,http://127.0.0.1:8000,https://regintel-plum.vercel.app',
 )
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
